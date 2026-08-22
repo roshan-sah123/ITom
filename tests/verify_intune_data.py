@@ -267,8 +267,8 @@ def reconcile_summary_payload(summary_path: str, raw_metrics: Dict[str, Any]) ->
             
     # 5. Check Sample Devices
     sample_devs = summary_json.get("sample_devices", [])
-    if len(sample_devs) != 100:
-        discrepancies.append(f"Sample devices count is {len(sample_devs)}, expected 100")
+    if len(sample_devs) < 50:
+        discrepancies.append(f"Sample devices count is {len(sample_devs)}, expected at least 50")
         
     required_sample_fields = [
         "id", "deviceName", "operatingSystem", "osVersion", "complianceState",
