@@ -28,7 +28,7 @@ logger = logging.getLogger("itom_daemon")
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SYNC_SCRIPT = os.path.join(PROJECT_ROOT, "scripts", "run_sync.py")
 
-INTERVAL_SECONDS = 30 * 60  # 30 Minutes
+INTERVAL_SECONDS = 10 * 60  # 10 Minutes
 
 def execute_sync():
     logger.info("=== Starting Scheduled 30-Minute Telemetry Extraction ===")

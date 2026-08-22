@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 """ITOM On-Premise Production Server & Auto-Sync Supervisor.
 
 Runs:
@@ -33,7 +33,7 @@ logger = logging.getLogger("itom_server")
 
 PORT = 8080
 HOST = "0.0.0.0"
-INTERVAL_SECONDS = 30 * 60  # 30 minutes
+INTERVAL_SECONDS = 10 * 60  # 10 minutes
 
 class ThreadingHTTPServer(ThreadingMixIn, HTTPServer):
     daemon_threads = True

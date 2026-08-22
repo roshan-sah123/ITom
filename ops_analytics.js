@@ -1135,10 +1135,10 @@
   }
 
   // =========================================================================
-  // AUTOMATED 30-MINUTE RECURRING TELEMETRY REFRESH ENGINE
+  // AUTOMATED 10-MINUTE RECURRING TELEMETRY REFRESH ENGINE
   // =========================================================================
 
-  const AUTO_REFRESH_INTERVAL_SECONDS = 30 * 60; // 30 Minutes
+  const AUTO_REFRESH_INTERVAL_SECONDS = 10 * 60; // 10 Minutes
   let remainingSeconds = AUTO_REFRESH_INTERVAL_SECONDS;
   let timerInterval = null;
 
