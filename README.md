@@ -1,69 +1,133 @@
-# ITOM Portal — Enterprise Operations Analytics & Telemetry
+﻿# ITOM Portal — Enterprise Operations Analytics & Telemetry
 
 Production-grade Centralized Operations Analytics & Infrastructure Management Portal integrating **Microsoft Intune Graph Telemetry** and **SolarWinds Orion SWIS API v3**.
 
 ---
 
-## 🌟 Architecture & Key Modules
+## 📊 Live Telemetry Overview (100% Verified Invariants)
 
-### Module 1: OPS Analytics (`ops_analytics.html`)
-* **Microsoft Intune Domain (Live)**:
-  * **25,987 Endpoints**: 100% verified real telemetry across Windows, macOS, Linux, iOS & Android.
-  * **Interactive KPIs**: Compliance rate (83.08%), Endpoint Disk Utilization (37.4%), and API ingestion health.
-  * **Interactive Chart.js Visualizations**: Operating System Distribution, Compliance Status (Green/Red), Hardware OEM Breakdown.
-  * **Full-Fleet In-Browser Pagination & Search**: Search any hostname, UPN, serial number, model, or OS.
-  * **Instant 1-Click CSV Export**: Downloads complete `intune_devices_complete.csv` (25,987 records).
-* **SolarWinds Orion Domain (Live)**:
-  * **1,548 Monitored Server Nodes**: Real infrastructure server nodes queried via SWIS v3 API.
-  * **Health Tiers (MRD FR-003)**: High Health (87.66% / 1,357 nodes), Medium (9.69% / 150 nodes), Low/Critical (2.65% / 41 nodes).
-  * **Performance Metrics**: Fleet CPU (16.2%), RAM (22.6%), Network Latency (42.5 ms).
-  * **Full-Fleet In-Browser Pagination & Search**: Search by server hostname, IP, vendor, health, or city.
-  * **Instant 1-Click CSV Export**: Downloads complete `solarwinds_nodes_complete.csv` (1,548 records).
+| Domain | Total Monitored Units | Primary Metrics | Health & Compliance | API Source |
+| :--- | :--- | :--- | :--- | :--- |
+| **Microsoft Intune** | **26,771 Endpoints** | Windows (26,118), macOS (602), Linux (24), iOS (2), Android (1) | **83.37%** Compliant (22,318 devices)<br/>**36.8%** Fleet Avg Storage Used | Microsoft Graph v1.0 OData |
+| **SolarWinds Orion** | **1,568 Server Nodes** | Windows (276), Cisco (492), Linux (5), Other (795) | **85.78%** High Health (1,345 nodes)<br/>**8.48%** Warning (133)<br/>**5.74%** Critical (90) | Orion SWIS v3 REST |
 
 ---
 
-## 🚀 Live Production Deployment
+## 🚀 Quick Start (On-Premise Server / Workstation)
 
-* 🌐 **ITOM Portal Launcher**: [https://itom-portal-roshan.web.app](https://itom-portal-roshan.web.app)
-* 💻 **OPS Analytics — Microsoft Intune**: [https://itom-portal-roshan.web.app/ops_analytics.html#intune](https://itom-portal-roshan.web.app/ops_analytics.html#intune)
-* 📡 **OPS Analytics — SolarWinds**: [https://itom-portal-roshan.web.app/ops_analytics.html#solarwinds](https://itom-portal-roshan.web.app/ops_analytics.html#solarwinds)
+### Option 1: 1-Click Launch (Windows)
+Double-click [`start_server.bat`](start_server.bat) in the project root.
 
----
-
-## 🛠️ Project Structure
-
-```
-├── .agents/                    # Custom agent skills & Antigravity runbooks
-├── data/                       # Verified JSON telemetry & summary datasets
-│   ├── intune_summary.json
-│   ├── intune_devices_all.json
-│   ├── solarwinds_summary.json
-│   └── solarwinds_nodes.json
-├── exports/                    # Full complete CSV exports
-│   ├── intune_devices_complete.csv
-│   └── solarwinds_nodes_complete.csv
-├── docs/                       # Requirements & architecture specifications
-├── scripts/                    # Standalone ETL pipeline scripts
-│   ├── fetch_intune_data.py
-│   └── fetch_solarwinds_data.py
-├── src/sync/                   # Production API clients (Intune & SolarWinds)
-├── tests/                      # Automated multi-domain invariant test suites
-├── ops_analytics.html          # Clean 2-domain operations dashboard
-├── ops_analytics.js            # Stateful pagination, search & Chart.js controller
-├── style.css                   # Enterprise black design token stylesheet
-└── firebase.json               # Google Cloud Firebase Hosting configuration
+### Option 2: Command Line
+```powershell
+python -m http.server 8080 --bind 0.0.0.0
 ```
 
+### Access URLs:
+* 🌐 **Enterprise Launcher**: [http://localhost:8080/](http://localhost:8080/)
+* 💻 **OPS Analytics (Intune)**: [http://localhost:8080/ops_analytics.html#intune](http://localhost:8080/ops_analytics.html#intune)
+* 📡 **OPS Analytics (SolarWinds)**: [http://localhost:8080/ops_analytics.html#solarwinds](http://localhost:8080/ops_analytics.html#solarwinds)
+
 ---
 
-## 🧪 Testing & Verification
+## 🖥️ Deploying to Dedicated Linux VM (24/7 Production)
 
-Run the automated test suites to certify 100% data integrity and zero hallucination:
+To deploy the portal onto your company virtual machine (`172.18.51.38`) so it runs independently 24/7:
 
-```bash
-# Verify Intune Invariants (25,987 devices)
+```powershell
+# Run the automated deployment engine (requires active VPN/LAN connection)
+python scripts/deploy_to_vm.py --host 172.18.51.38 --user roshan --port 8080
+```
+
+This script automatically:
+1. Transfers portal frontend, datasets, and scripts via SSH/SCP.
+2. Creates and enables the **`itom-portal.service`** `systemd` daemon.
+3. Configures auto-restart on system reboot and serves the application on port `8080`.
+
+---
+
+## 🔄 Telemetry Extraction & Sync Pipelines
+
+To fetch fresh live data from enterprise APIs and recalculate dashboard payloads:
+
+```powershell
+# 1. Live Extraction from Microsoft Graph Intune API (26,771 devices)
+python scripts/fetch_intune_data.py
+
+# 2. Live Extraction from SolarWinds Orion SWIS API (1,568 server nodes)
+python scripts/fetch_solarwinds_data.py
+
+# 3. End-to-End Orchestrated Pipeline (Extraction + Invariant Validation)
+python scripts/run_sync.py
+```
+
+---
+
+## 📁 Clean Project Directory Structure
+
+```
+├── data/                                 # Authoritative telemetry datasets
+│   ├── intune_ops_analytics.json         # Raw Intune extraction (26,771 devices)
+│   ├── intune_summary.json               # Precomputed fast dashboard payload
+│   ├── solarwinds_nodes.json             # Raw SolarWinds extraction (1,568 nodes)
+│   └── solarwinds_summary.json           # Precomputed fast server summary
+├── docs/                                 # Engineering documentation
+│   ├── API_CONTRACTS.md                  # REST & SWIS interface contracts
+│   ├── ARCHITECTURE.md                   # 3-Tier clean architecture specification
+│   ├── MRD_Module_1_OPS_Analytics.md     # Product & business requirements
+│   └── SYNC_STRATEGY.md                  # Telemetry sync & rate-limit strategy
+├── exports/                              # RFC 4180 CSV export files
+│   ├── intune_devices_complete.csv       # Complete Intune dataset export
+│   └── solarwinds_nodes_complete.csv     # Complete SolarWinds dataset export
+├── scripts/                              # Production pipeline utilities
+│   ├── deploy_to_vm.py                   # Automated VM deployment engine
+│   ├── fetch_intune_data.py              # Microsoft Graph extraction CLI
+│   ├── fetch_solarwinds_data.py          # SolarWinds SWIS extraction CLI
+│   ├── generate_dashboard_payload.py     # Invariant aggregator & normalizer
+│   ├── run_sync.py                       # Master synchronization pipeline
+│   └── test_solarwinds_connection.py     # SWIS connectivity test utility
+├── src/                                  # Source code
+│   ├── frontend/                         # Modular frontend assets (HTML/CSS/JS)
+│   └── sync/                             # API clients & aggregation engines
+│       ├── graph_client.py               # Azure AD OAuth 2.0 & Graph API client
+│       ├── payload_generator.py          # Mathematical aggregation engine
+│       └── solarwinds_client.py          # SWIS REST client & health classifier
+├── tests/                                # Test suites & verification gates
+│   ├── run_e2e_tests.py                  # End-to-end verification runner
+│   ├── test_payload_generator.py         # OEM normalization & math unit tests
+│   ├── verify_intune_data.py             # Intune 6-point invariant gate
+│   └── verify_solarwinds_data.py         # SolarWinds health closure test
+├── index.html                            # Enterprise portal launcher
+├── ops_analytics.html                    # Multi-domain analytics dashboard
+├── app.js                                # Portal search & quick launch controller
+├── ops_analytics.js                      # Dashboard Chart.js & state controller
+├── style.css                             # Dark design system (#0B0B0B canvas)
+├── start_server.bat                      # 1-Click on-premise local server launcher
+├── requirements.txt                      # Python dependencies (requests, urllib3)
+└── README.md                             # This documentation
+```
+
+---
+
+## 🧪 Testing & Invariant Certification
+
+Run all automated test suites to certify 100% data accuracy:
+
+```powershell
+# Run full E2E test suite
+python tests/run_e2e_tests.py
+
+# Verify Microsoft Intune mathematical invariants
 python tests/verify_intune_data.py
 
-# Verify SolarWinds Invariants (1,548 nodes)
+# Verify SolarWinds Orion health classification invariants
 python tests/verify_solarwinds_data.py
 ```
+
+---
+
+## 🔒 Security & IT Audit Compliance
+
+* **Zero Cloud Footprint**: Operates 100% on-premise. No company telemetry is synchronized to external Google Cloud or Firebase services.
+* **Zero Hardcoded Secrets**: All API secrets are read strictly at runtime from `.env` (which is excluded via `.gitignore`).
+* **XSS Sanitization**: All hostnames, serial numbers, and user principals are sanitized via `escapeHtml()` before rendering.

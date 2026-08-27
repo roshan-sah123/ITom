@@ -9,9 +9,7 @@ itom_cron.log
 itom_server.log
 
 # Telemetry Datasets & Employee Export Protection
-data/intune_ops_analytics.json
-data/intune_devices_all.json
-data/solarwinds_nodes.json
-data/solarwinds_deep_research.json
+data/*.json
+!data/.gitkeep
 exports/*.csv
 *.log
