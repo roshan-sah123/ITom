@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 """Automated Deployment Engine: ITOM Portal to On-Premise Linux VM.
 
 Deploys portal files, sets up 24/7 web server (systemd / Nginx),
@@ -12,7 +12,7 @@ import subprocess
 import time
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SSH_KEY_PATH = os.path.join(os.path.expanduser("~"), ".ssh", "coforge_itom_deploy")
+SSH_KEY_PATH = os.getenv("SSH_KEY_PATH", os.path.join(os.path.expanduser("~"), ".ssh", "id_rsa"))
 
 def run_ssh(host, user, cmd, key_path=None):
     ssh_cmd = ["ssh", "-o", "StrictHostKeyChecking=no", "-o", "ConnectTimeout=10"]
@@ -24,8 +24,8 @@ def run_ssh(host, user, cmd, key_path=None):
 
 def main():
     parser = argparse.ArgumentParser(description="Deploy ITOM Portal to Remote VM")
-    parser.add_argument("--host", default="172.18.51.38", help="Target VM IP")
-    parser.add_argument("--user", default="roshan", help="SSH Username")
+    parser.add_argument("--host", default=os.getenv("LOCAL_SERVER_IP", "127.0.0.1"), help="Target VM IP")
+    parser.add_argument("--user", default=os.getenv("LOCAL_SERVER_USER", "admin"), help="SSH Username")
     parser.add_argument("--port", type=int, default=8080, help="Portal Web Port")
     args = parser.parse_args()
 

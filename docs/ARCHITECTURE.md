@@ -62,7 +62,7 @@ The system is structured as a decoupled, 3-tier architecture adhering to Clean A
 - **`ops_analytics.html` & `ops_analytics.js`**: Multi-domain dashboard featuring:
   - **Overview**: Executive consolidated health pane.
   - **Microsoft Intune (Live)**: 25,987 endpoint telemetry, live KPI cards, OS distribution doughnut, compliance bar charts, manufacturer OEM distribution, real-time searchable device table, and RFC 4180 CSV dataset export.
-  - **SolarWinds (Pending)**: Orion health monitoring bridge (`gnoc.coforge.com:17774`).
+  - **SolarWinds (Pending)**: Orion health monitoring bridge (`orion-swis.internal.corp:17774`).
   - **Network & CMDB**: Building-wise network topologies and CMDB asset linkage.
   - **DEX Metrics**: Digital Employee Experience ratings and endpoint resource utilization.
 - **`style.css`**: Design system tokens (`#0B0B0B` dark canvas, `#F97316` brand accent, `#22C55E` success indicators, `#EF4444` danger alerts).

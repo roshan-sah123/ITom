@@ -124,7 +124,7 @@ class SolarWindsClient:
             password: SWIS password (defaults to SOLARWINDS_PASSWORD env).
             timeout: HTTP request timeout in seconds.
         """
-        self.host = host or os.getenv("SOLARWINDS_HOST", "gnoc.coforge.com")
+        self.host = host or os.getenv("SOLARWINDS_HOST", "localhost")
         self.port = str(port or os.getenv("SOLARWINDS_PORT", "17774"))
         self.username = username or os.getenv("SOLARWINDS_USERNAME")
         self.password = password or os.getenv("SOLARWINDS_PASSWORD")

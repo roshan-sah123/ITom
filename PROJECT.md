@@ -34,7 +34,7 @@ Every feature identified during the Survey phase is mapped to an implementation 
 | 7 | Searchable Device Table | Fast client-side filtering matching deviceName, UPN, serial, model, OS | M3 | R1 |
 | 8 | Complete CSV Dataset Export | Client-side RFC 4180 CSV export capability for complete device telemetry | M3 | R1, FR-006 |
 | 9 | Multi-Domain Overview Panel | Unified executive pane aggregating telemetry across all 5 operational sections | M3 | R1, MRD |
-| 10 | SolarWinds Operational Panel | Orion server health, node availability, gateway status (`gnoc.coforge.com:17774`) | M3 | R1, MRD |
+| 10 | SolarWinds Operational Panel | Orion server health, node availability, gateway status (`orion-swis.internal.corp:17774`) | M3 | R1, MRD |
 | 11 | Network & CMDB Panel | Building-wise network infrastructure, switch/router uplinks, and CMDB audit status | M3 | R1, MRD |
 | 12 | DEX Metrics Panel | Digital Employee Experience score, endpoint performance utilization, impact ratings | M3 | R1, MRD |
 | 13 | Intune Data Verification | Invariant checking on 25,987 devices (OS, compliance, manufacturer, storage) | M2, E2E | R2 |

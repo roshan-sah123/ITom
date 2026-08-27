@@ -1,4 +1,4 @@
-﻿# ITOM Portal — Enterprise Operations Analytics & Telemetry
+# ITOM Portal — Enterprise Operations Analytics & Telemetry
 
 Production-grade Centralized Operations Analytics & Infrastructure Management Portal integrating **Microsoft Intune Graph Telemetry** and **SolarWinds Orion SWIS API v3**.
 
@@ -32,11 +32,11 @@ python -m http.server 8080 --bind 0.0.0.0
 
 ## 🖥️ Deploying to Dedicated Linux VM (24/7 Production)
 
-To deploy the portal onto your company virtual machine (`172.18.51.38`) so it runs independently 24/7:
+To deploy the portal onto your company virtual machine (`<YOUR_SERVER_IP>`) so it runs independently 24/7:
 
 ```powershell
 # Run the automated deployment engine (requires active VPN/LAN connection)
-python scripts/deploy_to_vm.py --host 172.18.51.38 --user roshan --port 8080
+python scripts/deploy_to_vm.py --host <YOUR_SERVER_IP> --user <YOUR_SSH_USER> --port 8080
 ```
 
 This script automatically:

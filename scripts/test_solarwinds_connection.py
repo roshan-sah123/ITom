@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 def test_solarwinds_connection():
     load_dotenv()
 
-    host = os.getenv("SOLARWINDS_HOST", "gnoc.coforge.com")
+    host = os.getenv("SOLARWINDS_HOST", "localhost")
     port = os.getenv("SOLARWINDS_PORT", "17774")
     username = os.getenv("SOLARWINDS_USERNAME")
     password = os.getenv("SOLARWINDS_PASSWORD")

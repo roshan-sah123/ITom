@@ -57,7 +57,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--host",
-        default=os.getenv("SOLARWINDS_HOST", "gnoc.coforge.com"),
+        default=os.getenv("SOLARWINDS_HOST", "localhost"),
         help="SolarWinds hostname or IP (defaults to SOLARWINDS_HOST env)",
     )
     parser.add_argument(
