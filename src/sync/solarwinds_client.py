@@ -9,9 +9,12 @@ MRD FR-003 & FR-004 specifications.
 import json
 import logging
 import os
+import tempfile
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 import urllib3
 
 # Suppress insecure HTTPS request warnings when connecting to internal servers with self-signed certs
@@ -23,6 +26,28 @@ if not logger.handlers:
     handler.setFormatter(logging.Formatter("[%(levelname)s] %(asctime)s - %(name)s: %(message)s"))
     logger.addHandler(handler)
 logger.setLevel(logging.INFO)
+
+
+def atomic_json_dump(data: Any, filepath: str, indent: Optional[int] = None) -> None:
+    """Safely write JSON data to file using an atomic replace to prevent race conditions.
+
+    Args:
+        data: Serializable Python object.
+        filepath: Target destination filepath.
+        indent: Optional indentation level (default: None for compact production).
+    """
+    target_dir = os.path.dirname(os.path.abspath(filepath))
+    os.makedirs(target_dir, exist_ok=True)
+    
+    fd, temp_path = tempfile.mkstemp(dir=target_dir, suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=indent)
+        os.replace(temp_path, filepath)
+    except Exception:
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
+        raise
 
 
 class SolarWindsApiError(Exception):
@@ -52,7 +77,7 @@ def normalize_solarwinds_vendor(vendor_str: Optional[str]) -> str:
         return "Windows"
     if "cisco" in v_lower:
         return "Cisco"
-    if "linux" in v_lower or "ubuntu" in v_lower or "redhat" in v_lower or "centos" in v_lower or "debian" in v_lower or "net-snmp" in v_lower:
+    if any(k in v_lower for k in ("linux", "ubuntu", "redhat", "red hat", "centos", "debian", "suse", "net-snmp", "rocky", "oracle", "canonical")):
         return "Linux"
     if "solarwinds" in v_lower or "orion" in v_lower:
         return "SolarWinds"
@@ -73,13 +98,13 @@ def classify_node_health(node: Dict[str, Any]) -> str:
     Returns:
         'High', 'Medium', or 'Low' (Critical/Degraded).
     """
-    status = node.get("Status")
-    cpu = node.get("CPULoad")
-    ram = node.get("PercentMemoryUsed")
+    raw_status = node.get("Status")
+    raw_cpu = node.get("CPULoad")
+    raw_ram = node.get("PercentMemoryUsed")
 
-    # Normalize negative or unmeasured values (e.g. -2 for ICMP-only devices)
-    valid_cpu = cpu if (isinstance(cpu, (int, float)) and cpu >= 0) else None
-    valid_ram = ram if (isinstance(ram, (int, float)) and ram >= 0) else None
+    status = raw_status if (isinstance(raw_status, int) and not isinstance(raw_status, bool)) else None
+    valid_cpu = float(raw_cpu) if (isinstance(raw_cpu, (int, float)) and not isinstance(raw_cpu, bool) and raw_cpu >= 0) else None
+    valid_ram = float(raw_ram) if (isinstance(raw_ram, (int, float)) and not isinstance(raw_ram, bool) and raw_ram >= 0) else None
 
     # Check Critical / Low Health conditions
     is_status_crit = status in [2, 14, 0] or status is None
@@ -137,6 +162,22 @@ class SolarWindsClient:
             )
 
         self.base_url = f"https://{self.host}:{self.port}/SolarWinds/InformationService/v3/Json/Query"
+        self._session = self._create_session()
+
+    def _create_session(self) -> requests.Session:
+        """Create and configure a resilient requests Session with retry adapters and pooling."""
+        session = requests.Session()
+        session.auth = (self.username, self.password)
+        retries = Retry(
+            total=3,
+            backoff_factor=0.5,
+            status_forcelist=[500, 502, 503, 504],
+            raise_on_status=False
+        )
+        adapter = HTTPAdapter(max_retries=retries, pool_connections=10, pool_maxsize=10)
+        session.mount("https://", adapter)
+        session.mount("http://", adapter)
+        return session
 
     def query(self, swql_query: str, params: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
         """Execute a read-only SWQL query against the SWIS REST API.
@@ -161,19 +202,17 @@ class SolarWindsClient:
         try:
             # First attempt with standard certificate verification
             try:
-                response = requests.get(
+                response = self._session.get(
                     self.base_url,
                     params=query_params,
-                    auth=(self.username, self.password),
                     timeout=self.timeout,
                     verify=True,
                 )
-            except requests.exceptions.SSLError:
+            except (requests.exceptions.SSLError, urllib3.exceptions.SSLError):
                 logger.warning("Internal/self-signed SSL certificate detected; retrying with secure fallback verify=False...")
-                response = requests.get(
+                response = self._session.get(
                     self.base_url,
                     params=query_params,
-                    auth=(self.username, self.password),
                     timeout=self.timeout,
                     verify=False,
                 )
@@ -384,10 +423,14 @@ class SolarWindsClient:
         med_pct = round((medium_health_count / total_nodes) * 100, 2) if total_nodes > 0 else 0.0
         low_pct = round((low_health_count / total_nodes) * 100, 2) if total_nodes > 0 else 0.0
 
+        active_monitored = up_count + down_count + warning_count + critical_count
+
         summary = {
             "generated_at": datetime.now(timezone.utc).isoformat(),
             "metrics": {
                 "total_server_nodes": total_nodes,
+                "active_monitored_nodes": active_monitored,
+                "unmanaged_nodes": unmanaged_count,
                 "high_health_nodes": high_health_count,
                 "medium_health_nodes": medium_health_count,
                 "low_critical_nodes": low_health_count,
@@ -437,20 +480,18 @@ class SolarWindsClient:
 
         # Save enriched nodes dataset
         if nodes_output_path:
-            os.makedirs(os.path.dirname(os.path.abspath(nodes_output_path)), exist_ok=True)
-            with open(nodes_output_path, "w", encoding="utf-8") as f:
-                json.dump({
-                    "extracted_at": datetime.now(timezone.utc).isoformat(),
-                    "total_nodes": len(enriched_nodes),
-                    "nodes": enriched_nodes,
-                }, f, indent=2)
+            atomic_json_dump({
+                "extracted_at": datetime.now(timezone.utc).isoformat(),
+                "total_nodes": len(enriched_nodes),
+                "nodes": enriched_nodes,
+            }, nodes_output_path, indent=2)
             logger.info("Saved %d SolarWinds node records to: %s", len(enriched_nodes), nodes_output_path)
 
         # Save summary payload
         if summary_output_path:
-            os.makedirs(os.path.dirname(os.path.abspath(summary_output_path)), exist_ok=True)
-            with open(summary_output_path, "w", encoding="utf-8") as f:
-                json.dump(summary, f, indent=2)
+            # Preserve full node registry for in-browser pagination
+            summary["sample_nodes"] = enriched_nodes
+            atomic_json_dump(summary, summary_output_path, indent=2)
             logger.info("Saved SolarWinds summary payload to: %s", summary_output_path)
 
         return summary

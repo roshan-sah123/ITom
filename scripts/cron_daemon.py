@@ -31,19 +31,21 @@ SYNC_SCRIPT = os.path.join(PROJECT_ROOT, "scripts", "run_sync.py")
 INTERVAL_SECONDS = 10 * 60  # 10 Minutes
 
 def execute_sync():
-    logger.info("=== Starting Scheduled 30-Minute Telemetry Extraction ===")
+    logger.info("=== Starting Scheduled 10-Minute Telemetry Extraction ===")
     try:
         cmd = [sys.executable, SYNC_SCRIPT, "--skip-firestore"]
-        result = subprocess.run(cmd, cwd=PROJECT_ROOT, capture_output=True, text=True)
+        result = subprocess.run(cmd, cwd=PROJECT_ROOT, capture_output=True, text=True, timeout=300)
         if result.returncode == 0:
             logger.info("Telemetry sync executed successfully. Dashboard datasets refreshed.")
         else:
             logger.warning("Telemetry sync completed with warnings: %s", result.stderr.strip() or result.stdout.strip())
+    except subprocess.TimeoutExpired:
+        logger.error("Telemetry sync pipeline timed out after 300 seconds.")
     except Exception as err:
         logger.error("Failed to execute sync pipeline: %s", err)
 
 def main():
-    logger.info("ITOM 30-Minute Auto-Sync Daemon started (Interval: 1800s).")
+    logger.info("ITOM 10-Minute Auto-Sync Daemon started (Interval: 600s).")
     execute_sync() # Initial sync immediately upon daemon start
     
     while True:

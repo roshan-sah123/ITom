@@ -75,6 +75,12 @@ from tests.test_tier5_adversarial import (
     TestTier5SyncPipelineResilience,
     TestTier5AuthoritativeDatasetReconciliation,
 )
+from tests.verify_adversarial_security import (
+    TestHostileXSSAndDOMSanitization,
+    TestRFC4180CSVExportCompliance,
+    TestUIRoutingAndMemoryGuards,
+    TestRepositorySecretScan,
+)
 from tests.verify_solarwinds_data import TestSolarWindsDataInvariants
 
 
@@ -116,6 +122,12 @@ SUITE_MAPPING = {
         TestTier5ComplianceAndPrecisionMath,
         TestTier5SyncPipelineResilience,
         TestTier5AuthoritativeDatasetReconciliation,
+    ],
+    "Adversarial Security: XSS, CSV Compliance & Secret Scans (Tier 5)": [
+        TestHostileXSSAndDOMSanitization,
+        TestRFC4180CSVExportCompliance,
+        TestUIRoutingAndMemoryGuards,
+        TestRepositorySecretScan,
     ]
 }
 

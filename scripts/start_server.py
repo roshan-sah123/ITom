@@ -66,19 +66,21 @@ def run_http_server():
         server.server_close()
 
 def execute_sync():
-    logger.info("=== Starting Scheduled 30-Minute Telemetry Extraction ===")
+    logger.info("=== Starting Scheduled 10-Minute Telemetry Extraction ===")
     try:
         cmd = [sys.executable, SYNC_SCRIPT, "--skip-firestore"]
-        result = subprocess.run(cmd, cwd=PROJECT_ROOT, capture_output=True, text=True)
+        result = subprocess.run(cmd, cwd=PROJECT_ROOT, capture_output=True, text=True, timeout=300)
         if result.returncode == 0:
             logger.info("Telemetry sync executed successfully. Datasets refreshed.")
         else:
             logger.warning("Telemetry sync completed with warnings: %s", (result.stderr or result.stdout).strip())
+    except subprocess.TimeoutExpired:
+        logger.error("Telemetry sync pipeline timed out after 300 seconds. Process terminated.")
     except Exception as err:
         logger.error("Failed to execute sync pipeline: %s", err)
 
 def run_sync_daemon():
-    logger.info("ITOM 30-Minute Telemetry Sync Daemon started.")
+    logger.info("ITOM 10-Minute Telemetry Sync Daemon started.")
     time.sleep(3)
     execute_sync()
     

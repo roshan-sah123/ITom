@@ -68,25 +68,30 @@ def main() -> int:
     args = parse_args()
     logger.info("=== Starting ITOM 10-Minute Telemetry Sync Pipeline ===")
 
-    # Step 1: Live Microsoft Intune Sync
+    # Step 1: Microsoft Intune Sync
     tenant_id = os.getenv("AZURE_TENANT_ID")
     client_id = os.getenv("AZURE_CLIENT_ID")
     client_secret = os.getenv("AZURE_CLIENT_SECRET")
     
-    if all([tenant_id, client_id, client_secret]):
+    if all([tenant_id, client_id, client_secret]) and not args.skip_fetch:
         try:
             logger.info("Syncing live Microsoft Intune telemetry from Microsoft Graph API...")
             client = GraphClient(tenant_id=tenant_id, client_id=client_id, client_secret=client_secret)
-            # Fetch fresh batch for dashboard table
-            devices = client.fetch_all_managed_devices()
-            if devices:
-                generator = PayloadGenerator(default_sample_size=min(500, len(devices)))
-                generator.generate_and_save(devices, args.summary_data, sample_size=500)
-                logger.info("Successfully refreshed Intune summary payload.")
+            client.fetch_and_save(output_path=args.raw_data)
+            logger.info("Raw Intune extraction saved to '%s'", args.raw_data)
         except Exception as err:
-            logger.warning("Intune live sync encountered notice: %s. Preserving current certified dataset.", err)
+            logger.warning("Intune live extraction encountered notice: %s. Using local dataset.", err)
     else:
-        logger.info("Intune credentials not present in env; maintaining verified Intune summary dataset.")
+        logger.info("Live Graph fetch skipped or credentials absent; using dataset '%s'.", args.raw_data)
+
+    if os.path.exists(args.raw_data):
+        try:
+            generator = PayloadGenerator(default_sample_size=100)
+            payload = generator.generate(input_file=args.raw_data, output_file=args.summary_data, sample_size=100)
+            logger.info("Successfully generated & validated Intune summary payload (%d devices).",
+                        payload["metrics"]["total_managed_devices"])
+        except Exception as err:
+            logger.error("Failed to generate Intune summary payload: %s", err)
 
     # Step 2: Live SolarWinds SWIS Sync
     sw_host = os.getenv("SOLARWINDS_HOST")
@@ -94,18 +99,28 @@ def main() -> int:
     sw_pwd = os.getenv("SOLARWINDS_PASSWORD")
     sw_port = int(os.getenv("SOLARWINDS_PORT", "17774"))
 
-    if sw_host and sw_user and sw_pwd:
+    if sw_host and sw_user and sw_pwd and not args.skip_fetch:
         try:
             logger.info("Syncing live SolarWinds Orion server telemetry from SWIS API...")
             from src.sync.solarwinds_client import SolarWindsClient
             sw_client = SolarWindsClient(host=sw_host, port=sw_port, username=sw_user, password=sw_pwd)
+            sw_nodes_path = os.path.join(PROJECT_ROOT, "data", "solarwinds_nodes.json")
             sw_summary_path = os.path.join(PROJECT_ROOT, "data", "solarwinds_summary.json")
-            sw_client.fetch_and_save(summary_output_path=sw_summary_path)
+            sw_client.fetch_and_save(nodes_output_path=sw_nodes_path, summary_output_path=sw_summary_path)
             logger.info("Successfully refreshed SolarWinds summary payload.")
         except Exception as err:
-            logger.warning("SolarWinds live sync encountered notice: %s. Preserving current certified dataset.", err)
+            logger.warning("SolarWinds live sync encountered notice: %s. Preserving local dataset.", err)
     else:
-        logger.info("SolarWinds credentials not present in env; maintaining verified SolarWinds dataset.")
+        logger.info("Live SolarWinds fetch skipped or credentials absent; preserving local dataset.")
+
+    # Step 3: Executive Operational Telemetry Digest Generation
+    try:
+        from src.automation.executive_digest import generate_executive_digest
+        digest = generate_executive_digest()
+        logger.info("Executive Operational Digest generated successfully (Total Fleet: %d).",
+                    digest.get("executive_summary", {}).get("total_managed_fleet_size", 0))
+    except Exception as err:
+        logger.warning("Executive digest compilation notice: %s", err)
 
     logger.info("=== Telemetry Extraction Cycle Complete ===")
     return 0

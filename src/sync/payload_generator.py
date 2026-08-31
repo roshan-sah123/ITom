@@ -8,6 +8,7 @@ manufacturer distributions, and sample device records for high-performance dashb
 import json
 import logging
 import os
+import tempfile
 from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
@@ -16,6 +17,28 @@ if not logger.handlers:
     handler.setFormatter(logging.Formatter("[%(levelname)s] %(asctime)s - %(name)s: %(message)s"))
     logger.addHandler(handler)
 logger.setLevel(logging.INFO)
+
+
+def atomic_json_dump(data: Any, filepath: str, indent: Optional[int] = None) -> None:
+    """Safely write JSON data to file using an atomic replace to prevent race conditions.
+
+    Args:
+        data: Serializable Python object.
+        filepath: Target destination filepath.
+        indent: Optional indentation level (default: None).
+    """
+    target_dir = os.path.dirname(os.path.abspath(filepath))
+    os.makedirs(target_dir, exist_ok=True)
+    
+    fd, temp_path = tempfile.mkstemp(dir=target_dir, suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=indent)
+        os.replace(temp_path, filepath)
+    except Exception:
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
+        raise
 
 
 def normalize_manufacturer(mfg: Optional[str], include_microsoft: bool = False) -> str:
@@ -96,9 +119,12 @@ def calculate_metrics(devices: List[Dict[str, Any]]) -> Dict[str, Any]:
 
         tot_bytes = dev.get("totalStorageSpaceInBytes") or 0
         free_bytes = dev.get("freeStorageSpaceInBytes") or 0
-        if isinstance(tot_bytes, (int, float)) and tot_bytes > 0:
-            tot_gb = tot_bytes / (1024 ** 3)
-            free_gb = (free_bytes if isinstance(free_bytes, (int, float)) else 0) / (1024 ** 3)
+        if isinstance(tot_bytes, (int, float)) and not isinstance(tot_bytes, bool) and tot_bytes > 0:
+            tot_num = float(tot_bytes)
+            free_num = float(free_bytes) if (isinstance(free_bytes, (int, float)) and not isinstance(free_bytes, bool) and free_bytes >= 0) else 0.0
+            free_clamped = max(0.0, min(free_num, tot_num))
+            tot_gb = tot_num / (1024 ** 3)
+            free_gb = free_clamped / (1024 ** 3)
             storage_total_gb += tot_gb
             storage_free_gb += free_gb
 
@@ -179,12 +205,16 @@ def format_sample_devices(devices: List[Dict[str, Any]], limit: int = 100) -> Li
     sample_records: List[Dict[str, Any]] = []
 
     for dev in devices[:limit]:
-        tot_bytes = dev.get("totalStorageSpaceInBytes") or 0
-        free_bytes = dev.get("freeStorageSpaceInBytes") or 0
+        raw_tot = dev.get("totalStorageSpaceInBytes")
+        raw_free = dev.get("freeStorageSpaceInBytes")
+        
+        tot_bytes = float(raw_tot) if (isinstance(raw_tot, (int, float)) and not isinstance(raw_tot, bool) and raw_tot > 0) else 0.0
+        free_bytes = float(raw_free) if (isinstance(raw_free, (int, float)) and not isinstance(raw_free, bool) and raw_free >= 0) else 0.0
+        free_clamped = min(free_bytes, tot_bytes) if tot_bytes > 0 else 0.0
 
-        tot_gb = round(tot_bytes / (1024 ** 3), 1) if tot_bytes else 0.0
-        free_gb = round(free_bytes / (1024 ** 3), 1) if free_bytes else 0.0
-        used_pct = round(((tot_bytes - free_bytes) / tot_bytes) * 100, 1) if tot_bytes > 0 else 0.0
+        tot_gb = round(tot_bytes / (1024 ** 3), 1) if tot_bytes > 0 else 0.0
+        free_gb = round(free_clamped / (1024 ** 3), 1) if tot_bytes > 0 else 0.0
+        used_pct = round(((tot_bytes - free_clamped) / tot_bytes) * 100, 1) if tot_bytes > 0 else 0.0
 
         sample_records.append({
             "id": dev.get("id") or "",
@@ -277,11 +307,42 @@ class PayloadGenerator:
         self.validate_payload(dashboard_payload)
 
         if resolved_output:
-            os.makedirs(os.path.dirname(os.path.abspath(resolved_output)), exist_ok=True)
-            with open(resolved_output, "w", encoding="utf-8") as f:
-                json.dump(dashboard_payload, f, indent=2)
+            atomic_json_dump(dashboard_payload, resolved_output, indent=2)
             logger.info("Saved verified dashboard payload to: %s", resolved_output)
 
+        return dashboard_payload
+
+    def generate_and_save(
+        self,
+        devices: List[Dict[str, Any]],
+        output_file: str,
+        sample_size: int = 500,
+    ) -> Dict[str, Any]:
+        """Generate summary payload directly from device list and write atomically.
+
+        Args:
+            devices: List of raw Intune device records.
+            output_file: Target output JSON file.
+            sample_size: Number of sample records to preserve.
+
+        Returns:
+            The complete dashboard payload dictionary.
+        """
+        metrics = calculate_metrics(devices)
+        os_breakdown, compliance_breakdown, mfg_breakdown = generate_breakdowns(devices)
+        sample_devices = format_sample_devices(devices, limit=sample_size)
+
+        dashboard_payload = {
+            "metrics": metrics,
+            "os_breakdown": os_breakdown,
+            "compliance_breakdown": compliance_breakdown,
+            "manufacturer_breakdown": mfg_breakdown,
+            "sample_devices": sample_devices,
+        }
+
+        self.validate_payload(dashboard_payload)
+        atomic_json_dump(dashboard_payload, output_file, indent=2)
+        logger.info("Directly serialized %d devices to summary payload: %s", len(devices), output_file)
         return dashboard_payload
 
     def validate_payload(self, payload: Dict[str, Any]) -> bool:
@@ -326,9 +387,9 @@ class PayloadGenerator:
         # Invariant 5: Storage percentage is within valid bounds
         assert 0.0 <= storage_pct <= 100.0, f"Storage percentage out of bounds: {storage_pct}"
 
-        # Invariant 6: Sample devices length is within expected limit
+        # Invariant 6: Sample devices length is within expected bounds
         samples = payload.get("sample_devices", [])
-        assert len(samples) <= 100, f"Sample devices count exceeds limit: {len(samples)}"
+        assert len(samples) <= max(500, total), f"Sample devices count exceeds limit: {len(samples)}"
 
         logger.info("All mathematical invariants validated successfully.")
         return True

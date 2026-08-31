@@ -480,7 +480,7 @@
 
     const latElem = document.getElementById('swAvgLatency');
     if (latElem) {
-      latElem.innerHTML = `${metrics.avg_fleet_latency_ms || 42.5} <span class="text-xs text-muted">ms</span>`;
+      latElem.innerHTML = `${metrics.avg_fleet_latency_ms || 43.9} <span class="text-xs text-muted">ms</span>`;
     }
 
     updateHeaderStat(currentActiveTab);

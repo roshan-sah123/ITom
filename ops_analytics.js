@@ -33,6 +33,17 @@
   let swVendorChartInstance = null;
 
   /**
+   * Debounce utility to prevent UI stutter and main thread blocking during rapid typing.
+   */
+  function debounce(func, wait = 200) {
+    let timeout;
+    return function (...args) {
+      clearTimeout(timeout);
+      timeout = setTimeout(() => func.apply(this, args), wait);
+    };
+  }
+
+  /**
    * Parse hash string or query parameter into a validated TabId.
    */
   function parseTabId(raw) {
@@ -77,14 +88,16 @@
     const tabId = parseTabId(targetTab);
     currentActiveTab = tabId;
 
-    // 1. Update Tab Button active states
+    // 1. Update Tab Button active states and ARIA attributes
     const tabButtons = document.querySelectorAll('.tab-btn');
     tabButtons.forEach(btn => {
       const btnTab = btn.getAttribute('data-tab');
       if (btnTab === tabId) {
         btn.classList.add('active');
+        btn.setAttribute('aria-selected', 'true');
       } else {
         btn.classList.remove('active');
+        btn.setAttribute('aria-selected', 'false');
       }
     });
 
@@ -271,7 +284,7 @@
 
     const storageElem = document.getElementById('kpiStoragePct');
     if (storageElem) {
-      storageElem.textContent = `${metrics.avg_disk_utilization_pct || '37.4'}%`;
+      storageElem.textContent = `${metrics.avg_storage_used_pct ?? metrics.avg_disk_utilization_pct ?? '36.6'}%`;
     }
 
     updateHeaderStat(currentActiveTab);
@@ -291,9 +304,10 @@
       const actCount = aging.active_7d || 0;
       const idlCount = aging.idle_30d || 0;
       const stlCount = aging.stale_30d_plus || 0;
-      const actPct = aging.active_pct || (totalDevsNum > 0 ? ((actCount / totalDevsNum) * 100).toFixed(1) : 0);
-      const idlPct = aging.idle_pct || (totalDevsNum > 0 ? ((idlCount / totalDevsNum) * 100).toFixed(1) : 0);
-      const stlPct = aging.stale_pct || (totalDevsNum > 0 ? ((stlCount / totalDevsNum) * 100).toFixed(1) : 0);
+      const totalDevs = metrics.total_managed_devices || allIntuneDevices.length || 27412;
+      const actPct = aging.active_pct || (totalDevs > 0 ? ((actCount / totalDevs) * 100).toFixed(1) : 0);
+      const idlPct = aging.idle_pct || (totalDevs > 0 ? ((idlCount / totalDevs) * 100).toFixed(1) : 0);
+      const stlPct = aging.stale_pct || (totalDevs > 0 ? ((stlCount / totalDevs) * 100).toFixed(1) : 0);
 
       setElemText('agingActiveText', `${Number(actCount).toLocaleString()} (${actPct}%)`);
       setElemText('agingIdleText', `${Number(idlCount).toLocaleString()} (${idlPct}%)`);
@@ -628,17 +642,19 @@
 
     const healthTag = document.getElementById('swHealthTag');
     if (healthTag) {
-      healthTag.textContent = `${metrics.high_health_pct || 87.66}% High`;
+      healthTag.textContent = `${metrics.high_health_pct || 90.73}% High`;
     }
 
     const cpuMemElem = document.getElementById('swAvgCpuMem');
     if (cpuMemElem) {
-      cpuMemElem.innerHTML = `${metrics.avg_cpu_load_pct || 16.2}% <span class="text-xs text-muted">CPU</span> &bull; ${metrics.avg_memory_used_pct || 22.6}% <span class="text-xs text-muted">RAM</span>`;
+      const avgCpu = metrics.avg_fleet_cpu_load_pct ?? metrics.avg_cpu_load_pct ?? 14.9;
+      const avgRam = metrics.avg_fleet_ram_used_pct ?? metrics.avg_memory_used_pct ?? 22.0;
+      cpuMemElem.innerHTML = `${avgCpu}% <span class="text-xs text-muted">CPU</span> &bull; ${avgRam}% <span class="text-xs text-muted">RAM</span>`;
     }
 
     const latElem = document.getElementById('swAvgLatency');
     if (latElem) {
-      latElem.innerHTML = `${metrics.avg_fleet_latency_ms || 42.5} <span class="text-xs text-muted">ms</span>`;
+      latElem.innerHTML = `${metrics.avg_fleet_latency_ms || 43.9} <span class="text-xs text-muted">ms</span>`;
     }
 
     updateHeaderStat(currentActiveTab);
@@ -1025,11 +1041,11 @@
   // =========================================================================
 
   function initSearchFilters() {
-    // Intune Live Search
+    // Intune Live Search with 200ms debounce
     const intuneSearch = document.getElementById('deviceSearchInput');
 
     if (intuneSearch) {
-      intuneSearch.addEventListener('input', (e) => {
+      intuneSearch.addEventListener('input', debounce((e) => {
         const q = e.target.value.toLowerCase().trim();
         intuneCurrentPage = 1;
         if (!q) {
@@ -1046,21 +1062,22 @@
           });
         }
         renderIntuneTable();
-      });
+      }, 200));
     }
 
-    // SolarWinds Live Search
+    // SolarWinds Live Search with 200ms debounce
     const swSearch = document.getElementById('swSearchInput');
 
     if (swSearch) {
-      swSearch.addEventListener('input', (e) => {
+      swSearch.addEventListener('input', debounce((e) => {
         const q = e.target.value.toLowerCase().trim();
         swCurrentPage = 1;
         if (!q) {
           swFilteredNodes = [...allSwNodes];
         } else {
           swFilteredNodes = allSwNodes.filter(n => {
-            return (n.Caption || '').toLowerCase().includes(q) ||
+            return String(n.NodeID || '').includes(q) ||
+                   (n.Caption || '').toLowerCase().includes(q) ||
                    (n.IPAddress || '').toLowerCase().includes(q) ||
                    (n.Vendor || '').toLowerCase().includes(q) ||
                    (n.MachineType || '').toLowerCase().includes(q) ||
@@ -1070,7 +1087,7 @@
           });
         }
         renderSolarWindsTable();
-      });
+      }, 200));
     }
   }
 

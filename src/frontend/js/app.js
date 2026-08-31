@@ -182,15 +182,15 @@ document.addEventListener('DOMContentLoaded', () => {
     if (launcherModuleName) launcherModuleName.textContent = moduleName;
     if (launcherOverlay) launcherOverlay.classList.add('active');
     
-    if (launcherStatus) launcherStatus.textContent = 'Launching module console...';
+    if (launcherStatus) launcherStatus.textContent = isComingSoon ? 'Coming soon...' : 'Launching module console...';
     
-    const destination = resolveModuleDestination(moduleName, targetUrl);
+    if (isComingSoon) return;
 
-    // Quick 250ms visual feedback before direct navigation
+    // Quick 200ms visual feedback before direct navigation
     launcherTimeout = setTimeout(() => {
       closeLauncher();
-      window.location.href = destination;
-    }, 250);
+      window.location.href = resolveModuleDestination(moduleName, targetUrl);
+    }, 200);
   }
 
   function closeLauncher() {
@@ -206,13 +206,23 @@ document.addEventListener('DOMContentLoaded', () => {
       e.preventDefault();
       const nameElem = card.querySelector('.module-name');
       const moduleName = nameElem ? nameElem.textContent : 'Module';
+      const status = card.getAttribute('data-status');
+      const isComingSoon = status === 'coming-soon';
       const targetUrl = card.getAttribute('href');
-      launchModule(moduleName, targetUrl);
+      launchModule(moduleName, targetUrl, isComingSoon);
     });
   });
 
   if (launcherCancelBtn) {
     launcherCancelBtn.addEventListener('click', closeLauncher);
+  }
+
+  if (launcherOverlay) {
+    launcherOverlay.addEventListener('click', (e) => {
+      if (e.target === launcherOverlay) {
+        closeLauncher();
+      }
+    });
   }
 
   // Export functions globally

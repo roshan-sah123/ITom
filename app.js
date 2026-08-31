@@ -186,7 +186,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Quick 200ms visual feedback before direct navigation
     launcherTimeout = setTimeout(() => {
       closeLauncher();
-      window.location.href = 'ops_analytics.html#intune';
+      window.location.href = resolveModuleDestination(moduleName, targetUrl);
     }, 200);
   }
 
@@ -212,6 +212,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if (launcherCancelBtn) {
     launcherCancelBtn.addEventListener('click', closeLauncher);
+  }
+
+  if (launcherOverlay) {
+    launcherOverlay.addEventListener('click', (e) => {
+      if (e.target === launcherOverlay) {
+        closeLauncher();
+      }
+    });
   }
 
   // Export functions globally
