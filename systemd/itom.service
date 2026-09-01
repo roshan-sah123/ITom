@@ -1,0 +1,36 @@
+[Unit]
+Description=ITOM Enterprise Portal & Telemetry Auto-Sync Engine
+Documentation=https://github.com/roshan/itom-portal
+After=network.target network-online.target systemd-networkd.service NetworkManager.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=roshan
+Group=roshan
+WorkingDirectory=/home/roshan/itom-portal
+ExecStart=/usr/bin/python3 /home/roshan/itom-portal/scripts/start_server.py
+Restart=always
+RestartSec=3
+StartLimitIntervalSec=60
+StartLimitBurst=10
+
+# Process Environment & Unbuffered Logging
+Environment=PYTHONUNBUFFERED=1
+Environment=PORT=8080
+Environment=HOST=0.0.0.0
+Environment=SYNC_INTERVAL_SECONDS=600
+
+# Systemd Journal Integration
+StandardOutput=journal+console
+StandardError=journal+console
+
+# Process Lifecycle & Fault Tolerance
+LimitNOFILE=65535
+TimeoutStartSec=15
+TimeoutStopSec=10
+KillMode=mixed
+SendSIGHUP=no
+
+[Install]
+WantedBy=multi-user.target

@@ -12,7 +12,7 @@
   <!-- Chart.js for enterprise visualization -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <!-- Vanilla CSS Stylesheet -->
-  <link rel="stylesheet" href="style.css?v=7.0">
+  <link rel="stylesheet" href="style.css?v=2.0">
 </head>
 <body class="dashboard-body">
 
@@ -27,8 +27,10 @@
         </a>
         <a href="index.html" class="brand-group">
           <img src="logo.png" class="logo-img" alt="ITOM Logo">
-          <span class="logo-text">ITOM</span>
-          <span class="logo-tag">OPS Analytics</span>
+          <div class="logo-text-group">
+            <span class="logo-text">ITOM</span>
+            <span class="logo-tag">OPS Analytics</span>
+          </div>
         </a>
       </div>
 
@@ -36,6 +38,7 @@
       <nav class="dashboard-tabs" id="tabNavContainer" role="tablist" aria-label="Operational Domain Views">
         <button class="tab-btn active" data-tab="intune" role="tab" aria-selected="true" aria-controls="view-intune" id="tab-intune">Microsoft Intune (Live)</button>
         <button class="tab-btn" data-tab="solarwinds" role="tab" aria-selected="false" aria-controls="view-solarwinds" id="tab-solarwinds">SolarWinds (Live)</button>
+        <button class="tab-btn" data-tab="cmdb" role="tab" aria-selected="false" aria-controls="view-cmdb" id="tab-cmdb">Live CMDB (1,543 CIs)</button>
       </nav>
 
       <!-- Right Controls -->
@@ -430,10 +433,152 @@
 
     </section>
 
+    <!-- =========================================================================
+         SECTION 3: NETWORK CMDB (Physical Network CIs & Infrastructure Estate)
+         ========================================================================= -->
+    <section id="view-cmdb" class="tab-pane" data-tab="cmdb" role="tabpanel" aria-labelledby="tab-cmdb">
+
+      <!-- CMDB Telemetry Source & Live Refresh Information Banner (Phase 10 Requirement) -->
+      <div class="cmdb-status-banner" id="cmdbStatusBanner">
+        <div class="cmdb-status-left">
+          <span class="pulse-dot-sm" aria-hidden="true"></span>
+          <span class="font-semibold text-white">Data Source:</span> SolarWinds SWIS API &bull;
+          <span class="font-semibold text-white">Mode:</span> <span id="cmdbModeTag" class="badge badge-live">Live Data</span> &bull;
+          <span class="font-semibold text-white">Status:</span> <span id="cmdbConnectionStatus">Connected</span>
+        </div>
+        <div class="cmdb-status-right">
+          Last Telemetry Sync: <span id="cmdbLastRefreshed" class="font-mono text-white">--</span>
+        </div>
+      </div>
+
+      <!-- CMDB KPI Cards -->
+      <div class="kpi-grid">
+        <!-- KPI 1: Total Configuration Items -->
+        <div class="kpi-card">
+          <div class="kpi-header">
+            <span class="kpi-title">Configuration Items (CIs)</span>
+            <span class="kpi-tag success">100% Live SWIS</span>
+          </div>
+          <div class="kpi-number" id="cmdbTotalCis">1,543</div>
+          <div class="kpi-subtext">Total Verified SolarWinds Infrastructure CIs</div>
+        </div>
+
+        <!-- KPI 2: High Health Tier -->
+        <div class="kpi-card">
+          <div class="kpi-header">
+            <span class="kpi-title">Fleet Health Compliance</span>
+            <span class="kpi-tag success" id="cmdbControlRateTag">90.93% High</span>
+          </div>
+          <div class="kpi-number text-success" id="cmdbPassedControls">1,403</div>
+          <div class="kpi-subtext"><span class="text-danger" id="cmdbFailedControls">64</span> Critical / Degraded CIs</div>
+        </div>
+
+        <!-- KPI 3: Server Infrastructure -->
+        <div class="kpi-card">
+          <div class="kpi-header">
+            <span class="kpi-title">Compute Servers</span>
+            <span class="kpi-tag primary">Compute</span>
+          </div>
+          <div class="kpi-number" id="cmdbTotalServers">260</div>
+          <div class="kpi-subtext">Windows Server, Hyper-V, VMware & Linux</div>
+        </div>
+
+        <!-- KPI 4: Network Infrastructure -->
+        <div class="kpi-card">
+          <div class="kpi-header">
+            <span class="kpi-title">Network & Security CIs</span>
+            <span class="kpi-tag success">Fabric</span>
+          </div>
+          <div class="kpi-number text-accent" id="cmdbTotalNetworkDevices">1,283</div>
+          <div class="kpi-subtext">Switches, Routers, Firewalls & WLCs</div>
+        </div>
+      </div>
+
+      <!-- CMDB Charts Grid -->
+      <div class="analytics-grid">
+        <!-- Chart 1: Role / CI Type Distribution -->
+        <div class="chart-card">
+          <div class="chart-header">
+            <h3 class="chart-title">CI Architectural Role Distribution</h3>
+            <span class="chart-badge">Click slice to filter</span>
+          </div>
+          <div class="chart-wrapper">
+            <canvas id="cmdbRoleChart"></canvas>
+          </div>
+        </div>
+
+        <!-- Chart 2: Compliance / Health Posture -->
+        <div class="chart-card">
+          <div class="chart-header">
+            <h3 class="chart-title">CI Health Posture</h3>
+            <span class="chart-badge">Click bar to filter</span>
+          </div>
+          <div class="chart-wrapper">
+            <canvas id="cmdbComplianceChart"></canvas>
+          </div>
+        </div>
+
+        <!-- Chart 3: IP Location Distribution -->
+        <div class="chart-card">
+          <div class="chart-header">
+            <h3 class="chart-title">Top Regional Sites</h3>
+            <span class="chart-badge">Geographic</span>
+          </div>
+          <div class="chart-wrapper">
+            <canvas id="cmdbLocationChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- CMDB Searchable Data Table -->
+      <div class="table-section">
+        <div class="table-card">
+          <div class="table-header">
+            <div>
+              <h3 class="table-title">Live Configuration Items Registry</h3>
+              <p class="table-desc">SolarWinds servers, physical switches, routers, firewalls, and wireless infrastructure.</p>
+            </div>
+            <div class="table-actions">
+              <input type="text" class="table-search" id="cmdbSearchInput" placeholder="Filter by Name, IP, Type, Vendor, Location...">
+            </div>
+          </div>
+
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>CI ID</th>
+                  <th>CI Type</th>
+                  <th>Name / Hostname</th>
+                  <th>IP Address</th>
+                  <th>Vendor & Platform</th>
+                  <th>Location</th>
+                  <th>Status</th>
+                  <th>Health Tier</th>
+                </tr>
+              </thead>
+              <tbody id="cmdbTableBody">
+                <!-- Dynamically Populated by ops_analytics.js -->
+              </tbody>
+            </table>
+          </div>
+
+          <div class="table-footer">
+            <span id="cmdbTableRecordCount"></span>
+            <div class="pagination-controls" id="cmdbPagination">
+              <!-- Dynamically Populated with clean Prev, 1, 2, 3, Next buttons -->
+            </div>
+            <button class="btn btn-secondary btn-sm" id="exportCmdbCsvBtn">Export Complete CMDB Dataset (CSV)</button>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
   </main>
 
   <!-- Script Inclusions -->
-  <script src="ops_analytics.js?v=21.0"></script>
+  <script src="ops_analytics.js?v=22.0"></script>
 </body>
 </html>
 

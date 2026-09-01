@@ -113,7 +113,18 @@ def main() -> int:
     else:
         logger.info("Live SolarWinds fetch skipped or credentials absent; preserving local dataset.")
 
-    # Step 3: Executive Operational Telemetry Digest Generation
+    # Step 3: CMDB Live Telemetry & Configuration Items Aggregation
+    try:
+        from src.sync.cmdb_generator import generate_cmdb_artifacts
+        cmdb_json = os.path.join(PROJECT_ROOT, "data", "cmdb_summary.json")
+        cmdb_csv = os.path.join(PROJECT_ROOT, "exports", "cmdb_network_cis_complete.csv")
+        generate_cmdb_artifacts(json_output_path=cmdb_json, csv_output_path=cmdb_csv)
+        logger.info("CMDB live summary payload and complete CSV export refreshed successfully.")
+    except Exception as err:
+        logger.warning("CMDB extraction notice: %s", err)
+
+
+    # Step 4: Executive Operational Telemetry Digest Generation
     try:
         from src.automation.executive_digest import generate_executive_digest
         digest = generate_executive_digest()

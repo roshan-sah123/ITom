@@ -129,43 +129,84 @@ def classify_node_health(node: Dict[str, Any]) -> str:
     return "Medium"
 
 
+class SolarWindsSecurityError(Exception):
+    """Exception raised when a forbidden write/mutation operation is attempted against SolarWinds."""
+    pass
+
+
+ALLOWED_METHODS = ["GET"]
+FORBIDDEN_SWQL_KEYWORDS = {
+    "INSERT", "UPDATE", "DELETE", "DROP", "ALTER", "CREATE", 
+    "TRUNCATE", "EXEC", "EXECUTE", "GRANT", "REVOKE", "MERGE"
+}
+
+
+def validate_swql_read_only(query_str: str) -> None:
+    """Validate that a SWQL query is strictly read-only and non-mutating.
+
+    Args:
+        query_str: The SWQL query string to validate.
+
+    Raises:
+        SolarWindsSecurityError: If query contains mutating keywords or does not start with SELECT.
+    """
+    if not query_str or not isinstance(query_str, str):
+        raise SolarWindsSecurityError("Query must be a non-empty string.")
+
+    cleaned = query_str.strip()
+    # Remove leading comments if any
+    while cleaned.startswith("--") or cleaned.startswith("/*"):
+        if cleaned.startswith("--"):
+            cleaned = cleaned.split("\n", 1)[-1].strip()
+        elif cleaned.startswith("/*"):
+            cleaned = cleaned.split("*/", 1)[-1].strip()
+
+    first_word = cleaned.split()[0].upper() if cleaned.split() else ""
+    if first_word != "SELECT":
+        raise SolarWindsSecurityError(
+            f"SolarWinds integration is strictly READ-ONLY. Queries must start with SELECT (got: {first_word})."
+        )
+
+    # Check for mutating tokens as standalone words
+    upper_query = f" {cleaned.upper()} "
+    for kw in FORBIDDEN_SWQL_KEYWORDS:
+        if f" {kw} " in upper_query or f"\n{kw} " in upper_query or f" {kw}\n" in upper_query or f"\t{kw} " in upper_query:
+            raise SolarWindsSecurityError(
+                f"SolarWinds integration is strictly READ-ONLY. Forbidden mutating keyword detected: '{kw}'"
+            )
+
+
 class SolarWindsClient:
-    """Production SWIS API client for Orion infrastructure telemetry extraction."""
+    """Enterprise read-only client for SolarWinds Orion SWIS API v3."""
 
     def __init__(
         self,
         host: Optional[str] = None,
-        port: Optional[str] = None,
+        port: Optional[int] = None,
         username: Optional[str] = None,
         password: Optional[str] = None,
         timeout: int = 30,
     ) -> None:
-        """Initialize the SolarWinds SWIS client with host and credentials.
+        """Initialize SolarWinds SWIS Client with runtime credentials.
 
         Args:
-            host: SolarWinds hostname or IP (defaults to SOLARWINDS_HOST env).
-            port: SWIS REST port (defaults to SOLARWINDS_PORT env or 17774).
-            username: SWIS username (defaults to SOLARWINDS_USERNAME env).
-            password: SWIS password (defaults to SOLARWINDS_PASSWORD env).
+            host: SolarWinds server hostname or IP (defaults to SOLARWINDS_HOST env).
+            port: SWIS API port (defaults to SOLARWINDS_PORT env or 17774).
+            username: SWIS API username (defaults to SOLARWINDS_USERNAME env).
+            password: SWIS API password (defaults to SOLARWINDS_PASSWORD env).
             timeout: HTTP request timeout in seconds.
         """
-        self.host = host or os.getenv("SOLARWINDS_HOST", "localhost")
-        self.port = str(port or os.getenv("SOLARWINDS_PORT", "17774"))
-        self.username = username or os.getenv("SOLARWINDS_USERNAME")
-        self.password = password or os.getenv("SOLARWINDS_PASSWORD")
+        self.host = host or os.getenv("SOLARWINDS_HOST", "gnoc.coforge.com")
+        self.port = port or int(os.getenv("SOLARWINDS_PORT", "17774"))
+        self.username = username or os.getenv("SOLARWINDS_USERNAME", "")
+        self.password = password or os.getenv("SOLARWINDS_PASSWORD", "")
         self.timeout = timeout
 
-        if not self.username or not self.password:
-            raise SolarWindsAuthError(
-                "Missing SolarWinds credentials. Please supply username/password or set "
-                "SOLARWINDS_USERNAME and SOLARWINDS_PASSWORD environment variables."
-            )
-
         self.base_url = f"https://{self.host}:{self.port}/SolarWinds/InformationService/v3/Json/Query"
-        self._session = self._create_session()
+        self._session = self._create_resilient_session()
 
-    def _create_session(self) -> requests.Session:
-        """Create and configure a resilient requests Session with retry adapters and pooling."""
+    def _create_resilient_session(self) -> requests.Session:
+        """Create requests session with retry adapters and connection pooling."""
         session = requests.Session()
         session.auth = (self.username, self.password)
         retries = Retry(
@@ -179,25 +220,36 @@ class SolarWindsClient:
         session.mount("http://", adapter)
         return session
 
-    def query(self, swql_query: str, params: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
-        """Execute a read-only SWQL query against the SWIS REST API.
+    def query(self, swql_query: str, params: Optional[Dict[str, Any]] = None, method: str = "GET") -> List[Dict[str, Any]]:
+        """Execute a strictly read-only SWQL query against the SWIS REST API.
 
         Args:
-            swql_query: Valid SWQL query string.
+            swql_query: Valid SWQL query string (must start with SELECT).
             params: Optional parameter dictionary for parameterized queries.
+            method: HTTP method (strictly restricted to GET).
 
         Returns:
             List of result row dictionaries.
 
         Raises:
+            SolarWindsSecurityError: If write method or mutating query is attempted.
             SolarWindsAuthError: If authentication/authorization fails (401/403).
             SolarWindsApiError: If query execution fails or returns non-200.
         """
+        # Hard Security Guard: Strictly block any non-GET methods
+        if method.upper() not in ALLOWED_METHODS:
+            raise SolarWindsSecurityError(
+                f"SolarWinds integration is strictly READ-ONLY. Method '{method}' is forbidden. Allowed: {ALLOWED_METHODS}"
+            )
+
+        # Hard Security Guard: Verify SWQL query is strictly SELECT
+        validate_swql_read_only(swql_query)
+
         query_params = {"query": swql_query}
         if params:
             query_params.update(params)
 
-        logger.info("Executing SWQL query against SWIS API (%s:%s)...", self.host, self.port)
+        logger.info("Executing read-only SWQL query against SWIS API (%s:%s)...", self.host, self.port)
 
         try:
             # First attempt with standard certificate verification
@@ -209,7 +261,7 @@ class SolarWindsClient:
                     verify=True,
                 )
             except (requests.exceptions.SSLError, urllib3.exceptions.SSLError):
-                logger.warning("Internal/self-signed SSL certificate detected; retrying with secure fallback verify=False...")
+                logger.warning("Internal/self-signed SSL certificate detected; retrying with verify=False...")
                 response = self._session.get(
                     self.base_url,
                     params=query_params,

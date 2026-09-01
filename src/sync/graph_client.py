@@ -89,9 +89,9 @@ class GraphClient:
             max_retries: Maximum number of retry attempts on transient network/rate errors.
             backoff_factor: Exponential backoff factor for retries.
         """
-        self.tenant_id = tenant_id or os.getenv("AZURE_TENANT_ID", "")
-        self.client_id = client_id or os.getenv("AZURE_CLIENT_ID", "")
-        self.client_secret = client_secret or os.getenv("AZURE_CLIENT_SECRET", "")
+        self.tenant_id = tenant_id if tenant_id is not None else os.getenv("AZURE_TENANT_ID", "")
+        self.client_id = client_id if client_id is not None else os.getenv("AZURE_CLIENT_ID", "")
+        self.client_secret = client_secret if client_secret is not None else os.getenv("AZURE_CLIENT_SECRET", "")
         self.scope = scope
         self.timeout = timeout
         self.max_retries = max_retries

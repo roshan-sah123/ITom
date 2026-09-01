@@ -22,6 +22,14 @@ from src.sync.solarwinds_client import (
     classify_node_health,
     normalize_solarwinds_vendor,
 )
+from src.sync.cmdb_generator import (
+    CMDBDataExtractor,
+    CMDBService,
+    classify_compliance_state,
+    classify_device_role,
+    classify_hardware_vendor,
+    generate_cmdb_artifacts,
+)
 
 __version__ = "1.0.0"
 __all__ = [
@@ -40,5 +48,11 @@ __all__ = [
     "generate_breakdowns",
     "format_sample_devices",
     "create_dashboard_summary",
+    "CMDBService",
+    "CMDBDataExtractor",
+    "classify_device_role",
+    "classify_hardware_vendor",
+    "classify_compliance_state",
+    "generate_cmdb_artifacts",
 ]
 

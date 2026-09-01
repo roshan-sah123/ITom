@@ -3,9 +3,10 @@
  * 
  * Features:
  * 1. Global module search with '/' focus and 'Escape' dismissal
- * 2. Profile and Notification dropdown state management
- * 3. Deep-link launcher module bridge routing directly into ops_analytics.html tabs
- *    (#overview, #intune, #solarwinds, #network, #dex)
+ * 2. Category Filter Pills with instant filtering
+ * 3. Module launch bridge with hash-routing deep links to ops_analytics.html
+ * 4. User profile and Notification dropdown management
+ * 5. Keyboard accessibility (Enter to launch first result, Escape to close)
  */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -14,6 +15,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const moduleCards = document.querySelectorAll('.module-card');
   const noResultsState = document.getElementById('noResults');
   const searchBarShortcut = document.querySelector('.search-shortcut');
+  const clearSearchBtn = document.getElementById('clearSearchBtn');
+  const filterPills = document.querySelectorAll('.filter-pill');
+  const moduleCountBadge = document.getElementById('moduleCountBadge');
   
   const profileBtn = document.getElementById('profileBtn');
   const profileDropdown = document.getElementById('profileDropdown');
@@ -78,7 +82,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // --- SEARCH LOGIC ---
+  // --- SEARCH & FILTER LOGIC ---
   
   function filterModules() {
     if (!searchInput) return;
@@ -90,8 +94,9 @@ document.addEventListener('DOMContentLoaded', () => {
       const descElem = card.querySelector('.module-desc');
       const name = nameElem ? nameElem.textContent.toLowerCase() : '';
       const desc = descElem ? descElem.textContent.toLowerCase() : '';
+      const cardId = (card.id || '').toLowerCase();
       
-      if (name.includes(query) || desc.includes(query)) {
+      if (name.includes(query) || desc.includes(query) || cardId.includes(query)) {
         card.classList.remove('hidden');
         visibleCount++;
       } else {
@@ -102,10 +107,66 @@ document.addEventListener('DOMContentLoaded', () => {
     if (noResultsState) {
       noResultsState.style.display = (visibleCount === 0) ? 'flex' : 'none';
     }
+
+    if (moduleCountBadge) {
+      if (query) {
+        moduleCountBadge.textContent = `${visibleCount} of ${moduleCards.length} Modules`;
+      } else {
+        moduleCountBadge.textContent = `${moduleCards.length} Applications`;
+      }
+    }
   }
 
   if (searchInput) {
-    searchInput.addEventListener('input', filterModules);
+    searchInput.addEventListener('input', () => {
+      // Sync active pill state
+      const val = searchInput.value.toLowerCase().trim();
+      let matchedPill = false;
+      filterPills.forEach(pill => {
+        const filterVal = (pill.getAttribute('data-filter') || '').toLowerCase();
+        if (val === filterVal) {
+          pill.classList.add('active');
+          matchedPill = true;
+        } else {
+          pill.classList.remove('active');
+        }
+      });
+      if (!matchedPill && !val) {
+        const allPill = document.querySelector('.filter-pill[data-filter=""]');
+        if (allPill) allPill.classList.add('active');
+      }
+      filterModules();
+    });
+  }
+
+  // Quick Filter Pills Click Handlers
+  filterPills.forEach(pill => {
+    pill.addEventListener('click', () => {
+      filterPills.forEach(p => p.classList.remove('active'));
+      pill.classList.add('active');
+      const filterVal = pill.getAttribute('data-filter') || '';
+      if (searchInput) {
+        searchInput.value = filterVal;
+        filterModules();
+        if (filterVal) {
+          searchInput.focus();
+        }
+      }
+    });
+  });
+
+  // Clear Search Button
+  if (clearSearchBtn) {
+    clearSearchBtn.addEventListener('click', () => {
+      if (searchInput) {
+        searchInput.value = '';
+        searchInput.focus();
+        filterPills.forEach(p => p.classList.remove('active'));
+        const allPill = document.querySelector('.filter-pill[data-filter=""]');
+        if (allPill) allPill.classList.add('active');
+        filterModules();
+      }
+    });
   }
 
   // --- KEYBOARD SHORTCUTS ---
@@ -121,8 +182,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // Clear search and blur on Escape
     if (e.key === 'Escape') {
       if (searchInput && document.activeElement === searchInput) {
-        searchInput.value = '';
-        filterModules();
+        if (searchInput.value) {
+          searchInput.value = '';
+          filterPills.forEach(p => p.classList.remove('active'));
+          const allPill = document.querySelector('.filter-pill[data-filter=""]');
+          if (allPill) allPill.classList.add('active');
+          filterModules();
+        }
         searchInput.blur();
       }
       closeAllDropdowns();
@@ -130,14 +196,24 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Focus and placeholder hints
-  if (searchInput && searchBarShortcut) {
+  // Press Enter to launch the first visible module card
+  if (searchInput) {
+    searchInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        const visibleCards = Array.from(moduleCards).filter(c => !c.classList.contains('hidden'));
+        if (visibleCards.length > 0) {
+          e.preventDefault();
+          visibleCards[0].click();
+        }
+      }
+    });
+
     searchInput.addEventListener('focus', () => {
-      searchBarShortcut.textContent = 'Esc';
+      if (searchBarShortcut) searchBarShortcut.textContent = 'Esc';
     });
 
     searchInput.addEventListener('blur', () => {
-      searchBarShortcut.textContent = '/';
+      if (searchBarShortcut) searchBarShortcut.textContent = '/';
     });
   }
 
@@ -157,7 +233,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (rawTarget.includes('#solarwinds') || rawMod.includes('capacity') || rawMod.includes('tools') || rawMod.includes('server') || rawTarget === '#capacity' || rawTarget === '#tools-center') {
       return 'ops_analytics.html#solarwinds';
     }
-    if (rawTarget.includes('#intune') || rawMod.includes('compliance') || rawMod.includes('analytics') || rawMod.includes('cmdb') || rawMod.includes('dex') || rawTarget === 'ops_analytics.html' || rawTarget === '#compliance') {
+    if (rawTarget.includes('#intune') || rawMod.includes('compliance') || rawMod.includes('analytics') || rawMod.includes('cmdb') || rawMod.includes('dex') || rawTarget === 'ops_analytics.html' || rawTarget === '#compliance' || rawTarget === '#cmdb') {
       return 'ops_analytics.html#intune';
     }
 
@@ -168,10 +244,48 @@ document.addEventListener('DOMContentLoaded', () => {
     return 'ops_analytics.html#intune';
   }
   
+  // --- OPS ANALYTICS DOMAIN DRILLDOWN MODAL (VP REQUIREMENT) ---
+  const opsDomainModal = document.getElementById('opsDomainModal');
+  const closeDomainModalBtn = document.getElementById('closeDomainModalBtn');
+
+  function openDomainModal() {
+    closeAllDropdowns();
+    if (opsDomainModal) {
+      opsDomainModal.classList.add('active');
+      document.body.style.overflow = 'hidden';
+    }
+  }
+
+  function closeDomainModal() {
+    if (opsDomainModal) {
+      opsDomainModal.classList.remove('active');
+      document.body.style.overflow = '';
+    }
+  }
+
+  if (closeDomainModalBtn) {
+    closeDomainModalBtn.addEventListener('click', closeDomainModal);
+  }
+
+  if (opsDomainModal) {
+    opsDomainModal.addEventListener('click', (e) => {
+      if (e.target === opsDomainModal) {
+        closeDomainModal();
+      }
+    });
+  }
+
   function launchModule(moduleName, targetUrl, isComingSoon) {
     closeAllDropdowns();
     if (launcherModuleName) launcherModuleName.textContent = moduleName;
     
+    // Check if OPS Analytics was selected -> Show Domain Drilldown Modal (VP Requirement)
+    const rawMod = (moduleName || '').toLowerCase();
+    if (rawMod.includes('analytics') || rawMod.includes('ops')) {
+      openDomainModal();
+      return;
+    }
+
     if (isComingSoon) {
       if (launcherStatus) {
         launcherStatus.innerHTML = `<span class="text-warning font-semibold">Phase 2 Module — In Development Pipeline</span><br><span class="text-xs text-muted">Integration with enterprise backend scheduled for upcoming release.</span>`;
@@ -180,7 +294,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    if (launcherStatus) launcherStatus.textContent = 'Launching Module 1: OPS Analytics...';
+    if (launcherStatus) launcherStatus.textContent = `Launching ${moduleName}...`;
     if (launcherOverlay) launcherOverlay.classList.add('active');
 
     // Quick 200ms visual feedback before direct navigation
@@ -225,5 +339,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Export functions globally
   window.launchModule = launchModule;
   window.closeLauncher = closeLauncher;
+  window.openDomainModal = openDomainModal;
+  window.closeDomainModal = closeDomainModal;
   window.resolveModuleDestination = resolveModuleDestination;
 });

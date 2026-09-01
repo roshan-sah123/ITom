@@ -8,33 +8,23 @@
   <!-- Google Fonts - Inter -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <!-- Vanilla CSS Stylesheet -->
-  <link rel="stylesheet" href="style.css?v=1.3">
+  <link rel="stylesheet" href="style.css?v=2.0">
 </head>
-<body>
+<body class="portal-body">
 
   <!-- Top Navigation Bar -->
   <header class="top-nav">
     <div class="nav-container">
       <!-- Left: Logo and Brand -->
-      <a href="#" class="logo-area" id="brandLogo">
+      <a href="index.html" class="logo-area" id="brandLogo" aria-label="ITOM Portal Home">
         <img src="logo.png" class="logo-img" alt="ITOM Logo">
-        <span class="logo-text">ITOM</span>
-        <span class="logo-tag">Portal</span>
-      </a>
-
-      <!-- Center: Search Bar -->
-      <div class="search-container">
-        <div class="search-input-wrapper">
-          <svg class="search-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="11" cy="11" r="8"></circle>
-            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-          </svg>
-          <input type="text" id="searchBar" class="search-input" placeholder="Search modules... (Press '/' to focus)" autocomplete="off">
-          <span class="search-shortcut">/</span>
+        <div class="logo-text-group">
+          <span class="logo-text">ITOM</span>
+          <span class="logo-tag">Portal</span>
         </div>
-      </div>
+      </a>
 
       <!-- Right: Actions & User Info -->
       <div class="nav-actions">
@@ -48,7 +38,7 @@
         </button>
 
         <!-- Notification Panel Dropdown -->
-        <div class="notifications-panel" id="notificationsDropdown">
+        <div class="notifications-panel" id="notificationsDropdown" role="region" aria-label="Notifications Panel">
           <div class="notifications-header">
             <h3>Notifications</h3>
             <button class="mark-read-btn" id="markReadBtn">Mark all read</button>
@@ -108,7 +98,7 @@
           </button>
           
           <!-- User Profile Dropdown -->
-          <div class="dropdown-panel" id="profileDropdown">
+          <div class="dropdown-panel" id="profileDropdown" role="region" aria-label="User Profile Menu">
             <div class="dropdown-header">
               <div class="dropdown-user-name">Roshan Sah</div>
               <div class="dropdown-user-role">ITOM Site Reliability Engineer</div>
@@ -148,156 +138,296 @@
   <main class="main-wrapper">
     <div class="main-container">
       
-      <!-- Welcome Header -->
-      <section class="portal-header">
+      <!-- Hero Section: Centered Headline, Subtitle & Prominent Search Bar -->
+      <section class="portal-hero">
+        <div class="hero-badge">
+          <span class="hero-badge-pulse"></span>
+          Enterprise Operations & Telemetry
+        </div>
+        
         <h1 class="portal-title">IT Operations Management Portal</h1>
-        <p class="portal-subtitle">Select a module to begin.</p>
+        <p class="portal-subtitle">Unified infrastructure observability, automated configuration intelligence, and systems management.</p>
+
+        <!-- Prominent Hero Search Bar -->
+        <div class="hero-search-container">
+          <div class="hero-search-wrapper">
+            <svg class="search-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input 
+              type="text" 
+              id="searchBar" 
+              class="search-input hero-search-input" 
+              placeholder="Search modules, runbooks, or telemetry... (Press '/' to focus)" 
+              autocomplete="off" 
+              spellcheck="false"
+              aria-label="Search modules"
+            >
+            <div class="search-shortcut-badge" title="Shortcut key">
+              <kbd class="search-shortcut">/</kbd>
+            </div>
+          </div>
+
+          <!-- Quick Filter Pills -->
+          <div class="quick-filter-bar" role="toolbar" aria-label="Module category quick filters">
+            <span class="quick-filter-label">Quick filter:</span>
+            <button type="button" class="filter-pill active" data-filter="">All Modules</button>
+            <button type="button" class="filter-pill" data-filter="analytics">OPS Analytics</button>
+            <button type="button" class="filter-pill" data-filter="cmdb">CMDB</button>
+            <button type="button" class="filter-pill" data-filter="compliance">Compliance</button>
+            <button type="button" class="filter-pill" data-filter="capacity">Capacity</button>
+            <button type="button" class="filter-pill" data-filter="dex">DEX</button>
+            <button type="button" class="filter-pill" data-filter="automation">AI Automation</button>
+          </div>
+        </div>
       </section>
 
-      <!-- Module Application Grid -->
-      <section class="module-grid" id="moduleGrid">
+      <!-- Section Title Divider -->
+      <div class="section-divider-row">
+        <h2 class="section-heading">Available Modules</h2>
+        <span class="section-count-badge" id="moduleCountBadge">8 Applications</span>
+      </div>
+
+      <!-- Module Application Grid (Responsive 4-column layout) -->
+      <section class="module-grid" id="moduleGrid" aria-label="Portal Application Modules">
         
         <!-- Module 1: OPS Analytics (Live Production) -->
-        <a class="module-card active-module" href="ops_analytics.html" data-status="live">
-          <div class="module-icon-container">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="18" y1="20" x2="18" y2="10"></line>
-              <line x1="12" y1="20" x2="12" y2="4"></line>
-              <line x1="6" y1="20" x2="6" y2="14"></line>
-            </svg>
+        <a class="module-card active-module" href="ops_analytics.html" data-status="live" id="card-ops-analytics">
+          <div class="module-card-top">
+            <div class="module-icon-container">
+              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="18" y1="20" x2="18" y2="10"></line>
+                <line x1="12" y1="20" x2="12" y2="4"></line>
+                <line x1="6" y1="20" x2="6" y2="14"></line>
+              </svg>
+            </div>
+            <span class="badge badge-live">
+              <span class="pulse-dot-sm" aria-hidden="true"></span>
+              Live (Module 1)
+            </span>
           </div>
-          <div class="flex justify-between items-center">
-            <h2 class="module-name">OPS Analytics</h2>
-            <span class="badge badge-success">Live (Module 1)</span>
+          <h3 class="module-name">OPS Analytics</h3>
+          <p class="module-desc">Real-time Microsoft Intune (26.5k devices) and SolarWinds Orion infrastructure operational telemetry.</p>
+          <div class="module-card-footer">
+            <span class="module-card-action">Launch Analytics <span class="action-arrow">→</span></span>
           </div>
-          <p class="module-desc">Real-time Microsoft Intune and SolarWinds infrastructure operational analytics.</p>
         </a>
 
         <!-- Module 2: CMDB (Coming Soon) -->
-        <a class="module-card coming-soon-card" href="#cmdb" data-status="coming-soon">
-          <div class="module-icon-container">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <ellipse cx="12" cy="5" r="9" rx="9" ry="3"></ellipse>
-              <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path>
-              <path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3"></path>
-            </svg>
-          </div>
-          <div class="flex justify-between items-center">
-            <h2 class="module-name">CMDB</h2>
+        <a class="module-card coming-soon-card" href="#cmdb" data-status="coming-soon" id="card-cmdb">
+          <div class="module-card-top">
+            <div class="module-icon-container">
+              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <ellipse cx="12" cy="5" r="9" rx="9" ry="3"></ellipse>
+                <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path>
+                <path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3"></path>
+              </svg>
+            </div>
             <span class="badge badge-neutral">Coming Soon</span>
           </div>
-          <p class="module-desc">Configuration management database, dependencies, and application mapping.</p>
+          <h3 class="module-name">CMDB Explorer</h3>
+          <p class="module-desc">Configuration management database, CI dependencies, topology mapping, and asset discovery.</p>
+          <div class="module-card-footer">
+            <span class="module-card-action">View Pipeline <span class="action-arrow">→</span></span>
+          </div>
         </a>
 
         <!-- Module 3: Compliance (Coming Soon) -->
-        <a class="module-card coming-soon-card" href="#compliance" data-status="coming-soon">
-          <div class="module-icon-container">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
-              <polyline points="9 11 11 13 15 9"></polyline>
-            </svg>
-          </div>
-          <div class="flex justify-between items-center">
-            <h2 class="module-name">Compliance Audit</h2>
+        <a class="module-card coming-soon-card" href="#compliance" data-status="coming-soon" id="card-compliance">
+          <div class="module-card-top">
+            <div class="module-icon-container">
+              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                <polyline points="9 11 11 13 15 9"></polyline>
+              </svg>
+            </div>
             <span class="badge badge-neutral">Coming Soon</span>
           </div>
-          <p class="module-desc">Automated configuration auditing, risk assessments, and ISO/SOC2 compliance.</p>
+          <h3 class="module-name">Compliance Audit</h3>
+          <p class="module-desc">Automated configuration auditing, risk assessments, posture drift detection, and ISO/SOC2 reports.</p>
+          <div class="module-card-footer">
+            <span class="module-card-action">View Pipeline <span class="action-arrow">→</span></span>
+          </div>
         </a>
 
         <!-- Module 4: Capacity (Coming Soon) -->
-        <a class="module-card coming-soon-card" href="#capacity" data-status="coming-soon">
-          <div class="module-icon-container">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect>
-              <rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect>
-              <line x1="6" y1="6" x2="6.01" y2="6"></line>
-              <line x1="6" y1="18" x2="6.01" y2="18"></line>
-            </svg>
-          </div>
-          <div class="flex justify-between items-center">
-            <h2 class="module-name">Capacity Planner</h2>
+        <a class="module-card coming-soon-card" href="#capacity" data-status="coming-soon" id="card-capacity">
+          <div class="module-card-top">
+            <div class="module-icon-container">
+              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect>
+                <rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect>
+                <line x1="6" y1="6" x2="6.01" y2="6"></line>
+                <line x1="6" y1="18" x2="6.01" y2="18"></line>
+              </svg>
+            </div>
             <span class="badge badge-neutral">Coming Soon</span>
           </div>
-          <p class="module-desc">Predictive resource planning, host allocation, and utilization forecasts.</p>
+          <h3 class="module-name">Capacity Planner</h3>
+          <p class="module-desc">Predictive compute and storage forecasting, host allocation trends, and utilization thresholds.</p>
+          <div class="module-card-footer">
+            <span class="module-card-action">View Pipeline <span class="action-arrow">→</span></span>
+          </div>
         </a>
 
         <!-- Module 5: DEX (Coming Soon) -->
-        <a class="module-card coming-soon-card" href="#dex" data-status="coming-soon">
-          <div class="module-icon-container">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
-              <line x1="8" y1="21" x2="16" y2="21"></line>
-              <line x1="12" y1="17" x2="12" y2="21"></line>
-            </svg>
-          </div>
-          <div class="flex justify-between items-center">
-            <h2 class="module-name">DEX Metrics</h2>
+        <a class="module-card coming-soon-card" href="#dex" data-status="coming-soon" id="card-dex">
+          <div class="module-card-top">
+            <div class="module-icon-container">
+              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                <line x1="8" y1="21" x2="16" y2="21"></line>
+                <line x1="12" y1="17" x2="12" y2="21"></line>
+              </svg>
+            </div>
             <span class="badge badge-neutral">Coming Soon</span>
           </div>
-          <p class="module-desc">Digital Employee Experience monitoring, telemetry, and endpoint diagnostics.</p>
+          <h3 class="module-name">DEX Metrics</h3>
+          <p class="module-desc">Digital Employee Experience monitoring, application crash telemetry, and endpoint latency metrics.</p>
+          <div class="module-card-footer">
+            <span class="module-card-action">View Pipeline <span class="action-arrow">→</span></span>
+          </div>
         </a>
 
         <!-- Module 6: Tools Center (Coming Soon) -->
-        <a class="module-card coming-soon-card" href="#tools-center" data-status="coming-soon">
-          <div class="module-icon-container">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="4 17 10 11 4 5"></polyline>
-              <line x1="12" y1="19" x2="20" y2="19"></line>
-            </svg>
-          </div>
-          <div class="flex justify-between items-center">
-            <h2 class="module-name">Tools Center</h2>
+        <a class="module-card coming-soon-card" href="#tools-center" data-status="coming-soon" id="card-tools">
+          <div class="module-card-top">
+            <div class="module-icon-container">
+              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="4 17 10 11 4 5"></polyline>
+                <line x1="12" y1="19" x2="20" y2="19"></line>
+              </svg>
+            </div>
             <span class="badge badge-neutral">Coming Soon</span>
           </div>
-          <p class="module-desc">Centralized administration tools, runbooks, and automation scripts.</p>
+          <h3 class="module-name">Tools Center</h3>
+          <p class="module-desc">Centralized administration utilities, diagnostic scripts, credential vaults, and operational runbooks.</p>
+          <div class="module-card-footer">
+            <span class="module-card-action">View Pipeline <span class="action-arrow">→</span></span>
+          </div>
         </a>
 
         <!-- Module 7: Knowledge Centre (Coming Soon) -->
-        <a class="module-card coming-soon-card" href="#knowledge-centre" data-status="coming-soon">
-          <div class="module-icon-container">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
-              <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
-            </svg>
-          </div>
-          <div class="flex justify-between items-center">
-            <h2 class="module-name">Knowledge Centre</h2>
+        <a class="module-card coming-soon-card" href="#knowledge-centre" data-status="coming-soon" id="card-knowledge">
+          <div class="module-card-top">
+            <div class="module-icon-container">
+              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
+                <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
+              </svg>
+            </div>
             <span class="badge badge-neutral">Coming Soon</span>
           </div>
-          <p class="module-desc">Internal documentation, troubleshooting guides, SRE runbooks, and wiki.</p>
+          <h3 class="module-name">Knowledge Centre</h3>
+          <p class="module-desc">Internal SRE standard operating procedures, architectural documentation, runbooks, and engineering wiki.</p>
+          <div class="module-card-footer">
+            <span class="module-card-action">View Pipeline <span class="action-arrow">→</span></span>
+          </div>
         </a>
 
         <!-- Module 8: AI Automation (Coming Soon) -->
-        <a class="module-card coming-soon-card" href="#ai-automation" data-status="coming-soon">
-          <div class="module-icon-container">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"></path>
-              <circle cx="12" cy="12" r="4"></circle>
-            </svg>
-          </div>
-          <div class="flex justify-between items-center">
-            <h2 class="module-name">AI Automation</h2>
+        <a class="module-card coming-soon-card" href="#ai-automation" data-status="coming-soon" id="card-ai">
+          <div class="module-card-top">
+            <div class="module-icon-container">
+              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"></path>
+                <circle cx="12" cy="12" r="4"></circle>
+              </svg>
+            </div>
             <span class="badge badge-neutral">Coming Soon</span>
           </div>
-          <p class="module-desc">Autonomous incident remediation, anomaly detection, and self-healing pipelines.</p>
+          <h3 class="module-name">AI Automation</h3>
+          <p class="module-desc">Autonomous incident remediation, telemetry anomaly detection, and self-healing cloud pipelines.</p>
+          <div class="module-card-footer">
+            <span class="module-card-action">View Pipeline <span class="action-arrow">→</span></span>
+          </div>
         </a>
 
         <!-- No Results Fallback Item (Handled by JS) -->
-        <div class="no-results" id="noResults">
+        <div class="no-results" id="noResults" role="status" aria-live="polite">
           <svg class="no-results-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
             <circle cx="11" cy="11" r="8"></circle>
             <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
           </svg>
           <div class="no-results-title">No modules found</div>
-          <div class="no-results-desc">No applications match your current search query.</div>
+          <div class="no-results-desc">No applications match your current search query. Try clearing the search bar or choosing a different filter.</div>
+          <button type="button" class="btn btn-secondary btn-sm" id="clearSearchBtn" style="margin-top: 16px;">Clear Search</button>
         </div>
 
       </section>
     </div>
   </main>
 
+  <!-- Interactive OPS Analytics Domain Drilldown Modal (VP Requirement) -->
+  <div class="domain-modal-overlay" id="opsDomainModal" role="dialog" aria-modal="true" aria-labelledby="domainModalTitle">
+    <div class="domain-modal-content">
+      <div class="domain-modal-header">
+        <div>
+          <span class="domain-modal-pill">OPS Analytics Hub</span>
+          <h2 class="domain-modal-title" id="domainModalTitle">Select Operational Telemetry Domain</h2>
+          <p class="domain-modal-desc">Choose a focused analytics view or explore the unified operational platform.</p>
+        </div>
+        <button class="domain-modal-close" id="closeDomainModalBtn" aria-label="Close Analytics Hub">&times;</button>
+      </div>
+
+      <div class="domain-cards-grid">
+        <!-- Specific Analytics Card 1: Intune -->
+        <a href="ops_analytics.html#intune" class="domain-card domain-card-intune" id="drilldownIntuneCard">
+          <div class="domain-card-icon-box">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+              <line x1="8" y1="21" x2="16" y2="21"></line>
+              <line x1="12" y1="17" x2="12" y2="21"></line>
+            </svg>
+          </div>
+          <div class="domain-card-badge">27,412 Devices</div>
+          <h3 class="domain-card-name">Endpoint Fleet Analytics</h3>
+          <p class="domain-card-desc">Microsoft Intune compliance (82.9%), Dell/HP OEM distribution, OS breakdowns & storage telemetry.</p>
+          <div class="domain-card-action">Open Intune View &rarr;</div>
+        </a>
+
+        <!-- Specific Analytics Card 2: SolarWinds -->
+        <a href="ops_analytics.html#solarwinds" class="domain-card domain-card-solarwinds" id="drilldownSwCard">
+          <div class="domain-card-icon-box">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect>
+              <rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect>
+              <line x1="6" y1="6" x2="6.01" y2="6"></line>
+              <line x1="6" y1="18" x2="6.01" y2="18"></line>
+            </svg>
+          </div>
+          <div class="domain-card-badge">1,543 Server Nodes</div>
+          <h3 class="domain-card-name">Server & Node Telemetry</h3>
+          <p class="domain-card-desc">SolarWinds SWIS health tiers (90.9% High), fleet CPU/RAM latency & Top 10 Saturated Servers triage.</p>
+          <div class="domain-card-action">Open Servers View &rarr;</div>
+        </a>
+
+        <!-- Specific Analytics Card 3: CMDB -->
+        <a href="ops_analytics.html#cmdb" class="domain-card domain-card-cmdb" id="drilldownCmdbCard">
+          <div class="domain-card-icon-box">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <ellipse cx="12" cy="5" r="9" rx="9" ry="3"></ellipse>
+              <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path>
+              <path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3"></path>
+            </svg>
+          </div>
+          <div class="domain-card-badge">364 Network CIs</div>
+          <h3 class="domain-card-name">Network CMDB & Compliance</h3>
+          <p class="domain-card-desc">Physical switch architecture (Core/Dist/Access), 93.1% control pass rate across 37 site IP subnets.</p>
+          <div class="domain-card-action">Open CMDB View &rarr;</div>
+        </a>
+      </div>
+
+      <div class="domain-modal-footer">
+        <span class="domain-footer-text">3 Verified Operational Domains Active &bull; 10-Min Live Auto-Sync</span>
+        <a href="ops_analytics.html" class="btn btn-primary btn-sm" id="launchUnifiedDashboardBtn">Launch Unified Dashboard</a>
+      </div>
+    </div>
+  </div>
+
   <!-- Interactive Launcher Splash Overlay -->
-  <div class="launcher-overlay" id="launcherOverlay">
+  <div class="launcher-overlay" id="launcherOverlay" role="dialog" aria-modal="true" aria-labelledby="launcherModuleName">
     <div class="launcher-content">
       <div class="launcher-spinner"></div>
       <h3 class="launcher-title">Launching <span id="launcherModuleName">Module</span></h3>
@@ -307,6 +437,6 @@
   </div>
 
   <!-- JavaScript File Inclusion -->
-  <script src="app.js?v=2.0"></script>
+  <script src="app.js?v=3.0"></script>
 </body>
 </html>
