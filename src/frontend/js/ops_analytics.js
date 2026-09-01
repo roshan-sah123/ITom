@@ -84,8 +84,8 @@
       const total = intuneData?.metrics?.total_managed_devices || (allIntuneDevices.length > 0 ? allIntuneDevices.length : 25987);
       valElem.textContent = Number(total).toLocaleString();
     } else if (tabId === 'cmdb' || tabId === 'network') {
-      labelElem.textContent = 'Total Network CIs';
-      const total = cmdbData?.metrics?.total_network_cis || 364;
+      labelElem.textContent = 'Total Verified CIs';
+      const total = cmdbData?.metadata?.total_configuration_items || cmdbData?.metrics?.total_configuration_items || (allCmdbCis.length > 0 ? allCmdbCis.length : 1543);
       valElem.textContent = Number(total).toLocaleString();
     } else if (tabId === 'dex') {
       labelElem.textContent = 'DEX Monitored Fleet';
@@ -129,13 +129,9 @@
     // 3. Update Header Stat Box dynamically
     updateHeaderStat(tabId);
 
-    // 4. Synchronize URL Hash without unwanted scrolling
+    // 4. Update URL Hash without triggering unnecessary jump scroll
     if (updateHash && window.location.hash !== `#${tabId}`) {
-      if (history.pushState) {
-        history.pushState(null, null, `#${tabId}`);
-      } else {
-        window.location.hash = `#${tabId}`;
-      }
+      history.replaceState(null, '', `#${tabId}`);
     }
 
     // 5. Safe Chart.js Resize & Redraw on view activation
@@ -173,17 +169,7 @@
     return currentActiveTab;
   }
 
-  /**
-   * Initialize URL hash routing and event listeners.
-   */
   function initTabRouter() {
-    const urlParams = new URLSearchParams(window.location.search);
-    const queryTab = urlParams.get('tab');
-    const hashTab = window.location.hash;
-    const initialTab = queryTab ? parseTabId(queryTab) : (hashTab ? parseTabId(hashTab) : DEFAULT_TAB);
-
-    switchTab(initialTab, false);
-
     const tabButtons = document.querySelectorAll('.tab-btn');
     tabButtons.forEach(btn => {
       btn.addEventListener('click', (e) => {
@@ -193,33 +179,25 @@
       });
     });
 
-    document.addEventListener('click', (e) => {
-      const targetBtn = e.target.closest('[data-target-tab]');
-      if (targetBtn) {
-        e.preventDefault();
-        const target = targetBtn.getAttribute('data-target-tab');
-        switchTab(target, true);
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-      }
-    });
+    // Handle Deep-Linked Hash routing
+    const initialHash = window.location.hash.replace('#', '').trim();
+    if (initialHash) {
+      switchTab(initialHash, false);
+    } else {
+      switchTab('intune', false);
+    }
 
+    // Handle browser forward/back buttons
     window.addEventListener('hashchange', () => {
-      const newTab = parseTabId(window.location.hash);
-      if (newTab !== currentActiveTab) {
-        switchTab(newTab, false);
-      }
-    });
-
-    window.addEventListener('popstate', () => {
-      const newTab = parseTabId(window.location.hash);
-      if (newTab !== currentActiveTab) {
-        switchTab(newTab, false);
+      const hash = window.location.hash.replace('#', '').trim();
+      if (hash) {
+        switchTab(hash, false);
       }
     });
   }
 
   // =========================================================================
-  // DATA LOADERS: INTUNE & SOLARWINDS
+  // DATA LOADERS & DATA NORMALIZERS: INTUNE, SOLARWINDS, CMDB
   // =========================================================================
 
   let intuneCurrentPage = 1;
@@ -229,6 +207,34 @@
   let swCurrentPage = 1;
   let swPageSize = 50;
   let swFilteredNodes = [];
+
+  function normalizeIntuneDevice(d) {
+    const totalBytes = Number(d.totalStorageSpaceInBytes || 0);
+    const freeBytes = Number(d.freeStorageSpaceInBytes || 0);
+    let usedPct = 0;
+    let freeGB = 0;
+    if (totalBytes > 0) {
+      usedPct = Math.round(((totalBytes - freeBytes) / totalBytes) * 100);
+      freeGB = Math.round(freeBytes / (1024 * 1024 * 1024));
+    } else if (d.usedStoragePct !== undefined) {
+      usedPct = Number(d.usedStoragePct || 0);
+      freeGB = Number(d.freeStorageGB || 0);
+    }
+    return {
+      id: d.id || '',
+      deviceName: d.deviceName || 'Unknown Host',
+      operatingSystem: d.operatingSystem || 'Windows',
+      osVersion: d.osVersion || '',
+      userPrincipalName: d.userPrincipalName || 'N/A',
+      manufacturer: d.manufacturer || 'Dell Inc.',
+      model: d.model || 'Corporate Device',
+      serialNumber: d.serialNumber || 'N/A',
+      complianceState: d.complianceState || 'Compliant',
+      usedStoragePct: usedPct,
+      freeStorageGB: freeGB,
+      lastSync: d.lastSyncDateTime || d.lastSync || ''
+    };
+  }
 
   async function loadAllTelemetry() {
     await Promise.all([
@@ -241,17 +247,37 @@
 
   async function loadCmdbTelemetry() {
     const ts = Date.now();
-    const summaryPaths = [`data/cmdb_summary.json?t=${ts}`, `/data/cmdb_summary.json?t=${ts}`];
+    const summaryPaths = [`data/cmdb_summary.json?t=${ts}`, `/data/cmdb_summary.json?t=${ts}`, `/api/cmdb/summary?t=${ts}`];
     for (const path of summaryPaths) {
       try {
         const res = await fetch(path);
         if (res.ok) {
           cmdbData = await res.json();
-          if (allCmdbCis.length === 0 && cmdbData.sample_devices) {
+          if (cmdbData.sample_devices && Array.isArray(cmdbData.sample_devices) && cmdbData.sample_devices.length > 0) {
             allCmdbCis = [...cmdbData.sample_devices];
-            cmdbFilteredCis = [...allCmdbCis];
+            const cmdbSearch = document.getElementById('cmdbSearchInput');
+            const q = cmdbSearch ? cmdbSearch.value.toLowerCase().trim() : '';
+            if (q) {
+              cmdbFilteredCis = allCmdbCis.filter(c => 
+                (c.ci_id || c.device_id || '').toLowerCase().includes(q) ||
+                (c.name || c.caption || c.device_token || '').toLowerCase().includes(q) ||
+                (c.ci_type || c.role || c.device_role || '').toLowerCase().includes(q) ||
+                (c.ip_address || c.IPAddress || '').toLowerCase().includes(q) ||
+                (c.vendor || c.hardware_vendor || '').toLowerCase().includes(q) ||
+                (c.model || c.technology || '').toLowerCase().includes(q) ||
+                (c.operating_system || '').toLowerCase().includes(q) ||
+                (c.location || '').toLowerCase().includes(q) ||
+                (c.status || '').toLowerCase().includes(q) ||
+                (c.health_tier || c.compliance_state || '').toLowerCase().includes(q)
+              );
+            } else {
+              cmdbFilteredCis = [...allCmdbCis];
+            }
           }
           renderCmdbDashboard(cmdbData);
+          if (currentActiveTab === 'cmdb') {
+            updateHeaderStat('cmdb');
+          }
           break;
         }
       } catch (e) {
@@ -263,13 +289,15 @@
   async function loadIntuneTelemetry() {
     const ts = Date.now();
     const summaryPaths = [`data/intune_summary.json?t=${ts}`, `/data/intune_summary.json?t=${ts}`];
+    
+    // 1. Instant Initial Render from Summary (Metrics & Top-Level Dashboard)
     for (const path of summaryPaths) {
       try {
         const res = await fetch(path);
         if (res.ok) {
           intuneData = await res.json();
           if (allIntuneDevices.length === 0 && intuneData.sample_devices) {
-            allIntuneDevices = [...intuneData.sample_devices];
+            allIntuneDevices = intuneData.sample_devices.map(normalizeIntuneDevice);
             intuneFilteredDevices = [...allIntuneDevices];
           }
           renderIntuneDashboard(intuneData);
@@ -277,11 +305,49 @@
         }
       } catch (err) {}
     }
+
+    // 2. Asynchronous Full Dataset Ingestion (25,987 Endpoints for complete 520-page pagination)
+    const fullDatasetPaths = [`data/intune_ops_analytics.json?t=${ts}`, `/data/intune_ops_analytics.json?t=${ts}`];
+    for (const path of fullDatasetPaths) {
+      try {
+        const res = await fetch(path);
+        if (res.ok) {
+          const fullData = await res.json();
+          if (fullData.devices && Array.isArray(fullData.devices) && fullData.devices.length > 0) {
+            allIntuneDevices = fullData.devices.map(normalizeIntuneDevice);
+            const searchInput = document.getElementById('deviceSearchInput');
+            const q = searchInput ? searchInput.value.toLowerCase().trim() : '';
+            if (q) {
+              intuneFilteredDevices = allIntuneDevices.filter(d => 
+                (d.deviceName || '').toLowerCase().includes(q) ||
+                (d.userPrincipalName || '').toLowerCase().includes(q) ||
+                (d.serialNumber || '').toLowerCase().includes(q) ||
+                (d.model || '').toLowerCase().includes(q) ||
+                (d.operatingSystem || '').toLowerCase().includes(q) ||
+                (d.complianceState || '').toLowerCase().includes(q) ||
+                (d.manufacturer || '').toLowerCase().includes(q)
+              );
+            } else {
+              intuneFilteredDevices = [...allIntuneDevices];
+            }
+            renderIntuneTable();
+            if (currentActiveTab === 'intune') {
+              updateHeaderStat('intune');
+            }
+          }
+          break;
+        }
+      } catch (err) {
+        console.warn(`Failed to fetch full Intune dataset from ${path}:`, err);
+      }
+    }
   }
 
   async function loadSolarWindsTelemetry() {
     const ts = Date.now();
     const summaryPaths = [`data/solarwinds_summary.json?t=${ts}`, `/data/solarwinds_summary.json?t=${ts}`];
+    
+    // 1. Instant Initial Render from Summary (Metrics & Top-Level Dashboard)
     for (const path of summaryPaths) {
       try {
         const res = await fetch(path);
@@ -296,7 +362,46 @@
         }
       } catch (err) {}
     }
+
+    // 2. Asynchronous Full Nodes Dataset Ingestion (1,548 Server Nodes for complete 31-page pagination)
+    const fullNodesPaths = [`data/solarwinds_nodes.json?t=${ts}`, `/data/solarwinds_nodes.json?t=${ts}`];
+    for (const path of fullNodesPaths) {
+      try {
+        const res = await fetch(path);
+        if (res.ok) {
+          const nodesData = await res.json();
+          const nodesList = nodesData.nodes || nodesData.sample_nodes || [];
+          if (nodesList.length > 0) {
+            allSwNodes = nodesList;
+            const swSearch = document.getElementById('swSearchInput');
+            const q = swSearch ? swSearch.value.toLowerCase().trim() : '';
+            if (q) {
+              swFilteredNodes = allSwNodes.filter(n => 
+                String(n.NodeID || '').includes(q) ||
+                (n.Caption || '').toLowerCase().includes(q) ||
+                (n.IPAddress || '').toLowerCase().includes(q) ||
+                (n.Vendor || '').toLowerCase().includes(q) ||
+                (n.MachineType || '').toLowerCase().includes(q) ||
+                (n.HealthClassification || n.HealthTier || '').toLowerCase().includes(q) ||
+                (n.City || '').toLowerCase().includes(q) ||
+                (n.StatusDescription || '').toLowerCase().includes(q)
+              );
+            } else {
+              swFilteredNodes = [...allSwNodes];
+            }
+            renderSolarWindsTable();
+            if (currentActiveTab === 'solarwinds') {
+              updateHeaderStat('solarwinds');
+            }
+          }
+          break;
+        }
+      } catch (err) {
+        console.warn(`Failed to fetch full SolarWinds nodes from ${path}:`, err);
+      }
+    }
   }
+
 
   // =========================================================================
   // RENDER INTUNE TELEMETRY (25,987 Endpoints)

@@ -1,36 +1,33 @@
 # Original User Request
 
-## Initial Request — 2026-08-27T08:06:06Z
+## Initial Request — 2026-09-01T22:11:49+05:30
 
-You are the Project Orchestrator for the production evaluation of the SolarWinds + Microsoft Intune data platform and operations dashboard.
+Transform the ITOM telemetry and operations platform into an organized, maintainable, production-grade codebase with a 15–20 minute onboarding guide, structured documentation, clean frontend/service separation, and zero dead code, while strictly preserving 100% working functionality.
 
-# Working Directory & Paths
-- Your working directory: `c:\Users\Roshan.Sah\Documents\antigravity\optimistic-pasteur\.agents\orchestrator_1`
-- Project root: `c:\Users\Roshan.Sah\Documents\antigravity\optimistic-pasteur`
-- Authoritative User Request: `c:\Users\Roshan.Sah\Documents\antigravity\optimistic-pasteur\.agents\ORIGINAL_REQUEST.md`
-- Project guidelines: `c:\Users\Roshan.Sah\Documents\antigravity\optimistic-pasteur\GEMINI.md`
+### Requirements:
+1. R1. Full Codebase Audit & Noise/Dead Code Removal:
+   - Audit all files across frontend (`src/frontend/`, root static assets), backend/ETL pipelines (`src/sync/`, `scripts/`), tests (`tests/`), and docs (`docs/`).
+   - Safely remove orphaned experimental scripts, unused scratch files, duplicate definitions, and obsolete configurations after confirming zero dependency or route references.
+   - Preserve all working live integrations (SolarWinds SWIS v3 API, Microsoft Graph Intune API), mathematical invariant gates, and server startup scripts (`start_server.bat`).
+2. R2. Clean Frontend Separation & Service Layer Modularization:
+   - Organize the frontend presentation layer into clear, logical responsibilities: UI components, data services/API client, utility helpers, and constants without breaking zero-build runtime compatibility.
+   - Ensure all dynamic DOM rendering is strictly sanitized against XSS via `escapeHtml()`, and table searches, sorting, pagination, and RFC 4180 CSV exports operate with zero regression.
+3. R3. Environment Configuration & Secret Hygiene:
+   - Ensure `.env.example` contains sanitized, descriptive placeholders with zero corporate hostnames, IPs, or credentials.
+   - Verify `.gitignore` excludes `.env`, `data/*.json`, `exports/*.csv`, cache directories, and local logs.
+4. R4. Complete 15-Minute Onboarding & Architecture Documentation:
+   - Author a developer-first `docs/ONBOARDING.md` structured to ramp up a new engineer in 15–20 minutes.
+   - Create and synchronize comprehensive documentation: `README.md`, `docs/ARCHITECTURE.md`, `docs/DATA_FLOW.md`, `docs/API_CONTRACTS.md`, `docs/DEPLOYMENT.md`, `docs/TROUBLESHOOTING.md`.
+5. R5. GitHub Repository Hygiene & Standards:
+   - Standardize GitHub issue templates (`.github/ISSUE_TEMPLATE/`), pull request template (`.github/PULL_REQUEST_TEMPLATE.md`), and lightweight automated CI validation workflow (`.github/workflows/ci.yml`).
 
-# Task Scope & Requirements
-Execute a full production evaluation of the SolarWinds + Microsoft Intune data platform and operations dashboard without rebuilding the system.
-- R1. Live API Data Extraction & Freshness Verification:
-  - SolarWinds Orion SWIS API extraction (`scripts/fetch_solarwinds_data.py` / `src/sync/solarwinds_client.py`)
-  - Microsoft Graph Intune API extraction (`scripts/fetch_intune_data.py` / `src/sync/graph_client.py`)
-  - Capture response status, latency, freshness timestamp, node/device counts without synthetic/mock figures.
-- R2. Data Transformation & Mathematical Invariant Validation:
-  - Run `scripts/generate_dashboard_payload.py` to create summary payloads (`data/intune_summary.json` and `data/solarwinds_summary.json`).
-  - Verify the 6-point mathematical invariants (population sum, OS breakdown closure, OEM normalization closure, compliance rate exactness, binary GiB storage utilization, SolarWinds health classification closure).
-- R3. Dashboard & Presentation Tier Verification:
-  - Verify `ops_analytics.html`/`ops_analytics.js` and `index.html`/`app.js`.
-  - Validate KPI stat cards, charts, searchable device tables, RFC 4180 CSV export, and XSS sanitization (`escapeHtml()`).
-- R4. Security, Codebase & Documentation Audit:
-  - Check for hardcoded secrets/credentials, unhandled errors, dead code.
-  - Check docs (`README.md`, `docs/ARCHITECTURE.md`, `docs/API_CONTRACTS.md`, `docs/SYNC_STRATEGY.md`) against implementation.
-- R5. Comprehensive Production Evaluation Report:
-  - Run test suites (`tests/run_e2e_tests.py`, `tests/verify_intune_data.py`, `tests/verify_solarwinds_data.py`).
-  - Generate comprehensive 14-section System Evaluation Report covering all required areas with old vs. fresh comparison.
-
-# Protocol & Standards
-- Strictly observe Zero-Hallucination Policy and Multi-Domain Telemetry Standards from `GEMINI.md`.
-- Maintain active `plan.md` and `progress.md` in your working directory.
-- Dispatch tasks to specialists / subagents as needed, monitor progress, synthesize results.
-- Report back when all requirements are fully accomplished and verified.
+### Acceptance Criteria:
+- 100% of automated test suites pass (`tests/run_e2e_tests.py` exits with code 0 across all 113+ tests).
+- Local web server starts on `http://localhost:8080/` with zero broken assets, script errors, or 404s.
+- All live extraction scripts (`scripts/fetch_solarwinds_data.py`, `scripts/fetch_intune_data.py`, `scripts/run_sync.py`) execute cleanly.
+- Zero dead code, orphaned scratch files, or unused duplicate functions.
+- Presentation logic and data fetching cleanly separated with robust error handling.
+- Zero secrets, passwords, or company internal telemetry committed to Git.
+- `README.md` and `docs/ONBOARDING.md` allow a new engineer to understand the architecture, data flow, and run the system within 15–20 minutes.
+- All documentation reflects the exact working codebase (zero hallucinated features).
+- Comprehensive Phase 19 Final Organization Report produced.
