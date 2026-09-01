@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <!-- Vanilla CSS Stylesheet -->
-  <link rel="stylesheet" href="css/style.css?v=2.0">
+  <link rel="stylesheet" href="style.css?v=2.0">
 </head>
 <body class="portal-body">
 
@@ -19,7 +19,7 @@
     <div class="nav-container">
       <!-- Left: Logo and Brand -->
       <a href="index.html" class="logo-area" id="brandLogo" aria-label="ITOM Portal Home">
-        <img src="logo.png" class="logo-img" alt="ITOM Logo" onerror="this.src='../../logo.png'">
+        <img src="logo.png" class="logo-img" alt="ITOM Logo">
         <div class="logo-text-group">
           <span class="logo-text">ITOM</span>
           <span class="logo-tag">Portal</span>
@@ -193,9 +193,9 @@
       <section class="module-grid" id="moduleGrid" aria-label="Portal Application Modules">
         
         <!-- Module 1: OPS Analytics (Live Production) -->
-        <a class="module-card active-module" href="ops_analytics.html" data-status="live" id="card-ops-analytics">
+        <a class="module-card card-theme-analytics active-module" href="ops_analytics.html#intune" data-status="live" id="card-ops-analytics">
           <div class="module-card-top">
-            <div class="module-icon-container">
+            <div class="module-icon-container icon-box-analytics">
               <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <line x1="18" y1="20" x2="18" y2="10"></line>
                 <line x1="12" y1="20" x2="12" y2="4"></line>
@@ -204,57 +204,60 @@
             </div>
             <span class="badge badge-live">
               <span class="pulse-dot-sm" aria-hidden="true"></span>
-              Live (Module 1)
+              Live Telemetry
             </span>
           </div>
           <h3 class="module-name">OPS Analytics</h3>
-          <p class="module-desc">Real-time Microsoft Intune (26.5k devices) and SolarWinds Orion infrastructure operational telemetry.</p>
+          <p class="module-desc">Real-time Microsoft Intune (25.9k devices) and SolarWinds Orion (1,548 nodes) infrastructure operational telemetry.</p>
           <div class="module-card-footer">
-            <span class="module-card-action">Launch Analytics <span class="action-arrow">→</span></span>
+            <span class="module-card-action action-analytics">Launch Analytics <span class="action-arrow">→</span></span>
           </div>
         </a>
 
-        <!-- Module 2: CMDB (Coming Soon) -->
-        <a class="module-card coming-soon-card" href="#cmdb" data-status="coming-soon" id="card-cmdb">
+        <!-- Module 2: CMDB Explorer (Live SolarWinds SWIS Integration) -->
+        <a class="module-card card-theme-cmdb active-module" href="ops_analytics.html#cmdb" data-status="live" id="card-cmdb">
           <div class="module-card-top">
-            <div class="module-icon-container">
+            <div class="module-icon-container icon-box-cmdb">
               <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <ellipse cx="12" cy="5" r="9" rx="9" ry="3"></ellipse>
                 <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path>
                 <path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3"></path>
               </svg>
             </div>
-            <span class="badge badge-neutral">Coming Soon</span>
+            <span class="badge badge-cmdb-live">
+              <span class="pulse-dot-sm pulse-dot-blue" aria-hidden="true"></span>
+              Live CMDB (1,543 CIs)
+            </span>
           </div>
           <h3 class="module-name">CMDB Explorer</h3>
-          <p class="module-desc">Configuration management database, CI dependencies, topology mapping, and asset discovery.</p>
+          <p class="module-desc">Live SolarWinds configuration management database, CI dependencies, topology mapping, and asset discovery.</p>
           <div class="module-card-footer">
-            <span class="module-card-action">View Pipeline <span class="action-arrow">→</span></span>
+            <span class="module-card-action action-cmdb">Explore CMDB <span class="action-arrow">→</span></span>
           </div>
         </a>
 
-        <!-- Module 3: Compliance (Coming Soon) -->
-        <a class="module-card coming-soon-card" href="#compliance" data-status="coming-soon" id="card-compliance">
+        <!-- Module 3: Compliance (Phase 2 Pipeline) -->
+        <a class="module-card card-theme-compliance coming-soon-card" href="#compliance" data-status="coming-soon" id="card-compliance">
           <div class="module-card-top">
-            <div class="module-icon-container">
+            <div class="module-icon-container icon-box-compliance">
               <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
                 <polyline points="9 11 11 13 15 9"></polyline>
               </svg>
             </div>
-            <span class="badge badge-neutral">Coming Soon</span>
+            <span class="badge badge-phase-amber">Phase 2 Pipeline</span>
           </div>
           <h3 class="module-name">Compliance Audit</h3>
           <p class="module-desc">Automated configuration auditing, risk assessments, posture drift detection, and ISO/SOC2 reports.</p>
           <div class="module-card-footer">
-            <span class="module-card-action">View Pipeline <span class="action-arrow">→</span></span>
+            <span class="module-card-action action-compliance">View Pipeline <span class="action-arrow">→</span></span>
           </div>
         </a>
 
-        <!-- Module 4: Capacity (Coming Soon) -->
-        <a class="module-card coming-soon-card" href="#capacity" data-status="coming-soon" id="card-capacity">
+        <!-- Module 4: Capacity (Phase 2 Pipeline) -->
+        <a class="module-card card-theme-capacity coming-soon-card" href="#capacity" data-status="coming-soon" id="card-capacity">
           <div class="module-card-top">
-            <div class="module-icon-container">
+            <div class="module-icon-container icon-box-capacity">
               <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect>
                 <rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect>
@@ -262,87 +265,88 @@
                 <line x1="6" y1="18" x2="6.01" y2="18"></line>
               </svg>
             </div>
-            <span class="badge badge-neutral">Coming Soon</span>
+            <span class="badge badge-phase-purple">Phase 2 Pipeline</span>
           </div>
           <h3 class="module-name">Capacity Planner</h3>
           <p class="module-desc">Predictive compute and storage forecasting, host allocation trends, and utilization thresholds.</p>
           <div class="module-card-footer">
-            <span class="module-card-action">View Pipeline <span class="action-arrow">→</span></span>
+            <span class="module-card-action action-capacity">View Pipeline <span class="action-arrow">→</span></span>
           </div>
         </a>
 
-        <!-- Module 5: DEX (Coming Soon) -->
-        <a class="module-card coming-soon-card" href="#dex" data-status="coming-soon" id="card-dex">
+        <!-- Module 5: DEX (Phase 2 Pipeline) -->
+        <a class="module-card card-theme-dex coming-soon-card" href="#dex" data-status="coming-soon" id="card-dex">
           <div class="module-card-top">
-            <div class="module-icon-container">
+            <div class="module-icon-container icon-box-dex">
               <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
                 <line x1="8" y1="21" x2="16" y2="21"></line>
                 <line x1="12" y1="17" x2="12" y2="21"></line>
               </svg>
             </div>
-            <span class="badge badge-neutral">Coming Soon</span>
+            <span class="badge badge-phase-pink">Phase 2 Pipeline</span>
           </div>
           <h3 class="module-name">DEX Metrics</h3>
           <p class="module-desc">Digital Employee Experience monitoring, application crash telemetry, and endpoint latency metrics.</p>
           <div class="module-card-footer">
-            <span class="module-card-action">View Pipeline <span class="action-arrow">→</span></span>
+            <span class="module-card-action action-dex">View Pipeline <span class="action-arrow">→</span></span>
           </div>
         </a>
 
-        <!-- Module 6: Tools Center (Coming Soon) -->
-        <a class="module-card coming-soon-card" href="#tools-center" data-status="coming-soon" id="card-tools">
+        <!-- Module 6: Tools Center (Phase 2 Pipeline) -->
+        <a class="module-card card-theme-tools coming-soon-card" href="#tools-center" data-status="coming-soon" id="card-tools">
           <div class="module-card-top">
-            <div class="module-icon-container">
+            <div class="module-icon-container icon-box-tools">
               <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="4 17 10 11 4 5"></polyline>
                 <line x1="12" y1="19" x2="20" y2="19"></line>
               </svg>
             </div>
-            <span class="badge badge-neutral">Coming Soon</span>
+            <span class="badge badge-phase-teal">Phase 2 Pipeline</span>
           </div>
           <h3 class="module-name">Tools Center</h3>
           <p class="module-desc">Centralized administration utilities, diagnostic scripts, credential vaults, and operational runbooks.</p>
           <div class="module-card-footer">
-            <span class="module-card-action">View Pipeline <span class="action-arrow">→</span></span>
+            <span class="module-card-action action-tools">View Pipeline <span class="action-arrow">→</span></span>
           </div>
         </a>
 
-        <!-- Module 7: Knowledge Centre (Coming Soon) -->
-        <a class="module-card coming-soon-card" href="#knowledge-centre" data-status="coming-soon" id="card-knowledge">
+        <!-- Module 7: Knowledge Centre (Phase 2 Pipeline) -->
+        <a class="module-card card-theme-knowledge coming-soon-card" href="#knowledge-centre" data-status="coming-soon" id="card-knowledge">
           <div class="module-card-top">
-            <div class="module-icon-container">
+            <div class="module-icon-container icon-box-knowledge">
               <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
                 <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
               </svg>
             </div>
-            <span class="badge badge-neutral">Coming Soon</span>
+            <span class="badge badge-phase-cyan">Phase 2 Pipeline</span>
           </div>
           <h3 class="module-name">Knowledge Centre</h3>
           <p class="module-desc">Internal SRE standard operating procedures, architectural documentation, runbooks, and engineering wiki.</p>
           <div class="module-card-footer">
-            <span class="module-card-action">View Pipeline <span class="action-arrow">→</span></span>
+            <span class="module-card-action action-knowledge">View Pipeline <span class="action-arrow">→</span></span>
           </div>
         </a>
 
-        <!-- Module 8: AI Automation (Coming Soon) -->
-        <a class="module-card coming-soon-card" href="#ai-automation" data-status="coming-soon" id="card-ai">
+        <!-- Module 8: AI Automation (Phase 2 Pipeline) -->
+        <a class="module-card card-theme-ai coming-soon-card" href="#ai-automation" data-status="coming-soon" id="card-ai">
           <div class="module-card-top">
-            <div class="module-icon-container">
+            <div class="module-icon-container icon-box-ai">
               <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"></path>
                 <circle cx="12" cy="12" r="4"></circle>
               </svg>
             </div>
-            <span class="badge badge-neutral">Coming Soon</span>
+            <span class="badge badge-phase-orange">Phase 2 Pipeline</span>
           </div>
           <h3 class="module-name">AI Automation</h3>
           <p class="module-desc">Autonomous incident remediation, telemetry anomaly detection, and self-healing cloud pipelines.</p>
           <div class="module-card-footer">
-            <span class="module-card-action">View Pipeline <span class="action-arrow">→</span></span>
+            <span class="module-card-action action-ai">View Pipeline <span class="action-arrow">→</span></span>
           </div>
         </a>
+
 
         <!-- No Results Fallback Item (Handled by JS) -->
         <div class="no-results" id="noResults" role="status" aria-live="polite">
@@ -359,6 +363,73 @@
     </div>
   </main>
 
+  <!-- Interactive OPS Analytics Domain Drilldown Modal (VP Requirement) -->
+  <div class="domain-modal-overlay" id="opsDomainModal" role="dialog" aria-modal="true" aria-labelledby="domainModalTitle">
+    <div class="domain-modal-content">
+      <div class="domain-modal-header">
+        <div>
+          <span class="domain-modal-pill">OPS Analytics Hub</span>
+          <h2 class="domain-modal-title" id="domainModalTitle">Select Operational Telemetry Domain</h2>
+          <p class="domain-modal-desc">Choose a focused analytics view or explore the unified operational platform.</p>
+        </div>
+        <button class="domain-modal-close" id="closeDomainModalBtn" aria-label="Close Analytics Hub">&times;</button>
+      </div>
+
+      <div class="domain-cards-grid">
+        <!-- Specific Analytics Card 1: Intune -->
+        <a href="ops_analytics.html#intune" class="domain-card domain-card-intune" id="drilldownIntuneCard">
+          <div class="domain-card-icon-box">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+              <line x1="8" y1="21" x2="16" y2="21"></line>
+              <line x1="12" y1="17" x2="12" y2="21"></line>
+            </svg>
+          </div>
+          <div class="domain-card-badge">27,412 Devices</div>
+          <h3 class="domain-card-name">Endpoint Fleet Analytics</h3>
+          <p class="domain-card-desc">Microsoft Intune compliance (82.9%), Dell/HP OEM distribution, OS breakdowns & storage telemetry.</p>
+          <div class="domain-card-action">Open Intune View &rarr;</div>
+        </a>
+
+        <!-- Specific Analytics Card 2: SolarWinds -->
+        <a href="ops_analytics.html#solarwinds" class="domain-card domain-card-solarwinds" id="drilldownSwCard">
+          <div class="domain-card-icon-box">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect>
+              <rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect>
+              <line x1="6" y1="6" x2="6.01" y2="6"></line>
+              <line x1="6" y1="18" x2="6.01" y2="18"></line>
+            </svg>
+          </div>
+          <div class="domain-card-badge">1,543 Server Nodes</div>
+          <h3 class="domain-card-name">Server & Node Telemetry</h3>
+          <p class="domain-card-desc">SolarWinds SWIS health tiers (90.9% High), fleet CPU/RAM latency & Top 10 Saturated Servers triage.</p>
+          <div class="domain-card-action">Open Servers View &rarr;</div>
+        </a>
+
+        <!-- Specific Analytics Card 3: CMDB -->
+        <a href="ops_analytics.html#cmdb" class="domain-card domain-card-cmdb" id="drilldownCmdbCard">
+          <div class="domain-card-icon-box">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <ellipse cx="12" cy="5" r="9" rx="9" ry="3"></ellipse>
+              <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path>
+              <path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3"></path>
+            </svg>
+          </div>
+          <div class="domain-card-badge">364 Network CIs</div>
+          <h3 class="domain-card-name">Network CMDB & Compliance</h3>
+          <p class="domain-card-desc">Physical switch architecture (Core/Dist/Access), 93.1% control pass rate across 37 site IP subnets.</p>
+          <div class="domain-card-action">Open CMDB View &rarr;</div>
+        </a>
+      </div>
+
+      <div class="domain-modal-footer">
+        <span class="domain-footer-text">3 Verified Operational Domains Active &bull; 10-Min Live Auto-Sync</span>
+        <a href="ops_analytics.html" class="btn btn-primary btn-sm" id="launchUnifiedDashboardBtn">Launch Unified Dashboard</a>
+      </div>
+    </div>
+  </div>
+
   <!-- Interactive Launcher Splash Overlay -->
   <div class="launcher-overlay" id="launcherOverlay" role="dialog" aria-modal="true" aria-labelledby="launcherModuleName">
     <div class="launcher-content">
@@ -370,6 +441,6 @@
   </div>
 
   <!-- JavaScript File Inclusion -->
-  <script src="js/app.js?v=2.0"></script>
+  <script src="app.js?v=3.0"></script>
 </body>
 </html>
