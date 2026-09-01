@@ -12,7 +12,7 @@
   <!-- Chart.js for enterprise visualization -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <!-- Vanilla CSS Stylesheet -->
-  <link rel="stylesheet" href="css/style.css?v=2.1">
+  <link rel="stylesheet" href="style.css?v=2.0">
 </head>
 <body class="dashboard-body">
 
@@ -26,7 +26,7 @@
           </svg>
         </a>
         <a href="index.html" class="brand-group">
-          <img src="../../logo.png" class="logo-img" alt="ITOM Logo" onerror="this.src='logo.png'">
+          <img src="logo.png" class="logo-img" alt="ITOM Logo">
           <div class="logo-text-group">
             <span class="logo-text">ITOM</span>
             <span class="logo-tag">OPS Analytics</span>
@@ -34,26 +34,33 @@
         </a>
       </div>
 
-      <!-- Quick Navigation Tabs (Aligned Strictly to Module Requirements Document) -->
-      <nav class="dashboard-tabs" id="tabNavContainer">
-        <button class="tab-btn active" data-tab="intune">Microsoft Intune (Live)</button>
-        <button class="tab-btn" data-tab="solarwinds">SolarWinds (Live)</button>
-        <button class="tab-btn" data-tab="network">Network & CMDB</button>
-        <button class="tab-btn" data-tab="dex">DEX Metrics</button>
+      <!-- Quick Navigation Tabs (Dedicated Multi-Domain Live Sources) -->
+      <nav class="dashboard-tabs" id="tabNavContainer" role="tablist" aria-label="Operational Domain Views">
+        <button class="tab-btn active" data-tab="intune" role="tab" aria-selected="true" aria-controls="view-intune" id="tab-intune">Microsoft Intune (Live)</button>
+        <button class="tab-btn" data-tab="solarwinds" role="tab" aria-selected="false" aria-controls="view-solarwinds" id="tab-solarwinds">SolarWinds (Live)</button>
+        <button class="tab-btn" data-tab="cmdb" role="tab" aria-selected="false" aria-controls="view-cmdb" id="tab-cmdb">Live CMDB (1,543 CIs)</button>
       </nav>
 
       <!-- Right Controls -->
       <div class="nav-actions">
         <button class="btn btn-secondary" id="exportCsvBtn" title="Export current telemetry dataset as CSV">
-          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
             <polyline points="7 10 12 15 17 10"></polyline>
             <line x1="12" y1="15" x2="12" y2="3"></line>
           </svg>
           Export CSV
         </button>
-        <div class="live-badge">
-          <span class="pulse-dot"></span> Live Sync
+        <button class="btn btn-secondary" id="manualRefreshBtn" title="Instant live refresh">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <polyline points="23 4 23 10 17 10"></polyline>
+            <polyline points="1 20 1 14 7 14"></polyline>
+            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+          </svg>
+          Refresh
+        </button>
+        <div class="live-badge" id="autoRefreshBadge" title="Automated 10-min telemetry synchronization active">
+          <span class="pulse-dot" aria-hidden="true"></span> Auto-Sync: <span id="refreshCountdown" class="font-mono text-xs text-white">10:00</span>
         </div>
       </div>
     </div>
@@ -66,7 +73,7 @@
     <header class="page-header">
       <div>
         <h1 class="page-title">OPS Analytics Dashboard</h1>
-        <p class="page-desc">Centralized operational telemetry from Microsoft Intune, SolarWinds, and Enterprise Infrastructure.</p>
+        <p class="page-desc">Centralized operational telemetry from Microsoft Intune & SolarWinds Orion Infrastructure.</p>
       </div>
       <div class="header-stat-box">
         <span class="stat-label" id="headerStatLabel">Total Verified Endpoints</span>
@@ -77,7 +84,7 @@
     <!-- =========================================================================
          SECTION 1: MICROSOFT INTUNE (Live Telemetry & Invariants - MRD FR-002, FR-004)
          ========================================================================= -->
-    <section id="view-intune" class="tab-pane active" data-tab="intune">
+    <section id="view-intune" class="tab-pane active" data-tab="intune" role="tabpanel" aria-labelledby="tab-intune">
 
       <!-- Top Verified KPI Cards (P0 Requirements) -->
       <div class="kpi-grid">
@@ -88,7 +95,7 @@
             <span class="kpi-title">Intune Managed Devices</span>
             <span class="kpi-tag success">100% Live</span>
           </div>
-          <div class="kpi-number" id="kpiTotalDevices">25,987</div>
+          <div class="kpi-number" id="kpiTotalDevices">26,509</div>
           <div class="kpi-subtext">Across Windows, macOS, Linux, iOS & Android</div>
         </div>
 
@@ -96,10 +103,10 @@
         <div class="kpi-card">
           <div class="kpi-header">
             <span class="kpi-title">Fleet Compliance Rate</span>
-            <span class="kpi-tag success" id="kpiComplianceTag">83.08%</span>
+            <span class="kpi-tag success" id="kpiComplianceTag">83.28%</span>
           </div>
-          <div class="kpi-number text-success" id="kpiCompliantCount">21,589</div>
-          <div class="kpi-subtext"><span class="text-danger" id="kpiNonCompliantCount">3,422</span> non-compliant devices flagged</div>
+          <div class="kpi-number text-success" id="kpiCompliantCount">22,078</div>
+          <div class="kpi-subtext"><span class="text-danger" id="kpiNonCompliantCount">3,442</span> non-compliant (<span class="text-warning" id="kpiCoManagedCount">945</span> co-managed)</div>
         </div>
 
         <!-- KPI 3: Storage Utilization -->
@@ -108,7 +115,7 @@
             <span class="kpi-title">Endpoint Disk Utilization</span>
             <span class="kpi-tag warning">Healthy</span>
           </div>
-          <div class="kpi-number" id="kpiStoragePct">37.4%</div>
+          <div class="kpi-number" id="kpiStoragePct">37.3%</div>
           <div class="kpi-subtext">Average free disk space: ~62.6% across fleet</div>
         </div>
 
@@ -131,7 +138,7 @@
         <div class="chart-card">
           <div class="card-header">
             <h3 class="card-title">Operating System Distribution</h3>
-            <span class="badge">Real Graph Telemetry</span>
+            <span class="badge">Click slice to filter table</span>
           </div>
           <div class="chart-wrapper">
             <canvas id="osChart"></canvas>
@@ -142,7 +149,7 @@
         <div class="chart-card">
           <div class="card-header">
             <h3 class="card-title">Device Compliance Status</h3>
-            <span class="badge">Intune Policy</span>
+            <span class="badge">Click bar to filter table</span>
           </div>
           <div class="chart-wrapper">
             <canvas id="complianceChart"></canvas>
@@ -153,10 +160,87 @@
         <div class="chart-card">
           <div class="card-header">
             <h3 class="card-title">Hardware Vendor Distribution</h3>
-            <span class="badge">OEM Classification</span>
+            <span class="badge">Click slice to filter table</span>
           </div>
           <div class="chart-wrapper">
             <canvas id="mfgChart"></canvas>
+          </div>
+        </div>
+
+        <!-- Chart 4: Stale Asset & Inactivity Aging -->
+        <div class="chart-card">
+          <div class="card-header">
+            <h3 class="card-title">Endpoint Sync Freshness & Aging</h3>
+            <span class="badge">Asset Hygiene</span>
+          </div>
+          <div class="aging-widget">
+            <div class="aging-bar-group">
+              <div class="aging-item">
+                <div class="aging-header">
+                  <span class="text-success font-semibold">&bull; Active (&le; 7 Days)</span>
+                  <span class="font-mono" id="agingActiveText">20,412 (78.5%)</span>
+                </div>
+                <div class="aging-progress-bg">
+                  <div class="aging-progress-fill" id="agingActiveBar" style="width: 78.5%; background-color: #10B981;"></div>
+                </div>
+              </div>
+
+              <div class="aging-item">
+                <div class="aging-header">
+                  <span class="text-warning font-semibold">&bull; Idle (7–30 Days)</span>
+                  <span class="font-mono" id="agingIdleText">2,378 (9.2%)</span>
+                </div>
+                <div class="aging-progress-bg">
+                  <div class="aging-progress-fill" id="agingIdleBar" style="width: 9.2%; background-color: #F59E0B;"></div>
+                </div>
+              </div>
+
+              <div class="aging-item">
+                <div class="aging-header">
+                  <span class="text-danger font-semibold">&bull; Stale / Orphaned (&gt; 30 Days)</span>
+                  <span class="font-mono" id="agingStaleText">3,197 (12.3%)</span>
+                </div>
+                <div class="aging-progress-bg">
+                  <div class="aging-progress-fill" id="agingStaleBar" style="width: 12.3%; background-color: #EF4444;"></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="aging-footer-card">
+              <span class="text-muted text-xs">Security & Lifecycle Risk:</span>
+              <span class="text-white text-xs font-semibold" id="agingFooterRiskText">3,197 non-syncing endpoints flagged for license reclamation & patch triage.</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Chart 5: Security & OS Build Lifecycle -->
+        <div class="chart-card">
+          <div class="card-header">
+            <h3 class="card-title">Windows 11 Transition & Lifecycle</h3>
+            <span class="badge">OS Modernization</span>
+          </div>
+          <div class="lifecycle-widget">
+            <div class="lifecycle-stat-row">
+              <div class="lifecycle-stat-box">
+                <div class="stat-number text-success font-semibold" id="win11CountText">25,713</div>
+                <div class="stat-title text-muted text-xs">Windows 11 (Modern)</div>
+                <div class="stat-badge text-success" id="win11PctBadge">99.9% Fleet Migrated</div>
+              </div>
+              <div class="lifecycle-stat-box">
+                <div class="stat-number text-warning font-semibold" id="win10CountText">22</div>
+                <div class="stat-title text-muted text-xs">Windows 10 (Legacy/EOL)</div>
+                <div class="stat-badge text-warning">Urgent Upgrade Target</div>
+              </div>
+            </div>
+            <div class="encryption-row">
+              <div class="flex justify-between text-xs mb-1">
+                <span class="text-muted">BitLocker / FileVault Disk Encryption:</span>
+                <span class="text-success font-semibold" id="encryptionText">95.8% (25,396 Protected)</span>
+              </div>
+              <div class="aging-progress-bg">
+                <div class="aging-progress-fill" id="encryptionBar" style="width: 95.8%; background-color: #10B981;"></div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -191,15 +275,17 @@
               </thead>
               <tbody id="deviceTableBody">
                 <!-- Dynamically Populated by ops_analytics.js -->
-                <tr>
-                  <td colspan="8" class="text-center py-4">Loading real Microsoft Intune records...</td>
-                </tr>
               </tbody>
             </table>
           </div>
 
           <div class="table-footer">
-            <span id="tableRecordCount">Showing 100 recent live devices (Full dataset: 25,987 devices)</span>
+            <div class="table-footer-left">
+              <span class="table-record-count" id="tableRecordCount"></span>
+            </div>
+            <div class="pagination-controls" id="intunePagination">
+              <!-- Dynamically Populated by EnterprisePagination Controller -->
+            </div>
             <button class="btn btn-secondary btn-sm" id="loadMoreBtn">Export Complete Dataset (CSV)</button>
           </div>
         </div>
@@ -210,7 +296,7 @@
     <!-- =========================================================================
          SECTION 2: SOLARWINDS (MRD FR-003, FR-004 - Real Live Orion Telemetry)
          ========================================================================= -->
-    <section id="view-solarwinds" class="tab-pane" data-tab="solarwinds">
+    <section id="view-solarwinds" class="tab-pane" data-tab="solarwinds" role="tabpanel" aria-labelledby="tab-solarwinds">
 
       <!-- SolarWinds Verified KPI Cards -->
       <div class="kpi-grid">
@@ -220,7 +306,7 @@
             <span class="kpi-title">Monitored Infrastructure Nodes</span>
             <span class="kpi-tag success">100% Live SWIS</span>
           </div>
-          <div class="kpi-number" id="swTotalNodes">1,548</div>
+          <div class="kpi-number" id="swTotalNodes">1,547</div>
           <div class="kpi-subtext">Queried live from Orion SWIS API v3</div>
         </div>
 
@@ -228,10 +314,10 @@
         <div class="kpi-card">
           <div class="kpi-header">
             <span class="kpi-title">Server Health Classification</span>
-            <span class="kpi-tag success" id="swHealthTag">87.66% High</span>
+            <span class="kpi-tag success" id="swHealthTag">87.98% High</span>
           </div>
-          <div class="kpi-number text-success" id="swHighHealthCount">1,357</div>
-          <div class="kpi-subtext"><span class="text-warning" id="swMedHealthCount">150</span> Warning &bull; <span class="text-danger" id="swLowHealthCount">41</span> Critical</div>
+          <div class="kpi-number text-success" id="swHighHealthCount">1,361</div>
+          <div class="kpi-subtext"><span class="text-warning" id="swMedHealthCount">136</span> Warning &bull; <span class="text-danger" id="swLowHealthCount">50</span> Critical</div>
         </div>
 
         <!-- KPI 3: Fleet Resource Load -->
@@ -240,7 +326,7 @@
             <span class="kpi-title">Avg CPU & Memory Load</span>
             <span class="kpi-tag success">Healthy</span>
           </div>
-          <div class="kpi-number" id="swAvgCpuMem">16.2% <span class="text-xs text-muted">CPU</span> &bull; 22.6% <span class="text-xs text-muted">RAM</span></div>
+          <div class="kpi-number" id="swAvgCpuMem">16.4% <span class="text-xs text-muted">CPU</span> &bull; 22.7% <span class="text-xs text-muted">RAM</span></div>
           <div class="kpi-subtext">Fleet-wide average resource utilization</div>
         </div>
 
@@ -250,7 +336,7 @@
             <span class="kpi-title">Average Fleet Latency</span>
             <span class="kpi-tag success">Optimal</span>
           </div>
-          <div class="kpi-number text-accent" id="swAvgLatency">42.5 <span class="text-xs text-muted">ms</span></div>
+          <div class="kpi-number text-accent" id="swAvgLatency">38.2 <span class="text-xs text-muted">ms</span></div>
           <div class="kpi-subtext">Across core server farm & remote gateways</div>
         </div>
       </div>
@@ -258,11 +344,11 @@
       <!-- SolarWinds Analytics Grid -->
       <div class="analytics-grid">
         
-        <!-- Chart 1: Server Health Distribution -->
+        <!-- Chart 1: Server Health Tiers -->
         <div class="chart-card">
           <div class="card-header">
-            <h3 class="card-title">Server Health Tier Classification</h3>
-            <span class="badge">MRD FR-003</span>
+            <h3 class="card-title">Server Health Classification</h3>
+            <span class="badge">Click slice to filter table</span>
           </div>
           <div class="chart-wrapper">
             <canvas id="swHealthChart"></canvas>
@@ -273,7 +359,7 @@
         <div class="chart-card">
           <div class="card-header">
             <h3 class="card-title">Node Operational Status</h3>
-            <span class="badge">SWIS Telemetry</span>
+            <span class="badge">Click bar to filter table</span>
           </div>
           <div class="chart-wrapper">
             <canvas id="swStatusChart"></canvas>
@@ -284,10 +370,21 @@
         <div class="chart-card">
           <div class="card-header">
             <h3 class="card-title">Infrastructure Vendor Distribution</h3>
-            <span class="badge">Hardware Classification</span>
+            <span class="badge">Click slice to filter table</span>
           </div>
           <div class="chart-wrapper">
             <canvas id="swVendorChart"></canvas>
+          </div>
+        </div>
+
+        <!-- Chart 4: Top Saturated Infrastructure Servers -->
+        <div class="chart-card">
+          <div class="card-header">
+            <h3 class="card-title">Top 10 Saturated Server Triage</h3>
+            <span class="badge badge-danger" id="swCriticalBadge">50 Critical Nodes</span>
+          </div>
+          <div class="saturated-list" id="swSaturatedList">
+            <!-- Dynamically Populated by ops_analytics.js -->
           </div>
         </div>
 
@@ -322,15 +419,17 @@
               </thead>
               <tbody id="swTableBody">
                 <!-- Dynamically Populated by ops_analytics.js -->
-                <tr>
-                  <td colspan="8" class="text-center py-4">Loading real SolarWinds Orion server records...</td>
-                </tr>
               </tbody>
             </table>
           </div>
 
           <div class="table-footer">
-            <span id="swTableRecordCount">Showing 100 live servers (Full dataset: 1,548 nodes)</span>
+            <div class="table-footer-left">
+              <span class="table-record-count" id="swTableRecordCount"></span>
+            </div>
+            <div class="pagination-controls" id="swPagination">
+              <!-- Dynamically Populated by EnterprisePagination Controller -->
+            </div>
             <button class="btn btn-secondary btn-sm" id="exportSwCsvBtn">Export Complete SolarWinds Dataset (CSV)</button>
           </div>
         </div>
@@ -339,57 +438,143 @@
     </section>
 
     <!-- =========================================================================
-         SECTION 3: NETWORK & CMDB (MRD FR-001 - Building-Wise Network Linkage)
+         SECTION 3: NETWORK CMDB (Physical Network CIs & Infrastructure Estate)
          ========================================================================= -->
-    <section id="view-network" class="tab-pane" data-tab="network">
+    <section id="view-cmdb" class="tab-pane" data-tab="cmdb" role="tabpanel" aria-labelledby="tab-cmdb">
 
-      <div class="table-section">
-        <div class="table-card">
-          <div class="card-header">
-            <div>
-              <h3 class="card-title">Network Infrastructure & CMDB Linkage (MRD FR-001)</h3>
-              <p class="card-subtitle">Building-wise network information linked with Configuration Management Database (CMDB).</p>
-            </div>
-            <span class="badge badge-neutral">Scheduled Phase 2</span>
+      <!-- CMDB Telemetry Source & Live Refresh Information Banner (Phase 10 Requirement) -->
+      <div class="cmdb-status-banner" id="cmdbStatusBanner">
+        <div class="cmdb-status-left">
+          <span class="pulse-dot-sm" aria-hidden="true"></span>
+          <span class="font-semibold text-white">Data Source:</span> SolarWinds SWIS API &bull;
+          <span class="font-semibold text-white">Mode:</span> <span id="cmdbModeTag" class="badge badge-live">Live Data</span> &bull;
+          <span class="font-semibold text-white">Status:</span> <span id="cmdbConnectionStatus">Connected</span>
+        </div>
+        <div class="cmdb-status-right">
+          Last Telemetry Sync: <span id="cmdbLastRefreshed" class="font-mono text-white">--</span>
+        </div>
+      </div>
+
+      <!-- CMDB KPI Cards -->
+      <div class="kpi-grid">
+        <!-- KPI 1: Total Configuration Items -->
+        <div class="kpi-card">
+          <div class="kpi-header">
+            <span class="kpi-title">Configuration Items (CIs)</span>
+            <span class="kpi-tag success">100% Live SWIS</span>
           </div>
-          <div class="p-6 text-center" style="padding: 60px 24px;">
-            <div style="font-size: 36px; margin-bottom: 14px;">🏢</div>
-            <h4 class="font-semibold text-white" style="font-size: 17px; margin-bottom: 8px;">Network & CMDB Telemetry In Pipeline</h4>
-            <p class="text-muted text-xs" style="max-width: 560px; margin: 0 auto 24px auto; line-height: 1.6;">
-              No assumed building topologies or mock CI records are shown. As soon as the network topology and ServiceNow CMDB credentials are provided, live reconciled assets will appear here.
-            </p>
-            <div>
-              <button class="btn btn-secondary btn-sm" data-target-tab="intune">View Verified Intune Data &rarr;</button>
-            </div>
+          <div class="kpi-number" id="cmdbTotalCis">1,543</div>
+          <div class="kpi-subtext">Total Verified SolarWinds Infrastructure CIs</div>
+        </div>
+
+        <!-- KPI 2: High Health Tier -->
+        <div class="kpi-card">
+          <div class="kpi-header">
+            <span class="kpi-title">Fleet Health Compliance</span>
+            <span class="kpi-tag success" id="cmdbControlRateTag">90.93% High</span>
+          </div>
+          <div class="kpi-number text-success" id="cmdbPassedControls">1,403</div>
+          <div class="kpi-subtext"><span class="text-danger" id="cmdbFailedControls">64</span> Critical / Degraded CIs</div>
+        </div>
+
+        <!-- KPI 3: Server Infrastructure -->
+        <div class="kpi-card">
+          <div class="kpi-header">
+            <span class="kpi-title">Compute Servers</span>
+            <span class="kpi-tag primary">Compute</span>
+          </div>
+          <div class="kpi-number" id="cmdbTotalServers">260</div>
+          <div class="kpi-subtext">Windows Server, Hyper-V, VMware & Linux</div>
+        </div>
+
+        <!-- KPI 4: Network Infrastructure -->
+        <div class="kpi-card">
+          <div class="kpi-header">
+            <span class="kpi-title">Network & Security CIs</span>
+            <span class="kpi-tag success">Fabric</span>
+          </div>
+          <div class="kpi-number text-accent" id="cmdbTotalNetworkDevices">1,283</div>
+          <div class="kpi-subtext">Switches, Routers, Firewalls & WLCs</div>
+        </div>
+      </div>
+
+      <!-- CMDB Charts Grid -->
+      <div class="analytics-grid">
+        <!-- Chart 1: Role / CI Type Distribution -->
+        <div class="chart-card">
+          <div class="chart-header">
+            <h3 class="chart-title">CI Architectural Role Distribution</h3>
+            <span class="chart-badge">Click slice to filter</span>
+          </div>
+          <div class="chart-wrapper">
+            <canvas id="cmdbRoleChart"></canvas>
+          </div>
+        </div>
+
+        <!-- Chart 2: Compliance / Health Posture -->
+        <div class="chart-card">
+          <div class="chart-header">
+            <h3 class="chart-title">CI Health Posture</h3>
+            <span class="chart-badge">Click bar to filter</span>
+          </div>
+          <div class="chart-wrapper">
+            <canvas id="cmdbComplianceChart"></canvas>
+          </div>
+        </div>
+
+        <!-- Chart 3: IP Location Distribution -->
+        <div class="chart-card">
+          <div class="chart-header">
+            <h3 class="chart-title">Top Regional Sites</h3>
+            <span class="chart-badge">Geographic</span>
+          </div>
+          <div class="chart-wrapper">
+            <canvas id="cmdbLocationChart"></canvas>
           </div>
         </div>
       </div>
 
-    </section>
-
-    <!-- =========================================================================
-         SECTION 4: DEX METRICS (MRD FR-005 - Digital Employee Experience)
-         ========================================================================= -->
-    <section id="view-dex" class="tab-pane" data-tab="dex">
-
+      <!-- CMDB Searchable Data Table -->
       <div class="table-section">
         <div class="table-card">
-          <div class="card-header">
+          <div class="table-header">
             <div>
-              <h3 class="card-title">Digital Employee Experience (MRD FR-005)</h3>
-              <p class="card-subtitle">DEX score, CPU, RAM, HDD utilization, username, email, band, and problem duration.</p>
+              <h3 class="table-title">Live Configuration Items Registry</h3>
+              <p class="table-desc">SolarWinds servers, physical switches, routers, firewalls, and wireless infrastructure.</p>
             </div>
-            <span class="badge badge-neutral">Scheduled Phase 2</span>
+            <div class="table-actions">
+              <input type="text" class="table-search" id="cmdbSearchInput" placeholder="Filter by Name, IP, Type, Vendor, Location...">
+            </div>
           </div>
-          <div class="p-6 text-center" style="padding: 60px 24px;">
-            <div style="font-size: 36px; margin-bottom: 14px;">📊</div>
-            <h4 class="font-semibold text-white" style="font-size: 17px; margin-bottom: 8px;">DEX Telemetry In Pipeline</h4>
-            <p class="text-muted text-xs" style="max-width: 560px; margin: 0 auto 24px auto; line-height: 1.6;">
-              No assumed DEX scores or mock triage records are displayed. All verified hardware specifications and storage telemetry can currently be inspected under the Microsoft Intune tab.
-            </p>
-            <div>
-              <button class="btn btn-secondary btn-sm" data-target-tab="intune">View Verified Intune Data &rarr;</button>
+
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>CI ID</th>
+                  <th>CI Type</th>
+                  <th>Name / Hostname</th>
+                  <th>IP Address</th>
+                  <th>Vendor & Platform</th>
+                  <th>Location</th>
+                  <th>Status</th>
+                  <th>Health Tier</th>
+                </tr>
+              </thead>
+              <tbody id="cmdbTableBody">
+                <!-- Dynamically Populated by ops_analytics.js -->
+              </tbody>
+            </table>
+          </div>
+
+          <div class="table-footer">
+            <div class="table-footer-left">
+              <span class="table-record-count" id="cmdbTableRecordCount"></span>
             </div>
+            <div class="pagination-controls" id="cmdbPagination">
+              <!-- Dynamically Populated by EnterprisePagination Controller -->
+            </div>
+            <button class="btn btn-secondary btn-sm" id="exportCmdbCsvBtn">Export Complete CMDB Dataset (CSV)</button>
           </div>
         </div>
       </div>
@@ -399,6 +584,7 @@
   </main>
 
   <!-- Script Inclusions -->
-  <script src="js/ops_analytics.js?v=2.1"></script>
+  <script src="ops_analytics.js?v=22.0"></script>
 </body>
 </html>
+

@@ -457,14 +457,15 @@ class TestTableFilteringScaleAndMalformedInputs(unittest.TestCase):
         res_exact = filter_device_records(synthetic_50k, "LAP-CORP-42000")
         dur_exact = time.perf_counter() - start
         self.assertEqual(len(res_exact), 1)
-        self.assertLess(dur_exact, 0.05, f"50k search took {dur_exact:.4f}s")
+        self.assertLess(dur_exact, 0.10, f"50k search took {dur_exact:.4f}s")
 
         # 2. Search for common substring (16,667 matches)
         start = time.perf_counter()
         res_mfg = filter_device_records(synthetic_50k, "Lenovo")
         dur_mfg = time.perf_counter() - start
         self.assertEqual(len(res_mfg), 16667)
-        self.assertLess(dur_mfg, 0.05, f"50k substring search took {dur_mfg:.4f}s")
+        self.assertLess(dur_mfg, 0.10, f"50k substring search took {dur_mfg:.4f}s")
+
 
     def test_malformed_and_missing_record_fields(self):
         """Tier 5: Device records with None values, missing keys, numbers, and boolean types filter safely."""

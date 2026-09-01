@@ -37,10 +37,11 @@
   let allCmdbCis = [];
   let cmdbFilteredCis = [];
   let cmdbCurrentPage = 1;
-  const CMDB_ITEMS_PER_PAGE = 50;
+  let cmdbPageSize = 50;
   let cmdbRoleChartInstance = null;
   let cmdbCompChartInstance = null;
   let cmdbLocChartInstance = null;
+
 
   /**
    * Debounce utility to prevent UI stutter and main thread blocking during rapid typing.
@@ -590,23 +591,19 @@
     const totalCount = intuneFilteredDevices.length;
 
     if (totalCount === 0) {
-      tbody.innerHTML = `<tr><td colspan="8" class="text-center text-muted py-4">No matching devices found.</td></tr>`;
-      if (countSpan) countSpan.textContent = 'Showing 0 matching devices';
+      tbody.innerHTML = `<tr><td colspan="8" class="text-center text-muted py-6">No matching endpoints found.</td></tr>`;
+      if (countSpan) countSpan.textContent = 'Showing 0 matching endpoints';
       if (paginationContainer) paginationContainer.innerHTML = '';
       return;
     }
 
-    const totalPages = Math.ceil(totalCount / intunePageSize);
+    const totalPages = Math.max(1, Math.ceil(totalCount / intunePageSize));
     if (intuneCurrentPage > totalPages) intuneCurrentPage = totalPages;
     if (intuneCurrentPage < 1) intuneCurrentPage = 1;
 
     const startIndex = (intuneCurrentPage - 1) * intunePageSize;
     const endIndex = Math.min(startIndex + intunePageSize, totalCount);
     const displayDevices = intuneFilteredDevices.slice(startIndex, endIndex);
-
-    if (countSpan) {
-      countSpan.textContent = `Showing ${startIndex + 1}–${endIndex} of ${totalCount.toLocaleString()} devices`;
-    }
 
     tbody.innerHTML = displayDevices.map(d => {
       const compLower = (d.complianceState || '').toLowerCase();
@@ -654,9 +651,26 @@
       `;
     }).join('');
 
-    renderPaginationControls(paginationContainer, intuneCurrentPage, totalPages, (newPage) => {
-      intuneCurrentPage = newPage;
-      renderIntuneTable();
+    renderEnterprisePagination({
+      container: paginationContainer,
+      countLabel: countSpan,
+      totalItems: totalCount,
+      pageSize: intunePageSize,
+      currentPage: intuneCurrentPage,
+      pageSizeOptions: [10, 25, 50, 100],
+      itemName: 'Endpoints',
+      totalAuthoritative: allIntuneDevices.length,
+      onPageChange: (newPage) => {
+        intuneCurrentPage = newPage;
+        renderIntuneTable();
+        resetTableScroll('view-intune');
+      },
+      onPageSizeChange: (newSize, newPage) => {
+        intunePageSize = newSize;
+        intuneCurrentPage = newPage;
+        renderIntuneTable();
+        resetTableScroll('view-intune');
+      }
     });
   }
 
@@ -940,23 +954,19 @@
     const totalCount = swFilteredNodes.length;
 
     if (totalCount === 0) {
-      tbody.innerHTML = `<tr><td colspan="8" class="text-center text-muted py-4">No matching server nodes found.</td></tr>`;
-      if (countSpan) countSpan.textContent = 'Showing 0 matching servers';
+      tbody.innerHTML = `<tr><td colspan="8" class="text-center text-muted py-6">No matching server nodes found.</td></tr>`;
+      if (countSpan) countSpan.textContent = 'Showing 0 matching server nodes';
       if (paginationContainer) paginationContainer.innerHTML = '';
       return;
     }
 
-    const totalPages = Math.ceil(totalCount / swPageSize);
+    const totalPages = Math.max(1, Math.ceil(totalCount / swPageSize));
     if (swCurrentPage > totalPages) swCurrentPage = totalPages;
     if (swCurrentPage < 1) swCurrentPage = 1;
 
     const startIndex = (swCurrentPage - 1) * swPageSize;
     const endIndex = Math.min(startIndex + swPageSize, totalCount);
     const displayNodes = swFilteredNodes.slice(startIndex, endIndex);
-
-    if (countSpan) {
-      countSpan.textContent = `Showing ${startIndex + 1}–${endIndex} of ${totalCount.toLocaleString()} nodes`;
-    }
 
     tbody.innerHTML = displayNodes.map(n => {
       const tier = n.HealthClassification || n.HealthTier || 'High';
@@ -1003,9 +1013,26 @@
       `;
     }).join('');
 
-    renderPaginationControls(paginationContainer, swCurrentPage, totalPages, (newPage) => {
-      swCurrentPage = newPage;
-      renderSolarWindsTable();
+    renderEnterprisePagination({
+      container: paginationContainer,
+      countLabel: countSpan,
+      totalItems: totalCount,
+      pageSize: swPageSize,
+      currentPage: swCurrentPage,
+      pageSizeOptions: [10, 25, 50, 100],
+      itemName: 'Server Nodes',
+      totalAuthoritative: allSwNodes.length,
+      onPageChange: (newPage) => {
+        swCurrentPage = newPage;
+        renderSolarWindsTable();
+        resetTableScroll('view-solarwinds');
+      },
+      onPageSizeChange: (newSize, newPage) => {
+        swPageSize = newSize;
+        swCurrentPage = newPage;
+        renderSolarWindsTable();
+        resetTableScroll('view-solarwinds');
+      }
     });
   }
 
@@ -1234,30 +1261,27 @@
 
   function renderCmdbTable() {
     const tbody = document.getElementById('cmdbTableBody');
-    const recordCountElem = document.getElementById('cmdbTableRecordCount');
+    const countSpan = document.getElementById('cmdbTableRecordCount');
     const paginationContainer = document.getElementById('cmdbPagination');
     if (!tbody) return;
 
     const dataset = cmdbFilteredCis.length > 0 ? cmdbFilteredCis : allCmdbCis;
     const totalRecords = dataset.length;
-    const totalPages = Math.ceil(totalRecords / CMDB_ITEMS_PER_PAGE) || 1;
 
-    if (cmdbCurrentPage > totalPages) cmdbCurrentPage = totalPages;
-    if (cmdbCurrentPage < 1) cmdbCurrentPage = 1;
-
-    const startIndex = (cmdbCurrentPage - 1) * CMDB_ITEMS_PER_PAGE;
-    const endIndex = Math.min(startIndex + CMDB_ITEMS_PER_PAGE, totalRecords);
-    const pageData = dataset.slice(startIndex, endIndex);
-
-    if (recordCountElem) {
-      recordCountElem.textContent = `Showing ${totalRecords > 0 ? startIndex + 1 : 0} to ${endIndex} of ${totalRecords.toLocaleString()} Live Configuration Items`;
-    }
-
-    if (pageData.length === 0) {
+    if (totalRecords === 0) {
       tbody.innerHTML = `<tr><td colspan="8" class="text-center py-6 text-muted">No Live Configuration Items match your search criteria.</td></tr>`;
+      if (countSpan) countSpan.textContent = 'Showing 0 matching configuration items';
       if (paginationContainer) paginationContainer.innerHTML = '';
       return;
     }
+
+    const totalPages = Math.max(1, Math.ceil(totalRecords / cmdbPageSize));
+    if (cmdbCurrentPage > totalPages) cmdbCurrentPage = totalPages;
+    if (cmdbCurrentPage < 1) cmdbCurrentPage = 1;
+
+    const startIndex = (cmdbCurrentPage - 1) * cmdbPageSize;
+    const endIndex = Math.min(startIndex + cmdbPageSize, totalRecords);
+    const pageData = dataset.slice(startIndex, endIndex);
 
     tbody.innerHTML = pageData.map(c => {
       const tier = (c.health_tier || 'High').toLowerCase();
@@ -1303,81 +1327,167 @@
       `;
     }).join('');
 
-    renderPaginationControls(paginationContainer, cmdbCurrentPage, totalPages, (newPage) => {
-      cmdbCurrentPage = newPage;
-      renderCmdbTable();
+    renderEnterprisePagination({
+      container: paginationContainer,
+      countLabel: countSpan,
+      totalItems: totalRecords,
+      pageSize: cmdbPageSize,
+      currentPage: cmdbCurrentPage,
+      pageSizeOptions: [10, 25, 50, 100],
+      itemName: 'Configuration Items',
+      totalAuthoritative: allCmdbCis.length,
+      onPageChange: (newPage) => {
+        cmdbCurrentPage = newPage;
+        renderCmdbTable();
+        resetTableScroll('view-cmdb');
+      },
+      onPageSizeChange: (newSize, newPage) => {
+        cmdbPageSize = newSize;
+        cmdbCurrentPage = newPage;
+        renderCmdbTable();
+        resetTableScroll('view-cmdb');
+      }
     });
   }
 
   // =========================================================================
-  // REUSABLE PAGINATION CONTROLLER
+  // UNIFIED REUSABLE ENTERPRISE PAGINATION CONTROLLER
   // =========================================================================
 
-
-  function renderPaginationControls(container, currentPage, totalPages, onPageChange) {
+  function renderEnterprisePagination({
+    container,
+    countLabel,
+    totalItems,
+    pageSize,
+    currentPage,
+    pageSizeOptions = [10, 25, 50, 100],
+    itemName = 'records',
+    totalAuthoritative = null,
+    onPageChange,
+    onPageSizeChange
+  }) {
     if (!container) return;
-    if (totalPages <= 1) {
+
+    const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+    if (currentPage > totalPages) currentPage = totalPages;
+    if (currentPage < 1) currentPage = 1;
+
+    const startIndex = totalItems === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+    const endIndex = Math.min(currentPage * pageSize, totalItems);
+
+    // 1. Update Record Counter Label with Tabular Formatting
+    if (countLabel) {
+      if (totalItems === 0) {
+        countLabel.textContent = `Showing 0 matching ${itemName}`;
+      } else if (totalAuthoritative && totalAuthoritative > totalItems) {
+        countLabel.textContent = `Showing ${startIndex}–${endIndex} of ${totalItems.toLocaleString()} matching ${itemName} (filtered from ${totalAuthoritative.toLocaleString()} total)`;
+      } else {
+        countLabel.textContent = `Showing ${startIndex}–${endIndex} of ${totalItems.toLocaleString()} ${itemName}`;
+      }
+    }
+
+    if (totalItems <= 0) {
       container.innerHTML = '';
       return;
     }
 
-    let buttonsHtml = '<div class="pagination-wrapper">';
+    // 2. Compute Smart Sliding Window Page Numbers
+    const pagesToShow = new Set([1, totalPages]);
+    for (let i = Math.max(1, currentPage - 1); i <= Math.min(totalPages, currentPage + 1); i++) {
+      pagesToShow.add(i);
+    }
+    const sortedPages = Array.from(pagesToShow).sort((a, b) => a - b);
 
-    // Previous Button
-    buttonsHtml += `
-      <button class="pagination-btn pagination-nav" ${currentPage === 1 ? 'disabled' : ''} data-page="${currentPage - 1}" title="Previous Page">
-        &larr; Prev
-      </button>
+    // 3. Render HTML
+    let html = `
+      <div class="pagination-footer-bar">
+        <div class="page-size-selector">
+          <label>Per page:</label>
+          <select class="pagination-select" aria-label="Select rows per page">
+            ${pageSizeOptions.map(sz => `
+              <option value="${sz}" ${sz === pageSize ? 'selected' : ''}>${sz}</option>
+            `).join('')}
+          </select>
+        </div>
+
+        <div class="pagination-wrapper" role="navigation" aria-label="Pagination">
+          <button class="pagination-btn pagination-nav" data-action="first" ${currentPage === 1 ? 'disabled' : ''} title="First Page" aria-label="First Page">&laquo;</button>
+          <button class="pagination-btn pagination-nav" data-action="prev" ${currentPage === 1 ? 'disabled' : ''} title="Previous Page" aria-label="Previous Page">&lsaquo;</button>
     `;
 
-    // Compact smart window: always show first, last, current, and neighbours
-    const pagesToShow = [];
-    pagesToShow.push(1);
-
-    for (let i = Math.max(2, currentPage - 1); i <= Math.min(totalPages - 1, currentPage + 1); i++) {
-      pagesToShow.push(i);
-    }
-
-    if (totalPages > 1 && !pagesToShow.includes(totalPages)) {
-      pagesToShow.push(totalPages);
-    }
-
-    pagesToShow.sort((a, b) => a - b);
-
-    let lastP = 0;
-    for (const p of pagesToShow) {
-      if (lastP && p - lastP > 1) {
-        buttonsHtml += `<span class="pagination-ellipsis">&bull;&bull;&bull;</span>`;
+    let prevPageNum = 0;
+    for (const p of sortedPages) {
+      if (prevPageNum && p - prevPageNum > 1) {
+        html += `<span class="pagination-ellipsis" aria-hidden="true">&bull;&bull;&bull;</span>`;
       }
-      buttonsHtml += `
-        <button class="pagination-btn ${p === currentPage ? 'active' : ''}" data-page="${p}">
+      html += `
+        <button class="pagination-btn ${p === currentPage ? 'active' : ''}" data-page="${p}" aria-label="Page ${p}" ${p === currentPage ? 'aria-current="page"' : ''}>
           ${p}
         </button>
       `;
-      lastP = p;
+      prevPageNum = p;
     }
 
-    // Next Button
-    buttonsHtml += `
-      <button class="pagination-btn pagination-nav" ${currentPage === totalPages ? 'disabled' : ''} data-page="${currentPage + 1}" title="Next Page">
-        Next &rarr;
-      </button>
+    html += `
+          <button class="pagination-btn pagination-nav" data-action="next" ${currentPage === totalPages ? 'disabled' : ''} title="Next Page" aria-label="Next Page">&rsaquo;</button>
+          <button class="pagination-btn pagination-nav" data-action="last" ${currentPage === totalPages ? 'disabled' : ''} title="Last Page" aria-label="Last Page">&raquo;</button>
+        </div>
+      </div>
     `;
 
-    buttonsHtml += '</div>';
-    container.innerHTML = buttonsHtml;
+    container.innerHTML = html;
 
-    // Attach click listeners to pagination buttons
+    // 4. Attach Navigation Button Event Listeners
     container.querySelectorAll('.pagination-btn').forEach(btn => {
       btn.addEventListener('click', (e) => {
         e.preventDefault();
+        const action = btn.getAttribute('data-action');
         const targetPage = Number(btn.getAttribute('data-page'));
-        if (targetPage && targetPage !== currentPage && targetPage >= 1 && targetPage <= totalPages) {
-          onPageChange(targetPage);
+
+        let newPage = currentPage;
+        if (action === 'first') newPage = 1;
+        else if (action === 'prev') newPage = Math.max(1, currentPage - 1);
+        else if (action === 'next') newPage = Math.min(totalPages, currentPage + 1);
+        else if (action === 'last') newPage = totalPages;
+        else if (targetPage) newPage = targetPage;
+
+        if (newPage !== currentPage && newPage >= 1 && newPage <= totalPages) {
+          if (typeof onPageChange === 'function') {
+            onPageChange(newPage);
+          }
         }
       });
     });
+
+    // 5. Attach Page Size Selector Listener
+    const selectElem = container.querySelector('.pagination-select');
+    if (selectElem) {
+      selectElem.addEventListener('change', (e) => {
+        const newSize = Number(e.target.value);
+        if (newSize !== pageSize) {
+          const firstItemIdx = (currentPage - 1) * pageSize;
+          const newCurrentPage = Math.floor(firstItemIdx / newSize) + 1;
+          if (typeof onPageSizeChange === 'function') {
+            onPageSizeChange(newSize, newCurrentPage);
+          }
+        }
+      });
+    }
   }
+
+  function resetTableScroll(tabId) {
+    const pane = document.getElementById(tabId);
+    if (!pane) return;
+    const tableResponsive = pane.querySelector('.table-responsive');
+    if (tableResponsive) {
+      tableResponsive.scrollTop = 0;
+    }
+    const tableCard = pane.querySelector('.table-card');
+    if (tableCard && tableCard.getBoundingClientRect().top < 0) {
+      tableCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }
+
 
   // =========================================================================
   // SEARCH & CSV EXPORT CONTROLLERS

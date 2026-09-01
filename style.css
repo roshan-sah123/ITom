@@ -1393,6 +1393,54 @@ body {
   color: var(--text-muted);
 }
 
+.table-footer-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.table-record-count {
+  font-variant-numeric: tabular-nums;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.page-size-selector {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.page-size-selector select {
+  background-color: #141414;
+  border: 1px solid var(--card-border);
+  color: #FFFFFF;
+  border-radius: var(--border-radius-sm);
+  padding: 4px 8px;
+  font-size: 12px;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.page-size-selector select:focus,
+.page-size-selector select:hover {
+  border-color: var(--accent);
+}
+
+.pagination-footer-bar {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
 .pagination-controls {
   display: flex;
   align-items: center;
@@ -1402,11 +1450,11 @@ body {
 .pagination-wrapper {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   background-color: #141414;
   border: 1px solid var(--card-border);
   border-radius: var(--border-radius-md);
-  padding: 4px 6px;
+  padding: 3px 5px;
 }
 
 .pagination-btn {
@@ -1414,7 +1462,7 @@ body {
   border: 1px solid transparent;
   color: var(--text-secondary);
   border-radius: var(--border-radius-sm);
-  padding: 4px 10px;
+  padding: 4px 8px;
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
@@ -1424,29 +1472,33 @@ body {
   justify-content: center;
   min-width: 28px;
   height: 28px;
+  user-select: none;
 }
 
 .pagination-btn.pagination-nav {
-  padding: 4px 10px;
+  padding: 4px 8px;
   font-weight: 600;
+  font-size: 13px;
 }
 
 .pagination-btn:hover:not(:disabled) {
-  background-color: rgba(255, 255, 255, 0.05);
+  background-color: rgba(255, 255, 255, 0.08);
   color: var(--text-primary);
-  border-color: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.12);
 }
 
 .pagination-btn.active {
   background-color: var(--accent);
   border-color: var(--accent);
   color: #FFFFFF;
-  font-weight: 600;
+  font-weight: 700;
+  box-shadow: 0 0 8px rgba(249, 115, 22, 0.35);
 }
 
 .pagination-btn:disabled {
   opacity: 0.25;
   cursor: not-allowed;
+  pointer-events: none;
 }
 
 .pagination-ellipsis {
@@ -1454,7 +1506,9 @@ body {
   color: var(--text-muted);
   padding: 0 4px;
   letter-spacing: 2px;
+  user-select: none;
 }
+
 
 /* Helpers */
 .text-white { color: #FFFFFF !important; }
