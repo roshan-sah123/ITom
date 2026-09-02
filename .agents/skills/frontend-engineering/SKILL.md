@@ -102,3 +102,15 @@ Every high-scale data table (1,000 to 50,000+ assets) must implement the unified
       .replace(/'/g, '&#039;');
   }
   ```
+
+---
+
+## 6. Accessibility (A11y) & Unintegrated Tab Governance
+
+* **Accessibility & Keyboard Navigation**:
+  - Table containers must provide `role="region"` and `aria-label="Operational Telemetry Grid"`.
+  - Pagination navigation buttons must maintain `aria-label="Go to Page X"` and `aria-current="page"` on active page indicators.
+* **Non-Integrated Sections Rule (GEMINI.md Invariant)**:
+  - Any tab or module without live API ingestion attached must strictly render clean "Coming Soon / Phase 2" pipeline cards.
+  - Never fabricate or hardcode simulated/mock numbers for unintegrated domains.
+

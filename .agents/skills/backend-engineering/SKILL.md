@@ -65,6 +65,10 @@ PostgreSQL 16 Relational Schema Structure:
 └── sync_error_logs          : Diagnostic audit trail (error_id, run_id, error_code, error_message, stack)
 ```
 
+* **Schema Evolution & Migrations**:
+  - All database schema modifications must be tracked version-by-version using **Alembic** (`alembic upgrade head`).
+  - Never run manual unversioned `CREATE TABLE` or `ALTER TABLE` DDL directly in production.
+
 ---
 
 ## 4. Resilient Background Synchronization Engine
@@ -75,6 +79,7 @@ PostgreSQL 16 Relational Schema Structure:
   - Wrap external network calls in exponential backoff retry adapters (`max_retries=3`, `backoff_factor=0.5`).
   - Perform delta comparison before writing to history tables to minimize unnecessary storage growth.
   - Record execution duration and record counts in `sync_runs`.
+  - **Multi-Worker Concurrency Guard**: In multi-process ASGI configurations (`--workers > 1`), synchronize worker jobs using PostgreSQL advisory locks (`SELECT pg_try_advisory_lock(1048576)`) to ensure exactly-once sync execution.
 
 ---
 
@@ -82,3 +87,4 @@ PostgreSQL 16 Relational Schema Structure:
 
 * **Environment Isolation**: Read all credentials from `.env` or container environment variables via Pydantic `BaseSettings`.
 * **Containerization**: Deploy via Docker Compose (`Nginx` reverse proxy + `FastAPI` + `PostgreSQL 16`).
+
