@@ -84,7 +84,7 @@
       const total = intuneData?.metrics?.total_managed_devices || (allIntuneDevices.length > 0 ? allIntuneDevices.length : 25987);
       valElem.textContent = Number(total).toLocaleString();
     } else if (tabId === 'cmdb' || tabId === 'network') {
-      labelElem.textContent = 'Total Verified CIs';
+      labelElem.textContent = 'CMDB Network CIs';
       const total = cmdbData?.metadata?.total_configuration_items || cmdbData?.metrics?.total_configuration_items || (allCmdbCis.length > 0 ? allCmdbCis.length : 1543);
       valElem.textContent = Number(total).toLocaleString();
     } else if (tabId === 'dex') {

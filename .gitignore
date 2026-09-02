@@ -1,15 +1,34 @@
+# Environment & Secret Configurations
 .env
 .env.*
 !.env.example
+
+# Python Caches & Bytecode
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Node & Package Managers
 node_modules/
-.firebase/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Server Logs & Runtime Output
+*.log
 itom_cron.log
 itom_server.log
 
-# Telemetry Datasets & Employee Export Protection
+# Cloud & Temporary Build Artifacts
+.firebase/
+dist/
+build/
+*.egg-info/
+
+# Telemetry Datasets & CSV Exports
 data/*.json
 !data/.gitkeep
 exports/*.csv
-*.log

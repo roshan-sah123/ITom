@@ -1,0 +1,64 @@
+name: ITOM Platform CI & Invariant Quality Gates
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-matrix:
+    name: Test & Invariant Gate (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: 'pip'
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: 🔒 Security & Secret Exposure Scan
+        run: |
+          python -m unittest tests.verify_adversarial_security -v
+
+      - name: ⚡ Zero-Build Frontend Compliance Verification
+        run: |
+          python -m unittest tests.test_zero_build_compliance -v
+
+      - name: 📊 Verify Microsoft Intune Invariants (25,987 Endpoints)
+        run: |
+          python tests/verify_intune_data.py
+
+      - name: 📡 Verify SolarWinds Orion Invariants (1,548 Server Nodes)
+        run: |
+          python tests/verify_solarwinds_data.py
+
+      - name: 🗄️ Verify CMDB Relational Invariants & Security
+        run: |
+          python -m unittest tests.test_cmdb_live_solarwinds -v
+
+      - name: 🧪 Execute Master E2E Test Suite (119+ Tests)
+        run: |
+          python tests/run_e2e_tests.py --verbose
+
+      - name: 🛠️ Verify CLI CMDB Data Generation
+        run: |
+          python scripts/fetch_cmdb_data.py

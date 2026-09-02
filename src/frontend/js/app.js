@@ -244,10 +244,48 @@ document.addEventListener('DOMContentLoaded', () => {
     return 'ops_analytics.html#intune';
   }
   
+  // --- OPS ANALYTICS DOMAIN DRILLDOWN MODAL (VP REQUIREMENT) ---
+  const opsDomainModal = document.getElementById('opsDomainModal');
+  const closeDomainModalBtn = document.getElementById('closeDomainModalBtn');
+
+  function openDomainModal() {
+    closeAllDropdowns();
+    if (opsDomainModal) {
+      opsDomainModal.classList.add('active');
+      document.body.style.overflow = 'hidden';
+    }
+  }
+
+  function closeDomainModal() {
+    if (opsDomainModal) {
+      opsDomainModal.classList.remove('active');
+      document.body.style.overflow = '';
+    }
+  }
+
+  if (closeDomainModalBtn) {
+    closeDomainModalBtn.addEventListener('click', closeDomainModal);
+  }
+
+  if (opsDomainModal) {
+    opsDomainModal.addEventListener('click', (e) => {
+      if (e.target === opsDomainModal) {
+        closeDomainModal();
+      }
+    });
+  }
+
   function launchModule(moduleName, targetUrl, isComingSoon) {
     closeAllDropdowns();
     if (launcherModuleName) launcherModuleName.textContent = moduleName;
     
+    // Check if OPS Analytics was selected -> Show Domain Drilldown Modal (VP Requirement)
+    const rawMod = (moduleName || '').toLowerCase();
+    if (rawMod.includes('analytics') || rawMod.includes('ops')) {
+      openDomainModal();
+      return;
+    }
+
     if (isComingSoon) {
       if (launcherStatus) {
         launcherStatus.innerHTML = `<span class="text-warning font-semibold">Phase 2 Module — In Development Pipeline</span><br><span class="text-xs text-muted">Integration with enterprise backend scheduled for upcoming release.</span>`;
@@ -256,7 +294,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    if (launcherStatus) launcherStatus.textContent = 'Launching Module 1: OPS Analytics...';
+    if (launcherStatus) launcherStatus.textContent = `Launching ${moduleName}...`;
     if (launcherOverlay) launcherOverlay.classList.add('active');
 
     // Quick 200ms visual feedback before direct navigation
@@ -301,5 +339,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Export functions globally
   window.launchModule = launchModule;
   window.closeLauncher = closeLauncher;
+  window.openDomainModal = openDomainModal;
+  window.closeDomainModal = closeDomainModal;
   window.resolveModuleDestination = resolveModuleDestination;
 });

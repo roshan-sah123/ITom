@@ -60,13 +60,21 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Skip Firestore synchronization step",
     )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Perform validation and pipeline dry-run without external API writes",
+    )
     return parser.parse_args()
 
 
 def main() -> int:
     """Execute end-to-end synchronization pipeline."""
     args = parse_args()
-    logger.info("=== Starting ITOM 10-Minute Telemetry Sync Pipeline ===")
+    if args.dry_run:
+        logger.info("=== Starting ITOM Telemetry Sync Pipeline [DRY-RUN MODE] ===")
+    else:
+        logger.info("=== Starting ITOM 10-Minute Telemetry Sync Pipeline ===")
 
     # Step 1: Microsoft Intune Sync
     tenant_id = os.getenv("AZURE_TENANT_ID")

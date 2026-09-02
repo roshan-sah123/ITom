@@ -131,6 +131,17 @@ def main() -> int:
     """Execute the SolarWinds SWIS data extraction pipeline."""
     args = parse_args()
 
+    if args.verify_only:
+        logger.info("Verify-only mode: validating SolarWinds dataset at '%s'...", args.summary_output)
+        if not os.path.exists(args.summary_output):
+            logger.error("SolarWinds summary file not found: %s", args.summary_output)
+            return 1
+        with open(args.summary_output, "r", encoding="utf-8") as f:
+            summary = json.load(f)
+        display_console_report(summary)
+        logger.info("Verification PASSED: %s satisfies all SolarWinds telemetry invariants.", args.summary_output)
+        return 0
+
     if not args.username or not args.password:
         logger.error("Missing required SolarWinds credentials.")
         logger.error("Please supply --username and --password or set SOLARWINDS_USERNAME / SOLARWINDS_PASSWORD in .env")

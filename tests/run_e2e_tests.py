@@ -82,6 +82,7 @@ from tests.verify_adversarial_security import (
     TestRepositorySecretScan,
 )
 from tests.verify_solarwinds_data import TestSolarWindsDataInvariants
+from tests.test_zero_build_compliance import TestZeroBuildCompliance
 
 
 SUITE_MAPPING = {
@@ -128,6 +129,9 @@ SUITE_MAPPING = {
         TestRFC4180CSVExportCompliance,
         TestUIRoutingAndMemoryGuards,
         TestRepositorySecretScan,
+    ],
+    "Zero-Build Architecture & Modular Frontend Compliance": [
+        TestZeroBuildCompliance,
     ]
 }
 

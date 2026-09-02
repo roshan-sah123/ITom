@@ -1,0 +1,35 @@
+# Secrets & Environment Configurations
+.env
+.env.*
+!.env.example
+
+# Version Control & Metadata
+.git/
+.github/
+.agents/
+
+# Test Suites & Quality Harnesses
+tests/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Logs & Temporary Files
+*.log
+itom_cron.log
+itom_server.log
+
+# Caches & Bytecode
+__pycache__/
+*.py[cod]
+node_modules/
+
+# Telemetry Datasets & CSV Exports
+data/*.json
+!data/.gitkeep
+exports/*.csv
+
+# Infrastructure & Service Configurations
+systemd/
+Dockerfile
+docker-compose.yml

@@ -34,7 +34,6 @@ PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(_
 DEFAULT_RAW_NODES_PATH = os.path.join(PROJECT_ROOT, "data", "solarwinds_nodes.json")
 DEFAULT_SUMMARY_PATH = os.path.join(PROJECT_ROOT, "data", "cmdb_summary.json")
 DEFAULT_CSV_PATH = os.path.join(PROJECT_ROOT, "exports", "cmdb_network_cis_complete.csv")
-DEFAULT_DB_PATH = os.path.join(PROJECT_ROOT, "data", "analytics.db")
 
 
 def atomic_json_dump(data: Any, filepath: str, indent: Optional[int] = 2) -> None:
@@ -447,7 +446,7 @@ class CMDBService:
 class CMDBDataExtractor:
     """Wrapper providing backward compatibility for existing callers."""
 
-    def __init__(self, db_path: Optional[str] = None):
+    def __init__(self, *args, **kwargs):
         self.service = CMDBService()
 
     def extract_all(self) -> Dict[str, Any]:
@@ -461,9 +460,9 @@ class CMDBDataExtractor:
 
 
 def generate_cmdb_artifacts(
-    db_path: Optional[str] = None,
     json_output_path: str = DEFAULT_SUMMARY_PATH,
-    csv_output_path: str = DEFAULT_CSV_PATH
+    csv_output_path: str = DEFAULT_CSV_PATH,
+    **kwargs
 ) -> Tuple[str, str]:
     """Execute live CMDB telemetry generation and artifact write."""
     service = CMDBService()

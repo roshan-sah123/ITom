@@ -312,6 +312,7 @@ class TestRepositorySecretScan(unittest.TestCase):
     ALLOWED_FILES_OR_DIRS = [
         ".git",
         "__pycache__",
+        ".env",
         ".env.example",  # Contains explicit placeholders
         ".agents",       # Metadata logs
     ]
@@ -329,10 +330,10 @@ class TestRepositorySecretScan(unittest.TestCase):
                 fpath = os.path.join(root, fname)
                 rel_path = os.path.relpath(fpath, PROJECT_ROOT)
 
-                # Skip binary files or known examples
+                # Skip binary files, local gitignored environment configs, or known examples
                 if rel_path.endswith((".png", ".ico", ".jpg", ".woff", ".woff2", ".ttf", ".csv", ".pyc")):
                     continue
-                if rel_path == ".env.example":
+                if rel_path == ".env.example" or rel_path == ".env" or rel_path.startswith(".env."):
                     continue
 
                 scanned_count += 1

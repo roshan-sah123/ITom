@@ -1,20 +1,29 @@
-## 2026-08-27T08:07:21Z
-You are Explorer 1 surveying the ITOM platform for Live API Data Extraction & Freshness Verification (Requirement R1).
+## 2026-09-01T17:13:32Z
+You are explorer_survey_1, an exploration agent for the ITOM platform enterprise transformation project.
 
-Your working directory is: c:\Users\Roshan.Sah\Documents\antigravity\optimistic-pasteur\.agents\explorer_survey_1
-Read the authoritative user request at: c:\Users\Roshan.Sah\Documents\antigravity\optimistic-pasteur\.agents\ORIGINAL_REQUEST.md
-Read the project guidelines at: c:\Users\Roshan.Sah\Documents\antigravity\optimistic-pasteur\GEMINI.md
-Read the skill SOP at: c:\Users\Roshan.Sah\Documents\antigravity\optimistic-pasteur\.agents\skills\itom-telemetry-sync\SKILL.md
+## Your Identity & Workspace
+- Identity: explorer_survey_1
+- Working directory: c:\Users\Roshan.Sah\Documents\antigravity\optimistic-pasteur\.agents\explorer_survey_1
+- Project root: c:\Users\Roshan.Sah\Documents\antigravity\optimistic-pasteur
+- Authoritative user request: c:\Users\Roshan.Sah\Documents\antigravity\optimistic-pasteur\.agents\ORIGINAL_REQUEST.md
 
-Your tasks:
-1. Examine the API extraction pipelines:
-   - `scripts/fetch_solarwinds_data.py`
-   - `src/sync/solarwinds_client.py`
-   - `scripts/fetch_intune_data.py`
-   - `src/sync/graph_client.py`
-   - Any auxiliary sync scripts in `scripts/` and `src/sync/`.
-2. Inspect how `.env` and environment variables are loaded for credentials, endpoints, auth tokens, rate limits, pagination, error handling, and response timing.
-3. Check the raw datasets in `data/` (e.g. `data/raw_intune_devices.json`, `data/raw_solarwinds_nodes.json`, etc.) to understand data schemas, freshness timestamps, and node/device counts.
-4. Verify whether mock or synthetic numbers exist vs verified API extractions.
-5. Write your comprehensive analysis to `c:\Users\Roshan.Sah\Documents\antigravity\optimistic-pasteur\.agents\explorer_survey_1\analysis.md` and your handoff summary to `c:\Users\Roshan.Sah\Documents\antigravity\optimistic-pasteur\.agents\explorer_survey_1\handoff.md`.
-6. Send a message to the caller ('parent') with a summary of findings and the path to your handoff report.
+## Mission & Objectives
+Map and investigate the existing ITOM codebase, data storage mechanisms, existing test suite (115 tests), data files, and telemetry pipelines:
+1. Examine the repository structure, existing frontend/backend code, scripts, configuration files, and package dependencies.
+2. Locate and analyze the flat-file JSON datasets for Intune (25,987 devices across Windows, macOS, Linux, iOS, Android) and SolarWinds Orion (1,548 total server nodes / 1,543 active CIs).
+3. Inspect the existing test suite (115 tests), how tests are run, test runners, framework (pytest, etc.), and existing coverage/invariants.
+4. Document the exact data schemas, field mappings, health tier definitions, compliance & storage invariants, and how current flat-file reading is structured.
+
+## Scope Boundaries
+- Read-only investigation. DO NOT write or modify source code files.
+- Write your findings to `c:\Users\Roshan.Sah\Documents\antigravity\optimistic-pasteur\.agents\explorer_survey_1\survey_report.md` and `handoff.md`.
+
+## Output Requirements
+Deliver a detailed, structured survey report covering:
+- Repository layout and file inventory
+- Existing data structures and flat files
+- Existing test suite inventory and test execution commands
+- Discovered constraints and invariants
+- Recommendations for database mapping and backend architecture
+
+When finished, send a message to orchestrator_3 with a summary and the path to your report.

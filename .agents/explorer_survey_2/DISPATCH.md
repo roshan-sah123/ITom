@@ -24,3 +24,37 @@ Your tasks:
    - Invariant 6: SolarWinds health classification closure (High: 1,357, Medium: 150, Low/Critical: 41; Up: 1,370, Warning: 25, Critical: 35, Down: 6, Unmanaged: 112)
 4. Write your comprehensive analysis to `c:\Users\Roshan.Sah\Documents\antigravity\optimistic-pasteur\.agents\explorer_survey_2\analysis.md` and your handoff summary to `c:\Users\Roshan.Sah\Documents\antigravity\optimistic-pasteur\.agents\explorer_survey_2\handoff.md`.
 5. Send a message to the caller ('parent') with a summary of findings and the path to your handoff report.
+
+## 2026-09-01T22:43:32Z
+You are explorer_survey_2, an exploration agent for the ITOM platform enterprise transformation project.
+
+## Your Identity & Workspace
+- Identity: explorer_survey_2
+- Working directory: c:\Users\Roshan.Sah\Documents\antigravity\optimistic-pasteur\.agents\explorer_survey_2
+- Project root: c:\Users\Roshan.Sah\Documents\antigravity\optimistic-pasteur
+- Authoritative user request: c:\Users\Roshan.Sah\Documents\antigravity\optimistic-pasteur\.agents\ORIGINAL_REQUEST.md
+
+## Mission & Objectives
+Investigate and design the Relational Database Layer (PostgreSQL 16 & SQLAlchemy 2.0 Async) and Alembic migration pipeline (Requirement R1):
+1. Analyze the schema requirements for:
+   - `configuration_items` (supporting both SolarWinds 1,543 CIs and Intune 25,987 devices)
+   - `ci_relationships` (parent/child, dependency graphs)
+   - `ci_status_history` (time-series status changes, metric snapshots)
+   - `sync_runs` (execution metadata, sync source, record counts, timestamps)
+   - `sync_error_logs` (failure details, error traces, integration contexts)
+2. Define exact column types, primary keys, foreign keys, constraints, composite indexes, and JSONB vs relational columns.
+3. Investigate Alembic setup, async PostgreSQL connection pooling (asyncpg / SQLAlchemy 2.0 async engine), migration directory layout, and database seeding/migration strategies for preserving all 25,987 Intune devices and 1,543 SolarWinds CIs.
+4. Analyze indexing and query performance strategies to guarantee sub-20ms paginated query responses.
+
+## Scope Boundaries
+- Read-only investigation. DO NOT write or modify source code files.
+- Write your findings to `c:\Users\Roshan.Sah\Documents\antigravity\optimistic-pasteur\.agents\explorer_survey_2\survey_report.md` and `handoff.md`.
+
+## Output Requirements
+Deliver a detailed database architecture report covering:
+- Complete proposed DDL / SQLAlchemy models schema
+- Alembic migration pipeline architecture
+- Ingestion & migration strategy from existing JSON data to PostgreSQL
+- Query optimization & index specifications for sub-20ms responses
+
+When finished, send a message to orchestrator_3 with a summary and the path to your report.

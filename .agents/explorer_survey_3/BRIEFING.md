@@ -1,42 +1,39 @@
-# BRIEFING — 2026-08-27T08:12:50Z
+# BRIEFING — 2026-09-01T17:16:30Z
 
 ## Mission
-Survey the ITOM platform for Presentation Tier, Security/Code Hygiene, and Documentation (Requirements R3 & R4).
+Investigate and design FastAPI Asynchronous REST Backend (R2), APScheduler Background Ingestion Engine (R3), and Docker Compose Infrastructure (R4) for the ITOM platform enterprise transformation.
 
 ## 🔒 My Identity
-- Archetype: explorer
-- Roles: survey presentation tier, security/code hygiene, documentation
+- Archetype: Teamwork explorer
+- Roles: explorer, survey, architectural analysis
 - Working directory: c:\Users\Roshan.Sah\Documents\antigravity\optimistic-pasteur\.agents\explorer_survey_3
-- Original parent: f5860a7c-41db-4d5b-b569-5d2778771c52
-- Milestone: baseline_survey
+- Original parent: 33b32222-b876-4bb7-a8d1-c2d3f198c87d
+- Milestone: Survey & Architectural Design (R2, R3, R4)
 
 ## 🔒 Key Constraints
-- Read-only investigation — do NOT implement
-- Zero-Hallucination Policy: verify against actual codebase and dataset invariants
-- Presentation tier scrutiny: DOM XSS escaping, RFC 4180 CSV export, Chart.js canvas rendering, header telemetry switching, pagination/sorting/filtering
-- Security scrutiny: `.env`, `.env.example`, `.gitignore`, git tracking, exposed secrets
-- Documentation audit: README, ARCHITECTURE, API_CONTRACTS, SYNC_STRATEGY
+- Read-only investigation — do NOT implement or modify source code files
+- Adhere to GEMINI.md Zero-Hallucination Policy (verified metrics: Intune 25,987 endpoints, SolarWinds 1,548 nodes / 1,543 CIs)
+- Strict read-only SWQL validation (HTTP 405 on POST/PUT/DELETE)
+- Response freshness headers: last_synchronized_at, data_age_seconds, sync_status (fresh <= 15m, STALE > 15m)
 
 ## Current Parent
-- Conversation ID: f5860a7c-41db-4d5b-b569-5d2778771c52
-- Updated: 2026-08-27T08:12:50Z
+- Conversation ID: 33b32222-b876-4bb7-a8d1-c2d3f198c87d
+- Updated: 2026-09-01T17:16:30Z
 
 ## Investigation State
-- **Explored paths**:
-  - `ops_analytics.html`, `ops_analytics.js`, `index.html`, `app.js`, `style.css`
-  - `src/frontend/*`, `src/sync/*`, `scripts/*`, `tests/*`, `docs/*`, `exports/*`
-  - `.env`, `.env.example`, `.gitignore`, `data/*`
-- **Key findings**:
-  - Presentation Tier: Dynamic header telemetry switching, memory-safe Chart.js destruction, 50-row pagination, RFC 4180 CSV export, and complete `escapeHtml()` sanitization verified.
-  - Security & Hygiene: Zero committed secrets, clean `.gitignore` / `.env` isolation, resilient exception handling with exponential retry.
-  - Documentation: Comprehensive coverage across README, Architecture, API Contracts, and Sync Strategy. Reconciled baseline invariants (25,987 / 1,548) with fresh synced snapshot figures (26,771 / 1,568).
-- **Unexplored areas**: None within the Explorer 3 scope.
+- **Explored paths**: .agents/ORIGINAL_REQUEST.md, PROJECT.md, requirements.txt, Dockerfile, docker-compose.yml, scripts/start_server.py, scripts/run_sync.py, src/sync/cmdb_generator.py, src/sync/solarwinds_client.py, src/sync/graph_client.py, src/sync/payload_generator.py, src/models/cmdb_models.py, app.js, ops_analytics.js, tests/run_e2e_tests.py, docs/API_CONTRACTS.md, docs/ARCHITECTURE.md, .env.example
+- **Key findings**: Complete architectural design for FastAPI Clean Architecture (`app/api/v1`, `app/core`, `app/services`, `app/repositories`, `app/integrations`, `app/models`, `app/schemas`), APScheduler background worker with 10-minute interval, read-only SWQL validation, delta diffing, execution audit logging (`sync_runs`, `sync_error_logs`), and Docker Compose multi-container stack (`nginx`, `api`, `postgres`).
+- **Unexplored areas**: None within R2/R3/R4 exploration scope. Full roadmap documented in survey report.
 
 ## Key Decisions Made
-- Completed in-depth technical analysis and produced structured `analysis.md` and `handoff.md`.
+- Designed FastAPI routing with Starlette freshness header middleware (`X-Last-Synchronized-At`, `X-Data-Age-Seconds`, `X-Sync-Status`).
+- Designed APScheduler `AsyncIOScheduler` with single-instance execution and advisory locks.
+- Designed multi-stage non-root Dockerfile and Nginx reverse proxy with healthcheck probes (`/healthz`, `/ready`).
+- Published full architectural specification to `.agents/explorer_survey_3/survey_report.md`.
 
 ## Artifact Index
-- `.agents/explorer_survey_3/BRIEFING.md` — Working memory and persistent context
-- `.agents/explorer_survey_3/progress.md` — Liveness heartbeat
-- `.agents/explorer_survey_3/analysis.md` — Detailed technical analysis report
-- `.agents/explorer_survey_3/handoff.md` — 5-component hard handoff report
+- `.agents/explorer_survey_3/DISPATCH.md` — Inbound messages
+- `.agents/explorer_survey_3/BRIEFING.md` — Working memory and context
+- `.agents/explorer_survey_3/progress.md` — Liveness heartbeat and step tracking
+- `.agents/explorer_survey_3/survey_report.md` — Authoritative architectural survey & design specification report
+- `.agents/explorer_survey_3/handoff.md` — 5-component handoff report

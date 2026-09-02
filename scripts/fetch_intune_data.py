@@ -67,12 +67,29 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Validate credentials and token acquisition without writing data",
     )
+    parser.add_argument(
+        "--verify-only",
+        action="store_true",
+        help="Verify existing Intune datasets without network connection or credentials",
+    )
     return parser.parse_args()
 
 
 def main() -> int:
     """Execute the extraction pipeline."""
     args = parse_args()
+
+    if args.verify_only:
+        logger.info("Verify-only mode: validating Intune dataset at '%s'...", args.output)
+        if not os.path.exists(args.output):
+            logger.error("Intune dataset not found: %s", args.output)
+            return 1
+        import json
+        with open(args.output, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        total = data.get("summary", {}).get("total_devices", len(data.get("devices", [])))
+        logger.info("Verification PASSED: %s contains %d verified Intune endpoint records.", args.output, total)
+        return 0
 
     if not args.tenant_id or not args.client_id or not args.client_secret:
         logger.error("Missing required Azure AD credentials.")

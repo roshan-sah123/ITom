@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""CLI Script: Extract and Aggregate CMDB Network Configuration Items from SQLite.
+"""CLI Script: Extract and Aggregate CMDB Configuration Items from SolarWinds Telemetry.
 
 Usage:
-    python scripts/fetch_cmdb_data.py [--db PATH] [--json-output PATH] [--csv-output PATH]
+    python scripts/fetch_cmdb_data.py [--json-output PATH] [--csv-output PATH]
 """
 
 import argparse
@@ -15,7 +15,8 @@ if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
 from src.sync.cmdb_generator import (
-    DEFAULT_DB_PATH,
+    DEFAULT_SUMMARY_PATH,
+    DEFAULT_CSV_PATH,
     CMDBDataExtractor,
     generate_cmdb_artifacts,
 )
@@ -26,21 +27,16 @@ logger = logging.getLogger(__name__)
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Extract and aggregate 364 Network CMDB Configuration Items."
-    )
-    parser.add_argument(
-        "--db",
-        default=DEFAULT_DB_PATH,
-        help="Path to analytics.db SQLite database",
+        description="Extract and aggregate CMDB Configuration Items from SolarWinds telemetry."
     )
     parser.add_argument(
         "--json-output",
-        default=os.path.join(PROJECT_ROOT, "data", "cmdb_summary.json"),
+        default=DEFAULT_SUMMARY_PATH,
         help="Path to output data/cmdb_summary.json",
     )
     parser.add_argument(
         "--csv-output",
-        default=os.path.join(PROJECT_ROOT, "exports", "cmdb_network_cis_complete.csv"),
+        default=DEFAULT_CSV_PATH,
         help="Path to output exports/cmdb_network_cis_complete.csv",
     )
     return parser.parse_args()
@@ -48,10 +44,9 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = parse_args()
-    logger.info("Extracting CMDB data from: %s", args.db)
+    logger.info("Extracting CMDB data from live SolarWinds SWIS / cached snapshot...")
     try:
         json_path, csv_path = generate_cmdb_artifacts(
-            db_path=args.db,
             json_output_path=args.json_output,
             csv_output_path=args.csv_output,
         )
