@@ -48,3 +48,48 @@ Transform the IT Operations Management (ITOM) platform from flat-file JSON stora
 - XSS prevention: All rendered strings sanitized with `escapeHtml()`.
 
 Execute this project systematically using your subagent swarms (explorers, workers/implementers, reviewers/challengers, synthesis/testing). Keep your progress.md updated regularly. When completely done and verified, report completion back to the Sentinel.
+
+## Follow-up — 2026-09-02T11:28:29+05:30
+
+Upgrade the ITOM Portal into an enterprise-grade platform with an industry-level high-contrast Obsidian frontend UI and a scalable, persistent FastAPI + PostgreSQL backend.
+
+Working directory: c:\Users\Roshan.Sah\Documents\antigravity\optimistic-pasteur
+Integrity mode: development
+
+## Requirements
+
+### R1. Industry-Grade Frontend UI/UX (`frontend-engineering`)
+- Apply Obsidian dark-mode design tokens (`#0B0B0B` canvas, `#141414` cards, `#16161A` elevated headers, `#222222` borders).
+- Polish the unified 3-Zone Telemetry Table with real-time 200ms debounced search, page size selectors (`10`, `25`, `50`, `100`), smart window pagination, and container scroll resets.
+- Implement Chart.js slice-to-filter interactions with tooltip hints and memory leak prevention (`destroy()`).
+- Enforce strict XSS escaping (`escapeHtml()`) across all dynamic tabular cells.
+- Add accessibility attributes (`role="region"`, `aria-label`, `aria-current="page"`).
+
+### R2. Scalable Backend & Relational Persistence (`backend-engineering`)
+- Deploy modular FastAPI async architecture (`app/api/v1`, `app/services`, `app/repositories`, `app/integrations`, `app/models`, `app/schemas`).
+- Establish PostgreSQL relational persistence for current state (`configuration_items`, `ci_relationships`), time-series history (`ci_status_history`), and execution logs (`sync_runs`, `sync_error_logs`).
+- Expose REST API routes returning standard data freshness headers (`last_synchronized_at`, `data_age_seconds`, `sync_status`).
+
+### R3. Resilient Read-Only Background Sync Engine
+- Implement decoupled `APScheduler` async worker executing 10-minute recurring telemetry ETL.
+- Strictly enforce read-only SWQL validation (`ALLOWED_METHODS = ["GET"]`) with HTTP 405 error envelopes.
+- Implement delta change detection and PostgreSQL advisory locks for multi-worker safety.
+
+### R4. Local Server Docker Compose Infrastructure
+- Provide multi-container Docker Compose topology (`nginx` reverse proxy, `api`, `postgres` 16) with automated healthchecks.
+
+## Acceptance Criteria
+
+### Frontend Quality & Visual Polish
+- [ ] Initial dashboard paint occurs in < 50ms.
+- [ ] Tabular search and pagination operate seamlessly across all 25,987 Intune devices and 1,548 SolarWinds nodes.
+- [ ] All charts support click-to-filter drill-downs into the data grid without memory leaks.
+- [ ] 0 XSS vulnerabilities on user inputs.
+
+### Backend Scalability & Invariant Contracts
+- [ ] All REST endpoints return sub-20ms responses for paginated queries.
+- [ ] Mutating HTTP requests (`POST`, `PUT`, `DELETE`) against read-only integrations strictly return HTTP 405.
+- [ ] Stale data (> 15m) correctly sets `sync_status = "STALE"`.
+
+### Verification Suite
+- [ ] 100% pass rate across existing 115 tests + new backend integration tests.

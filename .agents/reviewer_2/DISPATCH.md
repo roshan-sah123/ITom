@@ -1,25 +1,20 @@
-﻿## 2026-08-27T08:20:04Z
+# DISPATCH: Reviewer 2 (Backend, Persistence, Sync & Security)
 
-You are Reviewer 2 independently auditing the ITOM Platform Production Evaluation across Requirements R1-R5.
+## Objective
+Independently review the backend architecture, PostgreSQL persistence models, Alembic migrations, FastAPI REST endpoints, APScheduler background worker, advisory locks, SWQL query validator, and response freshness headers.
 
-Your working directory is: c:\Users\Roshan.Sah\Documents\antigravity\optimistic-pasteur\.agents\reviewer_2
-Read the authoritative user request at: c:\Users\Roshan.Sah\Documents\antigravity\optimistic-pasteur\.agents\ORIGINAL_REQUEST.md
-Read the project guidelines at: c:\Users\Roshan.Sah\Documents\antigravity\optimistic-pasteur\GEMINI.md
-Read the skill SOP at: c:\Users\Roshan.Sah\Documents\antigravity\optimistic-pasteur\.agents\skills\itom-telemetry-sync\SKILL.md
-Read the System Evaluation Report at: c:\Users\Roshan.Sah\Documents\antigravity\optimistic-pasteur\docs\SYSTEM_EVALUATION_REPORT.md
-Read the Lead Worker handoff at: c:\Users\Roshan.Sah\Documents\antigravity\optimistic-pasteur\.agents\worker_evaluation_1\handoff.md
+## Scope & Instructions
+- Read `c:\Users\Roshan.Sah\Documents\antigravity\optimistic-pasteur\PROJECT.md`
+- Read `c:\Users\Roshan.Sah\Documents\antigravity\optimistic-pasteur\TEST_INFRA.md`
+- Read `c:\Users\Roshan.Sah\Documents\antigravity\optimistic-pasteur\TEST_READY.md`
+- Read `c:\Users\Roshan.Sah\Documents\antigravity\optimistic-pasteur\.agents\ORIGINAL_REQUEST.md`
+- Read `c:\Users\Roshan.Sah\Documents\antigravity\optimistic-pasteur\GEMINI.md`
+- Read skill: `C:\Users\Roshan.Sah\.gemini\config\skills\code-review-and-quality\SKILL.md`
 
-Your Tasks:
-1. Objectively evaluate all 5 requirement areas (R1-R5) and the 14-section System Evaluation Report:
-   - R1: Live API extraction and freshness (SolarWinds & Intune).
-   - R2: 6-point mathematical invariants (population sum, OS breakdown closure, OEM normalization closure, compliance rate exactness, binary GiB storage math, SolarWinds health classification closure).
-   - R3: Dashboard presentation tier, dark theme tokens, dynamic header telemetry switching, memory-safe Chart.js, 50-row pagination, RFC 4180 CSV exports, XSS sanitization via escapeHtml().
-   - R4: Security, secrets hygiene, .env isolation, error handling, documentation alignment.
-   - R5: Comprehensive evaluation and E2E test runner execution.
-2. Run the test commands to independently verify results:
-   - python tests/run_e2e_tests.py
-   - python tests/verify_intune_data.py
-   - python tests/verify_solarwinds_data.py
-   - python scripts/generate_dashboard_payload.py --verify-only
-3. Write your complete handoff report to c:\Users\Roshan.Sah\Documents\antigravity\optimistic-pasteur\.agents\reviewer_2\handoff.md with explicit verdict: **APPROVE** or **REQUEST_CHANGES**.
-4. Send a message to the caller ('parent') with your verdict and findings summary.
+## Verification Checks
+1. Run backend tests: `python tests/test_database_persistence.py`, `python tests/test_fastapi_backend.py`, `python tests/test_background_sync_security.py`, `python tests/test_fastapi_live_integration.py`.
+2. Review Backend: SQLAlchemy models in `app/models/`, Alembic migrations in `alembic/`, repositories in `app/repositories/`, services in `app/services/`, endpoints in `app/api/v1/endpoints/`, middleware in `app/core/middleware.py`.
+3. Verify invariants: Intune (25,987 devices), SolarWinds (1,548 nodes / 1,543 CIs), sub-20ms query latency, mutating HTTP 405 error envelopes, freshness headers (`X-Last-Synchronized-At`, `X-Data-Age-Seconds`, `X-Sync-Status`).
+4. Render verdict: `APPROVE` or `REQUEST_CHANGES`.
+
+Write your handoff report to `c:\Users\Roshan.Sah\Documents\antigravity\optimistic-pasteur\.agents\reviewer_2\handoff.md` and send message to parent.

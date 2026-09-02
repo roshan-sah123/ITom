@@ -3,18 +3,48 @@
    Redesigned for Pixel-Perfect Executive Aesthetics, Responsive Fluidity, & Accessibility
    ========================================================================== */
 
-/* Design System & Variables */
+/* Design System & Variables - Canonical Obsidian Dark Tokens */
 :root {
-  --bg-primary: #0B0B0E;
+  /* Canvas & Surfaces */
+  --bg-canvas: #0B0B0B;
+  --bg-surface-1: #141414;
+  --bg-surface-2: #16161A;
+  --bg-surface-elevated: #16161A;
+  --bg-primary: #0B0B0B;
   --bg-secondary: #121216;
   --bg-tertiary: #18181E;
-  --card-bg: #16161A;
+  --card-bg: #141414;
   --card-bg-hover: #1C1C22;
-  --card-border: rgba(255, 255, 255, 0.08);
+  
+  /* Borders & Dividers */
+  --border-subtle: #222222;
+  --border-card: rgba(255, 255, 255, 0.08);
+  --border-focus: #F97316;
+  --card-border: #222222;
   --card-border-hover: #F97316;
+  
+  /* Typography & Text */
   --text-primary: #ffffff;
   --text-secondary: #94a3b8;
   --text-muted: #64748b;
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  
+  /* Canonical & Domain Semantic Accents */
+  --accent-orange: #F97316;
+  --accent-green: #10B981;
+  --accent-warning: #F59E0B;
+  --accent-critical: #EF4444;
+  --accent-ops: #F97316;        /* Orange */
+  --accent-intune: #3B82F6;     /* Electric Blue */
+  --accent-solarwinds: #F59E0B; /* Amber */
+  --accent-cmdb: #10B981;       /* Emerald Green */
+  --accent-dex: #A855F7;        /* Purple */
+  --status-up: #10B981;         /* Emerald */
+  --status-warning: #F59E0B;    /* Amber */
+  --status-critical: #EF4444;   /* Crimson Red */
+  
+  /* Backwards Compatibility Tokens */
   --accent: #F97316;
   --accent-hover: #FB923C;
   --accent-glow: rgba(249, 115, 22, 0.25);
@@ -24,8 +54,6 @@
   --danger: #EF4444;
   --warning: #F59E0B;
   
-  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   --border-radius-xl: 18px;
   --border-radius-lg: 14px;
   --border-radius-md: 10px;
