@@ -233,7 +233,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (rawTarget.includes('#solarwinds') || rawMod.includes('capacity') || rawMod.includes('tools') || rawMod.includes('server') || rawTarget === '#capacity' || rawTarget === '#tools-center') {
       return 'ops_analytics.html#solarwinds';
     }
-    if (rawTarget.includes('#intune') || rawMod.includes('compliance') || rawMod.includes('analytics') || rawMod.includes('cmdb') || rawMod.includes('dex') || rawTarget === 'ops_analytics.html' || rawTarget === '#compliance' || rawTarget === '#cmdb') {
+    if (rawTarget.includes('#cmdb') || rawMod.includes('cmdb')) {
+      return 'ops_analytics.html#cmdb';
+    }
+    if (rawTarget.includes('#intune') || rawMod.includes('compliance') || rawMod.includes('dex') || rawTarget === '#compliance') {
       return 'ops_analytics.html#intune';
     }
 
@@ -241,10 +244,10 @@ document.addEventListener('DOMContentLoaded', () => {
       return rawTarget;
     }
 
-    return 'ops_analytics.html#intune';
+    return 'ops_analytics.html';
   }
   
-  // --- OPS ANALYTICS DOMAIN DRILLDOWN MODAL (VP REQUIREMENT) ---
+  // --- OPS ANALYTICS DOMAIN DRILLDOWN MODAL (AUXILIARY ACCESS) ---
   const opsDomainModal = document.getElementById('opsDomainModal');
   const closeDomainModalBtn = document.getElementById('closeDomainModalBtn');
 
@@ -278,13 +281,6 @@ document.addEventListener('DOMContentLoaded', () => {
   function launchModule(moduleName, targetUrl, isComingSoon) {
     closeAllDropdowns();
     if (launcherModuleName) launcherModuleName.textContent = moduleName;
-    
-    // Check if OPS Analytics was selected -> Show Domain Drilldown Modal (VP Requirement)
-    const rawMod = (moduleName || '').toLowerCase();
-    if (rawMod.includes('analytics') || rawMod.includes('ops')) {
-      openDomainModal();
-      return;
-    }
 
     if (isComingSoon) {
       if (launcherStatus) {

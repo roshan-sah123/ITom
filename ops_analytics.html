@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="OPS Analytics Dashboard - Centralized IT Operations Management infrastructure health and operational metrics.">
-  <title>OPS Analytics | ITOM Portal</title>
+  <meta name="description" content="Infrastructure Analytics Dashboard - Centralized IT Operations Management infrastructure health and operational metrics.">
+  <title>Infrastructure Analytics | ITOM Portal</title>
   <!-- Google Fonts - Inter -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -30,16 +30,25 @@
           <div class="brand-divider"></div>
           <div class="logo-text-group">
             <span class="logo-text">ITOM</span>
-            <span class="logo-tag">OPS Analytics</span>
+            <span class="logo-tag">Infrastructure Analytics</span>
           </div>
         </a>
       </div>
 
       <!-- Quick Navigation Tabs (Dedicated Multi-Domain Live Sources) -->
       <nav class="dashboard-tabs" id="tabNavContainer" role="tablist" aria-label="Operational Domain Views">
-        <button class="tab-btn active" data-tab="intune" role="tab" aria-selected="true" aria-controls="view-intune" id="tab-intune">Microsoft Intune (Live)</button>
-        <button class="tab-btn" data-tab="solarwinds" role="tab" aria-selected="false" aria-controls="view-solarwinds" id="tab-solarwinds">SolarWinds (Live)</button>
-        <button class="tab-btn" data-tab="cmdb" role="tab" aria-selected="false" aria-controls="view-cmdb" id="tab-cmdb">Live CMDB (1,543 CIs)</button>
+        <button class="tab-btn active" data-tab="intune" role="tab" aria-selected="true" aria-controls="view-intune" id="tab-intune">
+          <span class="tab-title">Digital Workplace & Endpoints</span>
+          <span class="tab-badge-pill">25,987</span>
+        </button>
+        <button class="tab-btn" data-tab="solarwinds" role="tab" aria-selected="false" aria-controls="view-solarwinds" id="tab-solarwinds">
+          <span class="tab-title">Hybrid Cloud & Servers</span>
+          <span class="tab-badge-pill">1,548</span>
+        </button>
+        <button class="tab-btn" data-tab="cmdb" role="tab" aria-selected="false" aria-controls="view-cmdb" id="tab-cmdb">
+          <span class="tab-title">Enterprise CMDB & Topology</span>
+          <span class="tab-badge-pill">1,543 CIs</span>
+        </button>
       </nav>
 
       <!-- Right Controls -->
@@ -73,8 +82,8 @@
     <!-- Header Summary Section -->
     <header class="page-header">
       <div>
-        <h1 class="page-title">OPS Analytics Dashboard</h1>
-        <p class="page-desc">Centralized operational telemetry from Microsoft Intune & SolarWinds Orion Infrastructure.</p>
+        <h1 class="page-title">Infrastructure Analytics Dashboard</h1>
+        <p class="page-desc">Complete unified infrastructure observability across digital workplace endpoints, hybrid servers, and CMDB topology.</p>
       </div>
       <div class="header-stat-box">
         <span class="stat-label" id="headerStatLabel">Total Verified Endpoints</span>
