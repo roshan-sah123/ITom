@@ -1,8 +1,8 @@
 """Configuration management using Pydantic Settings and environment variables."""
 
 import os
-from typing import List, Optional
-from pydantic import Field
+from typing import Any, List, Optional, Union
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -21,12 +21,12 @@ class Settings(BaseSettings):
     VERSION: str = "2.0.0"
     API_V1_STR: str = "/api/v1"
     ENVIRONMENT: str = "development"
-    DEBUG: bool = True
+    DEBUG: bool = False
 
     # Server Runtime
     HOST: str = "0.0.0.0"
     PORT: int = 8000
-    SECRET_KEY: str = "itom-secret-key-change-in-production-0987654321"
+    SECRET_KEY: Optional[str] = None
 
     # Database Persistence
     DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/itom_db"
@@ -59,7 +59,165 @@ class Settings(BaseSettings):
     LOCAL_SERVER_PORT: int = 22
 
     # CORS Configuration
-    BACKEND_CORS_ORIGINS: List[str] = ["*"]
+    CORS_ORIGINS: Union[str, List[str]] = "http://localhost:8080"
+    CORS_ALLOW_CREDENTIALS: bool = True
+    BACKEND_CORS_ORIGINS: List[str] = Field(default_factory=lambda: ["http://localhost:8080"])
+
+    @staticmethod
+    def _clean_origin(origin_val: Any) -> str:
+        if origin_val is None:
+            return ""
+        s = str(origin_val).strip()
+        while s and (s[0] in ("'", '"', '[', ' ') or s[-1] in ("'", '"', ']', ' ')):
+            prev = s
+            s = s.strip("'\"[] ")
+            if s == prev:
+                break
+        if s != "*" and s != "/" and s.endswith("/"):
+            s = s.rstrip("/")
+        return s
+
+    @classmethod
+    def _parse_origin_input(cls, target: Any) -> List[str]:
+        """Parse raw origin input (str, JSON list, or list) into cleaned origins."""
+        if target is None:
+            return []
+        if isinstance(target, str):
+            raw_str = target.strip()
+            if raw_str.startswith("[") and raw_str.endswith("]"):
+                import ast
+                import json
+                try:
+                    parsed = json.loads(raw_str)
+                    if isinstance(parsed, list):
+                        target = parsed
+                    else:
+                        target = [raw_str]
+                except Exception:
+                    try:
+                        parsed = ast.literal_eval(raw_str)
+                        if isinstance(parsed, (list, tuple, set)):
+                            target = list(parsed)
+                        else:
+                            target = [str(parsed)]
+                    except Exception:
+                        inner = raw_str[1:-1].strip()
+                        target = [item.strip() for item in inner.split(",") if item.strip()]
+            else:
+                target = [item for item in raw_str.split(",") if item.strip()]
+
+        if isinstance(target, (list, tuple, set)):
+            origins = [cls._clean_origin(item) for item in target if item is not None and str(item).strip()]
+        else:
+            cleaned = cls._clean_origin(target)
+            origins = [cleaned] if cleaned else []
+
+        return [o for o in origins if o]
+
+    @model_validator(mode="before")
+    @classmethod
+    def assemble_cors_origins(cls, values: Any) -> Any:
+        if isinstance(values, dict):
+            cors_raw = values.get("CORS_ORIGINS")
+            backend_cors = values.get("BACKEND_CORS_ORIGINS")
+
+            if backend_cors is not None and cors_raw is not None:
+                parsed_backend = cls._parse_origin_input(backend_cors)
+                parsed_cors = cls._parse_origin_input(cors_raw)
+                # If either contains wildcard '*', make sure it's not bypassed
+                if "*" in parsed_backend or "*" in parsed_cors:
+                    origins = ["*"]
+                else:
+                    origins = parsed_backend if parsed_backend else parsed_cors
+                values["BACKEND_CORS_ORIGINS"] = origins
+                values["CORS_ORIGINS"] = origins
+            elif backend_cors is not None:
+                parsed_backend = cls._parse_origin_input(backend_cors)
+                origins = parsed_backend if parsed_backend else ["http://localhost:8080"]
+                values["BACKEND_CORS_ORIGINS"] = origins
+                values["CORS_ORIGINS"] = origins
+            elif cors_raw is not None:
+                parsed_cors = cls._parse_origin_input(cors_raw)
+                origins = parsed_cors if parsed_cors else ["http://localhost:8080"]
+                values["BACKEND_CORS_ORIGINS"] = origins
+                values["CORS_ORIGINS"] = origins
+            else:
+                values["BACKEND_CORS_ORIGINS"] = ["http://localhost:8080"]
+                values["CORS_ORIGINS"] = ["http://localhost:8080"]
+
+        return values
+
+    @model_validator(mode="after")
+    def validate_app_configuration(self) -> "Settings":
+        env = (self.ENVIRONMENT or "development").strip().lower()
+
+        # 1. CORS Validation (R2)
+        allow_creds = getattr(self, "CORS_ALLOW_CREDENTIALS", True)
+        if allow_creds:
+            has_wildcard = any(
+                self._clean_origin(o) == "*" for o in (self.BACKEND_CORS_ORIGINS or [])
+            )
+            if not has_wildcard and isinstance(self.CORS_ORIGINS, str):
+                has_wildcard = any(
+                    self._clean_origin(s) == "*"
+                    for s in self._parse_origin_input(self.CORS_ORIGINS)
+                )
+            elif not has_wildcard and isinstance(self.CORS_ORIGINS, list):
+                has_wildcard = any(
+                    self._clean_origin(o) == "*" for o in self.CORS_ORIGINS
+                )
+
+            if has_wildcard:
+                raise ValueError(
+                    "Insecure CORS configuration: Wildcard origin '*' cannot be used when allow_credentials=True."
+                )
+
+        # 2. DEBUG Validation (R4)
+        if self.DEBUG:
+            if env == "production":
+                raise ValueError("DEBUG mode is strictly prohibited in production environment.")
+            if env != "development":
+                raise ValueError(
+                    f"DEBUG mode is only permitted in development environment, not in '{self.ENVIRONMENT}'."
+                )
+
+        # 3. SECRET_KEY Validation (R3)
+        if env != "development":
+            if not self.SECRET_KEY or not str(self.SECRET_KEY).strip():
+                raise ValueError(
+                    f"SECRET_KEY must be configured in non-development environment '{self.ENVIRONMENT}'."
+                )
+            insecure_placeholders = {
+                "itom-secret-key-change-in-production-0987654321",
+                "your-secret-key-here",
+                "your-secret-key",
+                "secret",
+                "changeme",
+                "password",
+                "admin",
+                "default",
+                "test",
+                "dummy",
+                "123456",
+                "12345678",
+                "secretkey",
+                "placeholder",
+                "demo",
+            }
+            clean_secret = str(self.SECRET_KEY).strip()
+            if clean_secret.lower() in insecure_placeholders:
+                raise ValueError(
+                    f"Insecure placeholder SECRET_KEY is strictly forbidden in '{self.ENVIRONMENT}'. "
+                    "Generate a cryptographically secure key via 'openssl rand -hex 32'."
+                )
+            if len(clean_secret) < 16:
+                raise ValueError(
+                    f"SECRET_KEY in non-development environment '{self.ENVIRONMENT}' must be at least 16 characters long. "
+                    "Generate a cryptographically secure key via 'openssl rand -hex 32'."
+                )
+
+        return self
+
 
     @property
     def async_database_url(self) -> str:

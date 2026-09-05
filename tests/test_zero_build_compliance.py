@@ -44,7 +44,7 @@ class TestZeroBuildCompliance(unittest.TestCase):
     """Assert zero-build architectural compliance and asset synchronicity."""
 
     def test_modular_frontend_files_exist(self):
-        """Verify modular JS helper files exist in src/frontend/js/ and js/."""
+        """Verify modular JS helper files exist and root assets are byte-identical to canonical src/frontend/."""
         required_modules = [
             os.path.join(PROJECT_ROOT, "src", "frontend", "js", "constants.js"),
             os.path.join(PROJECT_ROOT, "src", "frontend", "js", "utils.js"),
@@ -55,6 +55,64 @@ class TestZeroBuildCompliance(unittest.TestCase):
         ]
         for path in required_modules:
             self.assertTrue(os.path.exists(path), f"Required modular JS file missing at {path}")
+
+        # Enforce zero drift between root-level assets and canonical src/frontend/
+        canonical_assets = [
+            ("index.html", os.path.join("src", "frontend", "index.html")),
+            ("app.js", os.path.join("src", "frontend", "app.js")),
+            ("ops_analytics.html", os.path.join("src", "frontend", "ops_analytics.html")),
+            ("ops_analytics.js", os.path.join("src", "frontend", "ops_analytics.js")),
+            ("infrastructure_analytics.html", os.path.join("src", "frontend", "infrastructure_analytics.html")),
+            ("style.css", os.path.join("src", "frontend", "style.css")),
+            ("logo.png", os.path.join("src", "frontend", "logo.png")),
+            (os.path.join("js", "constants.js"), os.path.join("src", "frontend", "js", "constants.js")),
+            (os.path.join("js", "utils.js"), os.path.join("src", "frontend", "js", "utils.js")),
+            (os.path.join("js", "services.js"), os.path.join("src", "frontend", "js", "services.js")),
+        ]
+        for root_rel, src_rel in canonical_assets:
+            root_file = os.path.join(PROJECT_ROOT, root_rel)
+            src_file = os.path.join(PROJECT_ROOT, src_rel)
+            self.assertTrue(os.path.exists(src_file), f"Canonical source file missing: {src_file}")
+            self.assertTrue(os.path.exists(root_file), f"Root synchronized file missing: {root_file}")
+            with open(root_file, "rb") as rf, open(src_file, "rb") as sf:
+                root_bytes = rf.read()
+                src_bytes = sf.read()
+            self.assertEqual(
+                root_bytes,
+                src_bytes,
+                f"Asset drift detected: '{root_rel}' is not byte-identical to canonical '{src_rel}'."
+            )
+
+        # Enforce zero drift for all files in js/ against src/frontend/js/
+        src_js_dir = os.path.join(PROJECT_ROOT, "src", "frontend", "js")
+        root_js_dir = os.path.join(PROJECT_ROOT, "js")
+        self.assertTrue(os.path.exists(root_js_dir), "Root js/ directory missing")
+        self.assertEqual(
+            sorted(os.listdir(src_js_dir)),
+            sorted(os.listdir(root_js_dir)),
+            "Directory composition drift detected between root js/ and canonical src/frontend/js/."
+        )
+        for fname in os.listdir(src_js_dir):
+            src_js_file = os.path.join(src_js_dir, fname)
+            root_js_file = os.path.join(root_js_dir, fname)
+            self.assertTrue(os.path.exists(root_js_file), f"File {fname} missing in root js/ directory.")
+            with open(root_js_file, "rb") as rf, open(src_js_file, "rb") as sf:
+                self.assertEqual(
+                    rf.read(),
+                    sf.read(),
+                    f"Asset drift detected in js/{fname} compared to canonical src/frontend/js/{fname}."
+                )
+
+        # Enforce zero drift for canonical src/frontend/css/style.css against root style.css
+        src_css_file = os.path.join(PROJECT_ROOT, "src", "frontend", "css", "style.css")
+        if os.path.exists(src_css_file):
+            with open(src_css_file, "rb") as cf, open(os.path.join(PROJECT_ROOT, "style.css"), "rb") as rf:
+                self.assertEqual(
+                    cf.read(),
+                    rf.read(),
+                    "Asset drift detected: 'src/frontend/css/style.css' is not byte-identical to root 'style.css'."
+                )
+
 
     def test_constants_module_exports_invariants_and_tokens(self):
         """Verify constants.js contains design system tokens and invariant numbers."""

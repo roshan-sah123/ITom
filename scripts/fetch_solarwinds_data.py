@@ -80,6 +80,16 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Test connectivity and query execution without saving files",
     )
+    parser.add_argument(
+        "--verify-only",
+        action="store_true",
+        help="Validate SolarWinds dataset without network extraction",
+    )
+    parser.add_argument(
+        "--reconcile",
+        action="store_true",
+        help="Reconcile summary metrics and enrich raw node records from local dataset",
+    )
     return parser.parse_args()
 
 
@@ -142,7 +152,38 @@ def main() -> int:
         logger.info("Verification PASSED: %s satisfies all SolarWinds telemetry invariants.", args.summary_output)
         return 0
 
+    if args.reconcile:
+        logger.info("Reconciling SolarWinds dataset from '%s'...", args.nodes_output)
+        if not os.path.exists(args.nodes_output):
+            logger.error("SolarWinds nodes file not found: %s", args.nodes_output)
+            return 1
+        try:
+            client = SolarWindsClient()
+            enriched_nodes, summary = client.reconcile_from_file(
+                nodes_input_path=args.nodes_output,
+                summary_output_path=args.summary_output,
+            )
+            display_console_report(summary)
+            logger.info("Reconciliation complete. Successfully enriched %d nodes and saved summary to '%s'.", len(enriched_nodes), args.summary_output)
+            return 0
+        except Exception as err:
+            logger.error("Error during SolarWinds reconciliation: %s", err)
+            return 1
+
     if not args.username or not args.password:
+        if os.path.exists(args.nodes_output):
+            logger.warning("Missing SolarWinds credentials; reconciling from local dataset '%s'...", args.nodes_output)
+            try:
+                client = SolarWindsClient()
+                enriched_nodes, summary = client.reconcile_from_file(
+                    nodes_input_path=args.nodes_output,
+                    summary_output_path=args.summary_output,
+                )
+                display_console_report(summary)
+                logger.info("Successfully reconciled SolarWinds datasets from local nodes (%d nodes).", len(enriched_nodes))
+                return 0
+            except Exception as err:
+                logger.warning("Notice reconciling from local dataset: %s", err)
         logger.error("Missing required SolarWinds credentials.")
         logger.error("Please supply --username and --password or set SOLARWINDS_USERNAME / SOLARWINDS_PASSWORD in .env")
         return 1

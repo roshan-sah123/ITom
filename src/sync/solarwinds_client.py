@@ -84,6 +84,41 @@ def normalize_solarwinds_vendor(vendor_str: Optional[str]) -> str:
     return "Other"
 
 
+def _parse_sw_status(raw_status: Any) -> Optional[int]:
+    """Safely parse node status from int, float, or numeric string, guarding against bool."""
+    if raw_status is None or isinstance(raw_status, bool):
+        return None
+    if isinstance(raw_status, int):
+        return raw_status
+    if isinstance(raw_status, float) and raw_status.is_integer():
+        return int(raw_status)
+    if isinstance(raw_status, str):
+        s = raw_status.strip()
+        try:
+            val = float(s)
+            if val.is_integer():
+                return int(val)
+        except (ValueError, OverflowError):
+            return None
+    return None
+
+
+def _parse_sw_metric(raw_val: Any) -> Optional[float]:
+    """Safely parse resource metric (CPU, RAM, latency) from int, float, or numeric string, guarding against bool and negatives."""
+    if raw_val is None or isinstance(raw_val, bool):
+        return None
+    if isinstance(raw_val, (int, float)):
+        return float(raw_val) if raw_val >= 0 else None
+    if isinstance(raw_val, str):
+        s = raw_val.strip()
+        try:
+            val = float(s)
+            return val if val >= 0 else None
+        except (ValueError, OverflowError):
+            return None
+    return None
+
+
 def classify_node_health(node: Dict[str, Any]) -> str:
     """Compute server health classification based on Status, CPU, and RAM thresholds.
 
@@ -98,13 +133,16 @@ def classify_node_health(node: Dict[str, Any]) -> str:
     Returns:
         'High', 'Medium', or 'Low' (Critical/Degraded).
     """
+    if not isinstance(node, dict):
+        return "Low"
+
     raw_status = node.get("Status")
     raw_cpu = node.get("CPULoad")
     raw_ram = node.get("PercentMemoryUsed")
 
-    status = raw_status if (isinstance(raw_status, int) and not isinstance(raw_status, bool)) else None
-    valid_cpu = float(raw_cpu) if (isinstance(raw_cpu, (int, float)) and not isinstance(raw_cpu, bool) and raw_cpu >= 0) else None
-    valid_ram = float(raw_ram) if (isinstance(raw_ram, (int, float)) and not isinstance(raw_ram, bool) and raw_ram >= 0) else None
+    status = _parse_sw_status(raw_status)
+    valid_cpu = _parse_sw_metric(raw_cpu)
+    valid_ram = _parse_sw_metric(raw_ram)
 
     # Check Critical / Low Health conditions
     is_status_crit = status in [2, 14, 0] or status is None
@@ -328,7 +366,8 @@ class SolarWindsClient:
         Returns:
             Tuple of (enriched_nodes, dashboard_summary).
         """
-        total_nodes = len(raw_nodes)
+        valid_raw_nodes = [n for n in raw_nodes if isinstance(n, dict)]
+        total_nodes = len(valid_raw_nodes)
         enriched_nodes: List[Dict[str, Any]] = []
 
         high_health_count = 0
@@ -361,7 +400,7 @@ class SolarWindsClient:
 
         degraded_candidates: List[Dict[str, Any]] = []
 
-        for node in raw_nodes:
+        for node in valid_raw_nodes:
             # Clean and sanitize fields
             node_id = node.get("NodeID")
             caption = node.get("Caption") or "Unknown"
@@ -407,21 +446,22 @@ class SolarWindsClient:
             raw_vendor_counts[raw_vendor] = raw_vendor_counts.get(raw_vendor, 0) + 1
 
             # CPU metrics aggregation
-            if isinstance(cpu_load, (int, float)) and cpu_load >= 0:
-                valid_cpu_sum += cpu_load
+            cpu_metric = _parse_sw_metric(cpu_load)
+            if cpu_metric is not None:
+                valid_cpu_sum += cpu_metric
                 valid_cpu_count += 1
 
             # RAM metrics aggregation
-            if isinstance(ram_used, (int, float)) and ram_used >= 0:
-                valid_ram_sum += ram_used
+            ram_metric = _parse_sw_metric(ram_used)
+            if ram_metric is not None:
+                valid_ram_sum += ram_metric
                 valid_ram_count += 1
 
             # Latency metrics aggregation
-            latency_val = avg_resp_time if (isinstance(avg_resp_time, (int, float)) and avg_resp_time >= 0) else (
-                resp_time if (isinstance(resp_time, (int, float)) and resp_time >= 0) else None
-            )
-            if latency_val is not None:
-                valid_latency_sum += latency_val
+            raw_latency = avg_resp_time if avg_resp_time is not None else resp_time
+            latency_metric = _parse_sw_metric(raw_latency)
+            if latency_metric is not None:
+                valid_latency_sum += latency_metric
                 valid_latency_count += 1
 
             enriched_record = {
@@ -450,8 +490,8 @@ class SolarWindsClient:
             is_degraded = (
                 health in ("Medium", "Low") or
                 status in (2, 3, 14, 0) or
-                (isinstance(cpu_load, (int, float)) and cpu_load >= 75) or
-                (isinstance(ram_used, (int, float)) and ram_used >= 80)
+                (cpu_metric is not None and cpu_metric >= 75) or
+                (ram_metric is not None and ram_metric >= 80)
             )
             if is_degraded:
                 degraded_candidates.append(enriched_record)
@@ -459,8 +499,8 @@ class SolarWindsClient:
         # Sort degraded candidates by severity (Low health first, then CPU desc, then RAM desc)
         def degraded_sort_key(item: Dict[str, Any]) -> Tuple[int, float, float]:
             h_rank = 0 if item["HealthClassification"] == "Low" else (1 if item["HealthClassification"] == "Medium" else 2)
-            c_val = float(item["CPULoad"]) if isinstance(item["CPULoad"], (int, float)) and item["CPULoad"] >= 0 else 0.0
-            r_val = float(item["PercentMemoryUsed"]) if isinstance(item["PercentMemoryUsed"], (int, float)) and item["PercentMemoryUsed"] >= 0 else 0.0
+            c_val = _parse_sw_metric(item.get("CPULoad")) or 0.0
+            r_val = _parse_sw_metric(item.get("PercentMemoryUsed")) or 0.0
             return (h_rank, -c_val, -r_val)
 
         degraded_candidates.sort(key=degraded_sort_key)
@@ -547,3 +587,65 @@ class SolarWindsClient:
             logger.info("Saved SolarWinds summary payload to: %s", summary_output_path)
 
         return summary
+
+    def reconcile_from_file(
+        self,
+        nodes_input_path: str,
+        summary_output_path: Optional[str] = None,
+        nodes_output_path: Optional[str] = None,
+    ) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
+        """Reconcile summary metrics and enrich raw node records from a local JSON file.
+
+        Args:
+            nodes_input_path: Path to existing raw nodes JSON file.
+            summary_output_path: Optional path to write reconciled summary payload.
+            nodes_output_path: Optional path to write enriched raw nodes (defaults to nodes_input_path).
+
+        Returns:
+            Tuple of (enriched_nodes, summary).
+        """
+        if not os.path.exists(nodes_input_path):
+            raise FileNotFoundError(f"SolarWinds nodes file not found: {nodes_input_path}")
+
+        try:
+            with open(nodes_input_path, "r", encoding="utf-8") as f:
+                raw_data = json.load(f)
+        except json.JSONDecodeError as err:
+            raise SolarWindsApiError(
+                f"Corrupt or invalid JSON in SolarWinds nodes file '{nodes_input_path}': {err}. "
+                "Please regenerate the file via 'python scripts/fetch_solarwinds_data.py'."
+            ) from err
+
+        if not isinstance(raw_data, (dict, list)):
+            raise SolarWindsApiError(
+                f"Unexpected JSON structure in '{nodes_input_path}'. Expected dict or list of nodes, "
+                f"got {type(raw_data).__name__}."
+            )
+
+        if isinstance(raw_data, dict):
+            raw_nodes_val = raw_data.get("nodes")
+            if raw_nodes_val is not None and not isinstance(raw_nodes_val, list):
+                raise SolarWindsApiError(
+                    f"Unexpected JSON structure in '{nodes_input_path}': 'nodes' field must be a list, "
+                    f"got {type(raw_nodes_val).__name__}."
+                )
+            raw_nodes = raw_nodes_val if isinstance(raw_nodes_val, list) else []
+            extracted_at = raw_data.get("extracted_at", datetime.now(timezone.utc).isoformat())
+        else:
+            raw_nodes = raw_data
+            extracted_at = datetime.now(timezone.utc).isoformat()
+
+        enriched_nodes, summary = self.process_telemetry(raw_nodes)
+
+        target_nodes_path = nodes_output_path or nodes_input_path
+        atomic_json_dump({
+            "extracted_at": extracted_at,
+            "total_nodes": len(enriched_nodes),
+            "nodes": enriched_nodes,
+        }, target_nodes_path, indent=2)
+
+        summary["sample_nodes"] = enriched_nodes
+        if summary_output_path:
+            atomic_json_dump(summary, summary_output_path, indent=2)
+
+        return enriched_nodes, summary

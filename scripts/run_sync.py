@@ -107,19 +107,32 @@ def main() -> int:
     sw_pwd = os.getenv("SOLARWINDS_PASSWORD")
     sw_port = int(os.getenv("SOLARWINDS_PORT", "17774"))
 
+    sw_nodes_path = os.path.join(PROJECT_ROOT, "data", "solarwinds_nodes.json")
+    sw_summary_path = os.path.join(PROJECT_ROOT, "data", "solarwinds_summary.json")
+    sw_synced = False
+
     if sw_host and sw_user and sw_pwd and not args.skip_fetch:
         try:
             logger.info("Syncing live SolarWinds Orion server telemetry from SWIS API...")
             from src.sync.solarwinds_client import SolarWindsClient
             sw_client = SolarWindsClient(host=sw_host, port=sw_port, username=sw_user, password=sw_pwd)
-            sw_nodes_path = os.path.join(PROJECT_ROOT, "data", "solarwinds_nodes.json")
-            sw_summary_path = os.path.join(PROJECT_ROOT, "data", "solarwinds_summary.json")
             sw_client.fetch_and_save(nodes_output_path=sw_nodes_path, summary_output_path=sw_summary_path)
             logger.info("Successfully refreshed SolarWinds summary payload.")
+            sw_synced = True
         except Exception as err:
-            logger.warning("SolarWinds live sync encountered notice: %s. Preserving local dataset.", err)
-    else:
-        logger.info("Live SolarWinds fetch skipped or credentials absent; preserving local dataset.")
+            logger.warning("SolarWinds live sync encountered notice: %s. Reconciling from local dataset.", err)
+
+    if not sw_synced and os.path.exists(sw_nodes_path):
+        try:
+            from src.sync.solarwinds_client import SolarWindsClient
+            sw_client = SolarWindsClient()
+            enriched_nodes, summary = sw_client.reconcile_from_file(
+                nodes_input_path=sw_nodes_path,
+                summary_output_path=sw_summary_path,
+            )
+            logger.info("Successfully reconciled SolarWinds summary from local raw dataset (%d nodes).", len(enriched_nodes))
+        except Exception as err:
+            logger.warning("Notice reconciling SolarWinds data from local dataset: %s", err)
 
     # Step 3: CMDB Live Telemetry & Configuration Items Aggregation
     try:

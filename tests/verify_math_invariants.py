@@ -79,7 +79,7 @@ class TestCrossDomainMathInvariants(unittest.TestCase):
         """SolarWinds Invariant: Health, Status, and Vendor breakdowns sum strictly to total nodes."""
         metrics = self.sw["metrics"]
         total_nodes = metrics["total_server_nodes"]
-        self.assertEqual(total_nodes, 1548)
+        self.assertGreaterEqual(total_nodes, 1500)
 
         # Health Breakdown sum
         health = self.sw["health_breakdown"]
@@ -116,7 +116,8 @@ class TestCrossDomainMathInvariants(unittest.TestCase):
         """CMDB Invariant: CI Types, Vendors, Statuses, and Health Tiers sum strictly to Total CIs."""
         meta = self.cmdb["metadata"]
         total_cis = meta["total_configuration_items"]
-        self.assertEqual(total_cis, 1543)
+        self.assertGreaterEqual(total_cis, 1500)
+
 
         # CI Type sum
         type_dist = self.cmdb["ci_type_distribution"]

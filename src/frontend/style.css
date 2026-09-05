@@ -132,11 +132,11 @@ body {
 
 .nav-container {
   width: 100%;
-  max-width: var(--max-width);
+  max-width: 1440px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 20px;
+  gap: 14px;
 }
 
 /* Brand Logo Area */
@@ -1296,24 +1296,25 @@ body {
 .dashboard-tabs {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   background-color: rgba(18, 18, 22, 0.95);
   border: 1px solid var(--card-border);
-  padding: 4px;
+  padding: 3px;
   border-radius: var(--border-radius-md);
+  flex-shrink: 0;
 }
 
 .tab-btn {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 7px;
   background: transparent;
   border: 1px solid transparent;
-  padding: 7px 16px;
+  padding: 6px 12px;
   border-radius: 6px;
   color: var(--text-secondary);
   font-family: var(--font-sans);
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
