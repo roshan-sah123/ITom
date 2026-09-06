@@ -8,7 +8,21 @@ from app.models.ci import CIRelationship, ConfigurationItem
 from app.models.history import CIStatusHistory
 from app.repositories.ci_repository import CIRepository
 
-PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from app.schemas.ci import (
+    CIRelationshipRead,
+    CIStatusHistoryRead,
+    ConfigurationItemRead,
+)
+
+def _find_project_root() -> str:
+    cur = os.path.abspath(__file__)
+    while cur and os.path.dirname(cur) != cur:
+        cur = os.path.dirname(cur)
+        if os.path.exists(os.path.join(cur, "data")):
+            return cur
+    return os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+
+PROJECT_ROOT = _find_project_root()
 
 
 class CIService:
@@ -46,8 +60,15 @@ class CIService:
 
         total_pages = max(1, (total + page_size - 1) // page_size)
 
+        serialized_items = []
+        for it in items:
+            if hasattr(it, "__table__"):
+                serialized_items.append(ConfigurationItemRead.model_validate(it).model_dump(mode="json"))
+            else:
+                serialized_items.append(it)
+
         return {
-            "items": items,
+            "items": serialized_items,
             "total": total,
             "page": page,
             "page_size": page_size,
@@ -58,52 +79,55 @@ class CIService:
 
     async def get_ci_by_id(self, ci_id: str | uuid.UUID) -> Optional[Any]:
         """Fetch a specific CI record by UUID."""
-        return await self.ci_repo.get_by_id(ci_id)
+        ci = await self.ci_repo.get_by_id(ci_id)
+        if ci is not None and hasattr(ci, "__table__"):
+            return ConfigurationItemRead.model_validate(ci).model_dump(mode="json")
+        return ci
 
     async def get_cmdb_summary(self) -> Dict[str, Any]:
         """Retrieve aggregated CMDB health and inventory metrics."""
         return await self.ci_repo.get_cmdb_summary()
 
     async def get_intune_summary(self) -> Dict[str, Any]:
-        """Retrieve authoritative Microsoft Intune telemetry and compliance metrics."""
-        return {
-            "metrics": {
-                "total_managed_devices": 25987,
-                "compliant_devices": 21589,
-                "non_compliant_devices": 4398,
-                "compliance_rate_pct": 83.08,
-                "avg_storage_used_pct": 37.4,
-            },
-            "os_distribution": {
-                "Windows": 14210,
-                "iOS": 6120,
-                "Android": 3450,
-                "macOS": 1890,
-                "Linux": 317,
-            },
-        }
+        """Retrieve live Microsoft Intune telemetry and compliance metrics aggregated from persisted CIs."""
+        return await self.ci_repo.get_intune_summary()
 
     async def get_solarwinds_summary(self) -> Dict[str, Any]:
-        """Retrieve authoritative SolarWinds Orion server node telemetry and health metrics."""
-        return {
-            "metrics": {
-                "total_server_nodes": 1548,
-                "active_monitored_nodes": 1543,
-                "high_health_nodes": 1357,
-                "medium_health_nodes": 150,
-                "low_critical_nodes": 41,
-            },
-            "health_breakdown": {
-                "High": 1357,
-                "Medium": 150,
-                "Low": 41,
-            },
-        }
+        """Retrieve live SolarWinds Orion server node telemetry and health metrics aggregated from persisted CIs."""
+        return await self.ci_repo.get_solarwinds_summary()
 
-    async def get_ci_history(self, ci_id: str | uuid.UUID, limit: int = 50) -> List[CIStatusHistory]:
+    async def get_ci_history(self, ci_id: str | uuid.UUID, limit: int = 50) -> List[Dict[str, Any]]:
         """Retrieve time-series state history for a specific CI."""
-        return await self.ci_repo.get_history_by_ci_id(ci_id, limit=limit)
+        records = await self.ci_repo.get_history_by_ci_id(ci_id, limit=limit)
+        serialized = []
+        for r in records:
+            if hasattr(r, "__table__"):
+                serialized.append(CIStatusHistoryRead.model_validate(r).model_dump(mode="json"))
+            elif hasattr(r, "to_dict"):
+                serialized.append(r.to_dict())
+            else:
+                serialized.append(r)
+        return serialized
 
-    async def get_ci_relationships(self, ci_id: str | uuid.UUID) -> List[CIRelationship]:
+    async def get_ci_relationships(self, ci_id: str | uuid.UUID) -> List[Dict[str, Any]]:
         """Retrieve graph relationships for a specific CI."""
-        return await self.ci_repo.get_relationships_by_ci_id(ci_id)
+        records = await self.ci_repo.get_relationships_by_ci_id(ci_id)
+        serialized = []
+        for r in records:
+            if hasattr(r, "__table__"):
+                serialized.append(CIRelationshipRead.model_validate(r).model_dump(mode="json"))
+            elif hasattr(r, "to_dict"):
+                serialized.append(r.to_dict())
+            else:
+                serialized.append(r)
+        return serialized
+
+    async def get_solarwinds_sites(self) -> List[Dict[str, Any]]:
+        """Retrieve 60-campus location breakdown with health status and sparkline trends."""
+        return await self.ci_repo.get_solarwinds_sites()
+
+    async def get_solarwinds_site_trend(self, site_id: str, hours: int = 24) -> Dict[str, Any]:
+        """Retrieve 24h historical availability and performance trends for a specific campus facility."""
+        return await self.ci_repo.get_solarwinds_site_trend(site_id, hours=hours)
+
+

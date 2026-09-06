@@ -239,6 +239,7 @@ class SolarWindsClient:
         self.username = username or os.getenv("SOLARWINDS_USERNAME", "")
         self.password = password or os.getenv("SOLARWINDS_PASSWORD", "")
         self.timeout = timeout
+        self.verify_ssl = os.getenv("SOLARWINDS_VERIFY_SSL", "false").lower() in ("true", "1", "yes")
 
         self.base_url = f"https://{self.host}:{self.port}/SolarWinds/InformationService/v3/Json/Query"
         self._session = self._create_resilient_session()
@@ -296,16 +297,19 @@ class SolarWindsClient:
                     self.base_url,
                     params=query_params,
                     timeout=self.timeout,
-                    verify=True,
+                    verify=self.verify_ssl,
                 )
             except (requests.exceptions.SSLError, urllib3.exceptions.SSLError):
-                logger.warning("Internal/self-signed SSL certificate detected; retrying with verify=False...")
-                response = self._session.get(
-                    self.base_url,
-                    params=query_params,
-                    timeout=self.timeout,
-                    verify=False,
-                )
+                if self.verify_ssl:
+                    logger.warning("Internal/self-signed SSL certificate detected; retrying with verify=False...")
+                    response = self._session.get(
+                        self.base_url,
+                        params=query_params,
+                        timeout=self.timeout,
+                        verify=False,
+                    )
+                else:
+                    raise
 
             if response.status_code == 200:
                 data = response.json()
@@ -349,9 +353,11 @@ class SolarWindsClient:
                 n.LastSync, 
                 n.SystemUpTime, 
                 n.NodeDescription, 
-                n.CustomProperties.City AS City, 
+                cp.City AS City, 
+                cp.ITSM_Location AS ITSM_Location, 
                 n.Contact 
             FROM Orion.Nodes n
+            LEFT JOIN Orion.NodesCustomProperties cp ON n.NodeID = cp.NodeID
             ORDER BY n.NodeID ASC
         """
         raw_nodes = self.query(swql)

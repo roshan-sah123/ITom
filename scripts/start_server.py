@@ -18,14 +18,20 @@ import signal
 import threading
 import subprocess
 import urllib.parse
+import urllib.request
+import urllib.error
 from typing import Any, Dict, List, Optional
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 from socketserver import ThreadingMixIn
 
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-LOG_FILE = os.path.join(PROJECT_ROOT, "itom_server.log")
-CRON_LOG_FILE = os.path.join(PROJECT_ROOT, "itom_cron.log")
+BACKEND_DIR = os.path.join(PROJECT_ROOT, "backend")
+if BACKEND_DIR not in sys.path:
+    sys.path.insert(0, BACKEND_DIR)
+
+LOG_FILE = os.path.join(PROJECT_ROOT, "logs", "itom_server.log") if os.path.exists(os.path.join(PROJECT_ROOT, "logs")) else os.path.join(PROJECT_ROOT, "itom_server.log")
+CRON_LOG_FILE = os.path.join(PROJECT_ROOT, "logs", "itom_cron.log") if os.path.exists(os.path.join(PROJECT_ROOT, "logs")) else os.path.join(PROJECT_ROOT, "itom_cron.log")
 SYNC_SCRIPT = os.path.join(PROJECT_ROOT, "scripts", "run_sync.py")
 
 PORT = int(os.getenv("PORT", "8080"))
@@ -99,7 +105,20 @@ class CustomHTTPHandler(SimpleHTTPRequestHandler):
     """Resilient HTTP Request Handler with REST API routes, CORS, and strict read-only guards."""
     
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, directory=PROJECT_ROOT, **kwargs)
+        frontend_dir = os.path.join(PROJECT_ROOT, "frontend") if os.path.exists(os.path.join(PROJECT_ROOT, "frontend")) else PROJECT_ROOT
+        super().__init__(*args, directory=frontend_dir, **kwargs)
+
+    def translate_path(self, path):
+        clean_path = urllib.parse.unquote(urllib.parse.urlparse(path).path)
+        if clean_path.startswith("/data/"):
+            rel = os.path.relpath(clean_path, "/data")
+            return os.path.normpath(os.path.join(PROJECT_ROOT, "data", rel))
+        if clean_path.startswith("/exports/"):
+            rel = os.path.relpath(clean_path, "/exports")
+            return os.path.normpath(os.path.join(PROJECT_ROOT, "exports", rel))
+        frontend_dir = os.path.join(PROJECT_ROOT, "frontend") if os.path.exists(os.path.join(PROJECT_ROOT, "frontend")) else PROJECT_ROOT
+        rel = clean_path.lstrip("/")
+        return os.path.normpath(os.path.join(frontend_dir, rel))
 
     def log_message(self, format, *args):
         logger.info("%s - %s", self.address_string(), format % args)
@@ -121,8 +140,6 @@ class CustomHTTPHandler(SimpleHTTPRequestHandler):
             self.send_header("Content-Length", str(len(payload)))
             self.send_header("Access-Control-Allow-Origin", "*")
             self.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
-            self.send_header("Pragma", "no-cache")
-            self.send_header("Expires", "0")
             self.end_headers()
             self.wfile.write(payload)
         except (ConnectionResetError, ConnectionAbortedError, BrokenPipeError, OSError):
@@ -150,6 +167,33 @@ class CustomHTTPHandler(SimpleHTTPRequestHandler):
         """Handle GET requests with read-only REST API routing."""
         parsed_url = urllib.parse.urlparse(self.path)
         path = parsed_url.path
+
+        # 0. Forward /api/v1 requests to FastAPI backend on port 8000
+        if path.startswith("/api/v1/"):
+            fastapi_url = f"http://127.0.0.1:8000{self.path}"
+            try:
+                req = urllib.request.Request(fastapi_url, headers={"User-Agent": "ITOM-Proxy/1.0"})
+                try:
+                    with urllib.request.urlopen(req, timeout=10) as resp:
+                        payload = resp.read()
+                        self.send_response(resp.status)
+                        self.send_header("Content-Type", resp.headers.get("Content-Type", "application/json"))
+                        self.send_header("Content-Length", str(len(payload)))
+                        self.send_header("Access-Control-Allow-Origin", "*")
+                        self.end_headers()
+                        self.wfile.write(payload)
+                        return
+                except urllib.error.HTTPError as http_err:
+                    payload = http_err.read()
+                    self.send_response(http_err.code)
+                    self.send_header("Content-Type", http_err.headers.get("Content-Type", "application/json"))
+                    self.send_header("Content-Length", str(len(payload)))
+                    self.send_header("Access-Control-Allow-Origin", "*")
+                    self.end_headers()
+                    self.wfile.write(payload)
+                    return
+            except Exception as e:
+                logger.debug("Proxy forward to FastAPI (%s) notice: %s", fastapi_url, e)
 
         # 1. GET /api/cmdb/summary
         if path == "/api/cmdb/summary":

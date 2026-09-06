@@ -674,6 +674,8 @@ class TestDOMSecurityAndStaticIntegrity(unittest.TestCase):
     def test_dom_script_isolation_and_no_inline_eval(self):
         """Tier 5: HTML files do not contain dangerous inline eval() or document.write calls."""
         html_files = [
+            os.path.join(WORKSPACE_ROOT, "frontend", "ops_analytics.html"),
+            os.path.join(WORKSPACE_ROOT, "frontend", "index.html"),
             os.path.join(WORKSPACE_ROOT, "ops_analytics.html"),
             os.path.join(WORKSPACE_ROOT, "index.html"),
             os.path.join(WORKSPACE_ROOT, "src", "frontend", "ops_analytics.html"),

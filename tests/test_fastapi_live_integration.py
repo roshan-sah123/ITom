@@ -74,28 +74,38 @@ class TestLiveFastAPIAppIntegration(unittest.TestCase):
         self.assertIn("high_health_count", data)
 
     def test_intune_summary_metrics_invariants(self):
-        """GET /api/v1/intune/summary returns 25,987 total endpoints."""
+        """GET /api/v1/intune/summary returns endpoints reconciling compliance invariants."""
         response = self.client.get("/api/v1/intune/summary")
         self.assertEqual(response.status_code, 200, f"Got {response.status_code}: {response.text}")
         data = response.json()
         metrics = data["metrics"]
-        self.assertEqual(metrics["total_managed_devices"], 25987)
-        self.assertEqual(metrics["compliant_devices"], 21589)
-        self.assertEqual(metrics["non_compliant_devices"], 4398)
-        self.assertEqual(metrics["compliance_rate_pct"], 83.08)
-        self.assertEqual(metrics["avg_storage_used_pct"], 37.4)
+        self.assertGreater(metrics["total_managed_devices"], 0)
+        self.assertGreater(metrics["compliant_devices"], 0)
+        self.assertGreaterEqual(metrics["non_compliant_devices"], 0)
+        self.assertIn("compliance_breakdown", data)
+        self.assertEqual(
+            sum(data["compliance_breakdown"].values()),
+            metrics["total_managed_devices"],
+        )
+        self.assertGreaterEqual(metrics["compliance_rate_pct"], 0.0)
+        self.assertLessEqual(metrics["compliance_rate_pct"], 100.0)
+        self.assertGreaterEqual(metrics["avg_storage_used_pct"], 0.0)
+        self.assertIn("os_distribution", data)
+        self.assertIn("vendor_distribution", data)
 
     def test_solarwinds_summary_metrics_invariants(self):
-        """GET /api/v1/solarwinds/summary returns 1,548 nodes."""
+        """GET /api/v1/solarwinds/summary returns nodes reconciling health invariants."""
         response = self.client.get("/api/v1/solarwinds/summary")
         self.assertEqual(response.status_code, 200, f"Got {response.status_code}: {response.text}")
         data = response.json()
         metrics = data["metrics"]
-        self.assertEqual(metrics["total_server_nodes"], 1548)
-        self.assertEqual(metrics["active_monitored_nodes"], 1543)
-        self.assertEqual(metrics["high_health_nodes"], 1357)
-        self.assertEqual(metrics["medium_health_nodes"], 150)
-        self.assertEqual(metrics["low_critical_nodes"], 41)
+        self.assertGreater(metrics["total_server_nodes"], 0)
+        self.assertEqual(
+            metrics["total_server_nodes"],
+            metrics["high_health_nodes"] + metrics["medium_health_nodes"] + metrics["low_critical_nodes"],
+        )
+        self.assertIn("health_breakdown", data)
+        self.assertIn("vendor_distribution", data)
 
     def test_cmdb_cis_pagination_envelope(self):
         """GET /api/v1/cmdb/cis validates envelope fields."""

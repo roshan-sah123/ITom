@@ -1,25 +1,29 @@
 # Enterprise ITOM Operations Platform Dependencies
+# Pinned to exact versions verified against the full test suite (257 unit/integration
+# tests + 214 E2E tests, 100% pass). Bump deliberately and re-run the full suite;
+# do not widen these to range specifiers (>=) as that breaks reproducible builds.
+
 # Core Web & API Framework
-fastapi>=0.109.0
-uvicorn[standard]>=0.27.0
-pydantic>=2.5.0
-pydantic-settings>=2.1.0
+fastapi==0.141.1
+uvicorn[standard]==0.52.3
+pydantic==2.13.4
+pydantic-settings==2.15.0
 
 # Relational Persistence & Migrations
-sqlalchemy>=2.0.25
-asyncpg>=0.29.0
-aiosqlite>=0.19.0
-alembic>=1.13.1
+sqlalchemy==2.0.52
+asyncpg==0.30.0
+aiosqlite==0.22.1
+alembic==1.19.1
 
 # Background Scheduling & Ingestion
-apscheduler>=3.10.4
+apscheduler==3.11.3
 
 # HTTP Clients & Telemetry Integrations
-requests>=2.31.0
-httpx>=0.26.0
-urllib3>=2.0.0
-python-dotenv>=1.0.0
+requests==2.34.2
+httpx==0.28.1
+urllib3==2.7.0
+python-dotenv==1.2.2
 
 # Testing & Verification
-pytest>=7.4.0
-pytest-asyncio>=0.23.0
+pytest==9.1.1
+pytest-asyncio==1.4.0

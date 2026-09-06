@@ -49,3 +49,33 @@ async def list_solarwinds_nodes(
         sort_by=sort_by,
         sort_order=sort_order,
     )
+
+
+@router.get("/sites", status_code=status.HTTP_200_OK)
+async def list_solarwinds_sites(
+    ci_service: CIService = Depends(get_ci_service),
+) -> Dict[str, Any]:
+    """Retrieve 60-campus location telemetry breakdown, health tiers, and sparkline trends."""
+    sites = await ci_service.get_solarwinds_sites()
+    return {
+        "status": "success",
+        "data": {
+            "total_sites": len(sites),
+            "items": sites,
+        }
+    }
+
+
+@router.get("/sites/{site_id}/trend", status_code=status.HTTP_200_OK)
+async def get_solarwinds_site_trend(
+    site_id: str,
+    hours: int = Query(24, ge=1, le=168),
+    ci_service: CIService = Depends(get_ci_service),
+) -> Dict[str, Any]:
+    """Retrieve time-series availability and latency trend history for a specific campus facility."""
+    trend = await ci_service.get_solarwinds_site_trend(site_id, hours=hours)
+    return {
+        "status": "success",
+        "data": trend,
+    }
+

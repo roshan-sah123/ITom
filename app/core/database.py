@@ -17,11 +17,45 @@ from app.core.config import settings
 logger = logging.getLogger("itom.database")
 
 
+def _find_project_root() -> str:
+    cur = os.path.abspath(__file__)
+    while cur and os.path.dirname(cur) != cur:
+        cur = os.path.dirname(cur)
+        if os.path.exists(os.path.join(cur, "data", "itom.db")):
+            return cur
+    return os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+PROJECT_ROOT = _find_project_root()
+SQLITE_FALLBACK_URL = f"sqlite+aiosqlite:///{os.path.join(PROJECT_ROOT, 'data', 'itom.db').replace(chr(92), '/')}"
+
+
+def _is_db_reachable(db_url: str) -> bool:
+    """Fast socket probe to verify if the configured database host/port is reachable."""
+    import socket
+    from urllib.parse import urlparse
+    try:
+        test_url = db_url.replace("+asyncpg", "") if "+asyncpg" in db_url else db_url
+        parsed = urlparse(test_url)
+        host = parsed.hostname or "localhost"
+        port = parsed.port or 5432
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+            sock.settimeout(0.5)
+            return sock.connect_ex((host, port)) == 0
+    except Exception:
+        return False
+
+
 def create_engine_for_url(db_url: Optional[str] = None) -> AsyncEngine:
     """Create an AsyncEngine optimized for the target database dialect with resilient fallbacks."""
     url = db_url or settings.async_database_url
 
+    if "postgresql" in url and not _is_db_reachable(url):
+        logger.info("Configured PostgreSQL server is unreachable; activating SQLite fallback: %s", SQLITE_FALLBACK_URL)
+        url = SQLITE_FALLBACK_URL
+
     if "sqlite" in url:
+        if "./data/itom.db" in url or "data/itom.db" in url:
+            url = SQLITE_FALLBACK_URL
         try:
             return create_async_engine(
                 url,
@@ -45,7 +79,7 @@ def create_engine_for_url(db_url: Optional[str] = None) -> AsyncEngine:
         logger.warning("PostgreSQL async engine creation fallback triggered (%s)", exc)
         try:
             return create_async_engine(
-                "sqlite+aiosqlite:///./data/itom.db",
+                SQLITE_FALLBACK_URL,
                 echo=settings.DB_ECHO,
                 connect_args={"check_same_thread": False},
             )

@@ -18,6 +18,22 @@ class SyncRepository(BaseRepository[SyncRun]):
     def __init__(self, session: Optional[AsyncSession] = None) -> None:
         super().__init__(SyncRun, session)
 
+    async def get_by_id(self, id: uuid.UUID | str) -> Optional[SyncRun]:
+        """Fetch a single sync run by primary key with eager-loaded error logs."""
+        if self.session is None:
+            return None
+        try:
+            target_id = uuid.UUID(str(id)) if isinstance(id, str) else id
+        except (ValueError, AttributeError):
+            return None
+        stmt = (
+            select(SyncRun)
+            .options(selectinload(SyncRun.error_logs))
+            .where(SyncRun.id == target_id)
+        )
+        result = await self.session.execute(stmt)
+        return result.scalars().first()
+
     async def get_latest_sync_run(
         self, source_system: Optional[str] = None
     ) -> Optional[SyncRun]:

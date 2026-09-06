@@ -55,3 +55,21 @@ class CIStatusHistory(Base, UUIDPrimaryKeyMixin):
         Index("ix_status_history_ci_recorded", "ci_id", "recorded_at"),
         Index("ix_status_history_recorded_at", "recorded_at"),
     )
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Serialize to a JSON-safe dict; ORM instances must never leak past the repository layer."""
+        return {
+            "id": str(self.id),
+            "ci_id": str(self.ci_id),
+            "status": self.status,
+            "health_tier": self.health_tier,
+            "previous_status": self.previous_status,
+            "previous_health_tier": self.previous_health_tier,
+            "cpu_utilization": self.cpu_utilization,
+            "memory_utilization": self.memory_utilization,
+            "storage_used_pct": self.storage_used_pct,
+            "latency_ms": self.latency_ms,
+            "changed_attributes": self.changed_attributes or {},
+            "recorded_at": self.recorded_at.isoformat() if self.recorded_at else None,
+        }
+

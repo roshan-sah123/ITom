@@ -11,7 +11,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends libpq5 curl && 
 RUN groupadd -g 10001 itom && useradd -u 10001 -g itom -m -s /bin/bash itom
 COPY --from=builder /root/.local /home/itom/.local
 ENV PATH=/home/itom/.local/bin:$PATH
-ENV PYTHONPATH=/app
+ENV PYTHONPATH=/app:/app/backend
 COPY --chown=itom:itom . /app
 USER itom
 EXPOSE 8000

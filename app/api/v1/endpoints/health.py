@@ -12,6 +12,7 @@ router = APIRouter(tags=["System Probes"])
 
 
 @router.get("/healthz", status_code=status.HTTP_200_OK)
+@router.get("/health", status_code=status.HTTP_200_OK)
 async def liveness_probe() -> dict:
     """Kubernetes liveness probe returning process health and UTC timestamp."""
     return {

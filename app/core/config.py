@@ -59,9 +59,16 @@ class Settings(BaseSettings):
     LOCAL_SERVER_PORT: int = 22
 
     # CORS Configuration
-    CORS_ORIGINS: Union[str, List[str]] = "http://localhost:8080"
+    CORS_ORIGINS: Union[str, List[str]] = "http://localhost:8080,http://127.0.0.1:8080,http://localhost:8000,http://127.0.0.1:8000"
     CORS_ALLOW_CREDENTIALS: bool = True
-    BACKEND_CORS_ORIGINS: List[str] = Field(default_factory=lambda: ["http://localhost:8080"])
+    BACKEND_CORS_ORIGINS: List[str] = Field(
+        default_factory=lambda: [
+            "http://localhost:8080",
+            "http://127.0.0.1:8080",
+            "http://localhost:8000",
+            "http://127.0.0.1:8000",
+        ]
+    )
 
     @staticmethod
     def _clean_origin(origin_val: Any) -> str:

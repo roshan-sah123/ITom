@@ -76,5 +76,9 @@ class FreshnessHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["X-Last-Synchronized-At"] = last_sync.isoformat()
         response.headers["X-Data-Age-Seconds"] = str(age_seconds)
         response.headers["X-Sync-Status"] = sync_status
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["X-XSS-Protection"] = "1; mode=block"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
 
         return response

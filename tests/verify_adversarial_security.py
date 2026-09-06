@@ -27,9 +27,13 @@ class TestHostileXSSAndDOMSanitization(unittest.TestCase):
 
     def setUp(self):
         # Read ops_analytics.js and index.html / app.js
-        with open(os.path.join(PROJECT_ROOT, "ops_analytics.js"), "r", encoding="utf-8") as f:
+        frontend_dir = os.path.join(PROJECT_ROOT, "frontend")
+        ops_js_path = os.path.join(frontend_dir, "ops_analytics.js") if os.path.exists(os.path.join(frontend_dir, "ops_analytics.js")) else os.path.join(PROJECT_ROOT, "ops_analytics.js")
+        with open(ops_js_path, "r", encoding="utf-8") as f:
             self.ops_js = f.read()
-        with open(os.path.join(PROJECT_ROOT, "app.js"), "r", encoding="utf-8") as f:
+
+        app_js_path = os.path.join(frontend_dir, "app.js") if os.path.exists(os.path.join(frontend_dir, "app.js")) else os.path.join(PROJECT_ROOT, "app.js")
+        with open(app_js_path, "r", encoding="utf-8") as f:
             self.app_js = f.read()
 
     @staticmethod
@@ -255,7 +259,9 @@ class TestUIRoutingAndMemoryGuards(unittest.TestCase):
     """Stress tests on UI routing, dynamic header switching, and Chart.js memory guards."""
 
     def setUp(self):
-        with open(os.path.join(PROJECT_ROOT, "ops_analytics.js"), "r", encoding="utf-8") as f:
+        frontend_dir = os.path.join(PROJECT_ROOT, "frontend")
+        ops_js_path = os.path.join(frontend_dir, "ops_analytics.js") if os.path.exists(os.path.join(frontend_dir, "ops_analytics.js")) else os.path.join(PROJECT_ROOT, "ops_analytics.js")
+        with open(ops_js_path, "r", encoding="utf-8") as f:
             self.ops_js = f.read()
 
     def test_parse_tab_id_bounds_and_fallbacks(self):

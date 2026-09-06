@@ -50,6 +50,23 @@ class SyncRun(Base, UUIDPrimaryKeyMixin):
         Index("ix_sync_runs_status", "status"),
     )
 
+    def to_dict(self) -> Dict[str, Any]:
+        """Serialize to a JSON-safe dict."""
+        return {
+            "id": str(self.id),
+            "source_system": self.source_system,
+            "status": self.status,
+            "records_processed": self.records_processed,
+            "records_updated": self.records_updated,
+            "records_unchanged": self.records_unchanged,
+            "items_extracted": self.items_extracted,
+            "items_persisted": self.items_persisted,
+            "duration_ms": self.duration_ms,
+            "started_at": self.started_at.isoformat() if self.started_at else None,
+            "completed_at": self.completed_at.isoformat() if self.completed_at else None,
+            "error_logs": [log.to_dict() for log in self.error_logs] if self.error_logs else [],
+        }
+
 
 class SyncErrorLog(Base, UUIDPrimaryKeyMixin):
     """Detailed error and diagnostic context captured during telemetry synchronization."""
@@ -82,3 +99,17 @@ class SyncErrorLog(Base, UUIDPrimaryKeyMixin):
         Index("ix_sync_error_logs_run_id", "sync_run_id"),
         Index("ix_sync_error_logs_occurred_at", "occurred_at"),
     )
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Serialize to a JSON-safe dict."""
+        return {
+            "id": str(self.id),
+            "sync_run_id": str(self.sync_run_id),
+            "error_code": self.error_code,
+            "error_type": self.error_code,
+            "error_message": self.error_message,
+            "stack_trace": self.stack_trace,
+            "context_data": self.context_data or {},
+            "occurred_at": self.occurred_at.isoformat() if self.occurred_at else None,
+        }
+

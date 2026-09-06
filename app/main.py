@@ -114,8 +114,9 @@ async def method_not_allowed_exception_handler(request: Request, exc: Exception)
     )
 
 
-# Mount Root Health Probes
+# Mount Root and API v1 Health Probes
 app.include_router(health.router)
+app.include_router(health.router, prefix=settings.API_V1_STR)
 
 # Mount API v1 Routes
 app.include_router(api_router, prefix=settings.API_V1_STR)

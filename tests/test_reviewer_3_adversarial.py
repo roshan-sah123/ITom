@@ -149,24 +149,20 @@ class TestReviewer3ConfigAndSecurityHardening(unittest.TestCase):
 
 
 class TestReviewer3AssetAndInvariantGuards(unittest.TestCase):
-    """Test zero drift for src/frontend/css/style.css."""
+    """Test zero drift between frontend/style.css and style.css."""
 
     def test_css_style_drift_guard(self):
-        src_css = os.path.join(PROJECT_ROOT, "src", "frontend", "css", "style.css")
+        front_style = os.path.join(PROJECT_ROOT, "frontend", "style.css")
         root_style = os.path.join(PROJECT_ROOT, "style.css")
-        src_style = os.path.join(PROJECT_ROOT, "src", "frontend", "style.css")
 
-        self.assertTrue(os.path.exists(src_css))
-        self.assertTrue(os.path.exists(root_style))
-        self.assertTrue(os.path.exists(src_style))
+        self.assertTrue(os.path.exists(front_style), f"{front_style} must exist")
+        self.assertTrue(os.path.exists(root_style), f"{root_style} must exist")
 
-        with open(src_css, "rb") as cf, open(root_style, "rb") as rf, open(src_style, "rb") as sf:
-            c_bytes = cf.read()
+        with open(front_style, "rb") as ff, open(root_style, "rb") as rf:
+            f_bytes = ff.read()
             r_bytes = rf.read()
-            s_bytes = sf.read()
 
-        self.assertEqual(c_bytes, r_bytes)
-        self.assertEqual(c_bytes, s_bytes)
+        self.assertEqual(f_bytes, r_bytes, "frontend/style.css and root style.css must have zero drift")
 
 
 if __name__ == "__main__":

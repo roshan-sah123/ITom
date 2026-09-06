@@ -15,9 +15,15 @@ from app.models.ci import CIRelationship, ConfigurationItem
 from app.models.history import CIStatusHistory
 from app.models.sync import SyncRun
 
-logger = logging.getLogger("itom.seeder")
+def _find_project_root() -> str:
+    cur = os.path.abspath(__file__)
+    while cur and os.path.dirname(cur) != cur:
+        cur = os.path.dirname(cur)
+        if os.path.exists(os.path.join(cur, "data")):
+            return cur
+    return os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+PROJECT_ROOT = _find_project_root()
 
 
 def normalize_intune_manufacturer(mfg: Optional[str]) -> str:
@@ -181,6 +187,8 @@ async def seed_database(
     intune_file = os.path.join(target_data_dir, "intune_ops_analytics.json")
     sw_file = os.path.join(target_data_dir, "solarwinds_nodes.json")
 
+    from app.services.sync_service import SyncService
+
     logger.info("Starting database seeding from %s...", target_data_dir)
 
     if clean_existing:
@@ -257,7 +265,13 @@ async def seed_database(
                 "operating_system": f"{raw_os} {os_ver}".strip() if os_ver else raw_os,
                 "location": None,
                 "last_sync_time": sync_dt,
-                "state_hash": None,
+                "state_hash": SyncService.compute_state_fingerprint({
+                    "status": status,
+                    "health_tier": health_tier,
+                    "cpu_load": None,
+                    "ram_used": None,
+                    "storage_used": storage_pct,
+                }),
                 "attributes": attributes,
                 "created_at": started_at,
                 "updated_at": started_at,
@@ -343,7 +357,13 @@ async def seed_database(
                 "operating_system": clean_os,
                 "location": city,
                 "last_sync_time": sync_dt,
-                "state_hash": None,
+                "state_hash": SyncService.compute_state_fingerprint({
+                    "status": status_str,
+                    "health_tier": health_tier,
+                    "cpu_load": cpu_val,
+                    "ram_used": ram_val,
+                    "storage_used": None,
+                }),
                 "attributes": attributes,
                 "created_at": started_at,
                 "updated_at": started_at,

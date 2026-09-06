@@ -79,6 +79,30 @@ class ConfigurationItem(Base, UUIDPrimaryKeyMixin, TimestampMixin):
         Index("ix_ci_status", "status"),
     )
 
+    def to_dict(self) -> Dict[str, Any]:
+        """Serialize to a JSON-safe dict; ORM instances must never leak past the repository layer."""
+        return {
+            "id": str(self.id),
+            "source_id": self.source_id,
+            "source_system": self.source_system,
+            "name": self.name,
+            "ci_type": self.ci_type,
+            "status": self.status,
+            "health_tier": self.health_tier,
+            "ip_address": self.ip_address,
+            "mac_address": self.mac_address,
+            "vendor": self.vendor,
+            "model": self.model,
+            "serial_number": self.serial_number,
+            "operating_system": self.operating_system,
+            "location": self.location,
+            "attributes": self.attributes or {},
+            "last_sync_time": self.last_sync_time.isoformat() if self.last_sync_time else None,
+            "state_hash": self.state_hash,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+        }
+
 
 class CIRelationship(Base, UUIDPrimaryKeyMixin):
     """Directed dependency or topology edge between two Configuration Items."""
@@ -120,3 +144,14 @@ class CIRelationship(Base, UUIDPrimaryKeyMixin):
         Index("ix_ci_rel_source_target", "source_ci_id", "target_ci_id"),
         Index("ix_ci_rel_type", "relationship_type"),
     )
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Serialize to a JSON-safe dict; ORM instances must never leak past the repository layer."""
+        return {
+            "id": str(self.id),
+            "source_ci_id": str(self.source_ci_id),
+            "target_ci_id": str(self.target_ci_id),
+            "relationship_type": self.relationship_type,
+            "attributes": self.attributes or {},
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }

@@ -3,10 +3,12 @@
 
 Validates:
 1. Zero-build compatibility: Frontend requires zero Node.js compilation, Webpack, or bundlers.
-2. Asset synchronicity: Verifies static assets between root and `src/frontend/`.
-3. Modular helper availability: Ensures `constants.js`, `utils.js`, `services.js` exist and export expected symbols.
-4. HTML `<script>` tag and stylesheet linkage integrity without broken 404 targets.
-5. DOM security: Zero dangerous inline sinks (`eval`, `document.write`).
+2. Modular helper availability: Ensures `constants.js`, `utils.js`, `services.js` exist and export expected symbols.
+3. HTML `<script>` tag and stylesheet linkage integrity without broken 404 targets.
+4. DOM security: Zero dangerous inline sinks (`eval`, `document.write`).
+
+Note: The frontend has a single canonical source location (repository root). The
+formerly-duplicated `src/frontend/` mirror was removed; do not reintroduce it.
 """
 
 import os
@@ -40,83 +42,39 @@ class ScriptLinkageParser(HTMLParser):
             self.image_srcs.append(attr_dict["src"])
 
 
+FRONTEND_ROOT = os.path.join(PROJECT_ROOT, "frontend") if os.path.exists(os.path.join(PROJECT_ROOT, "frontend")) else PROJECT_ROOT
+
+
 class TestZeroBuildCompliance(unittest.TestCase):
     """Assert zero-build architectural compliance and asset synchronicity."""
 
     def test_modular_frontend_files_exist(self):
-        """Verify modular JS helper files exist and root assets are byte-identical to canonical src/frontend/."""
-        required_modules = [
-            os.path.join(PROJECT_ROOT, "src", "frontend", "js", "constants.js"),
-            os.path.join(PROJECT_ROOT, "src", "frontend", "js", "utils.js"),
-            os.path.join(PROJECT_ROOT, "src", "frontend", "js", "services.js"),
-            os.path.join(PROJECT_ROOT, "js", "constants.js"),
-            os.path.join(PROJECT_ROOT, "js", "utils.js"),
-            os.path.join(PROJECT_ROOT, "js", "services.js"),
+        """Verify modular JS helper files and canonical frontend assets exist."""
+        required_files = [
+            os.path.join(FRONTEND_ROOT, "js", "constants.js"),
+            os.path.join(FRONTEND_ROOT, "js", "utils.js"),
+            os.path.join(FRONTEND_ROOT, "js", "services.js"),
+            os.path.join(FRONTEND_ROOT, "js", "shared.js"),
+            os.path.join(FRONTEND_ROOT, "js", "intune.js"),
+            os.path.join(FRONTEND_ROOT, "js", "solarwinds.js"),
+            os.path.join(FRONTEND_ROOT, "js", "cmdb.js"),
+            os.path.join(FRONTEND_ROOT, "index.html"),
+            os.path.join(FRONTEND_ROOT, "app.js"),
+            os.path.join(FRONTEND_ROOT, "ops_analytics.html"),
+            os.path.join(FRONTEND_ROOT, "ops_analytics.js"),
+            os.path.join(FRONTEND_ROOT, "style.css"),
         ]
-        for path in required_modules:
-            self.assertTrue(os.path.exists(path), f"Required modular JS file missing at {path}")
+        for path in required_files:
+            self.assertTrue(os.path.exists(path), f"Required frontend file missing at {path}")
 
-        # Enforce zero drift between root-level assets and canonical src/frontend/
-        canonical_assets = [
-            ("index.html", os.path.join("src", "frontend", "index.html")),
-            ("app.js", os.path.join("src", "frontend", "app.js")),
-            ("ops_analytics.html", os.path.join("src", "frontend", "ops_analytics.html")),
-            ("ops_analytics.js", os.path.join("src", "frontend", "ops_analytics.js")),
-            ("infrastructure_analytics.html", os.path.join("src", "frontend", "infrastructure_analytics.html")),
-            ("style.css", os.path.join("src", "frontend", "style.css")),
-            ("logo.png", os.path.join("src", "frontend", "logo.png")),
-            (os.path.join("js", "constants.js"), os.path.join("src", "frontend", "js", "constants.js")),
-            (os.path.join("js", "utils.js"), os.path.join("src", "frontend", "js", "utils.js")),
-            (os.path.join("js", "services.js"), os.path.join("src", "frontend", "js", "services.js")),
-        ]
-        for root_rel, src_rel in canonical_assets:
-            root_file = os.path.join(PROJECT_ROOT, root_rel)
-            src_file = os.path.join(PROJECT_ROOT, src_rel)
-            self.assertTrue(os.path.exists(src_file), f"Canonical source file missing: {src_file}")
-            self.assertTrue(os.path.exists(root_file), f"Root synchronized file missing: {root_file}")
-            with open(root_file, "rb") as rf, open(src_file, "rb") as sf:
-                root_bytes = rf.read()
-                src_bytes = sf.read()
-            self.assertEqual(
-                root_bytes,
-                src_bytes,
-                f"Asset drift detected: '{root_rel}' is not byte-identical to canonical '{src_rel}'."
-            )
-
-        # Enforce zero drift for all files in js/ against src/frontend/js/
-        src_js_dir = os.path.join(PROJECT_ROOT, "src", "frontend", "js")
-        root_js_dir = os.path.join(PROJECT_ROOT, "js")
-        self.assertTrue(os.path.exists(root_js_dir), "Root js/ directory missing")
-        self.assertEqual(
-            sorted(os.listdir(src_js_dir)),
-            sorted(os.listdir(root_js_dir)),
-            "Directory composition drift detected between root js/ and canonical src/frontend/js/."
+        self.assertFalse(
+            os.path.exists(os.path.join(PROJECT_ROOT, "src", "frontend")),
+            "Deprecated duplicate 'src/frontend/' must not be reintroduced."
         )
-        for fname in os.listdir(src_js_dir):
-            src_js_file = os.path.join(src_js_dir, fname)
-            root_js_file = os.path.join(root_js_dir, fname)
-            self.assertTrue(os.path.exists(root_js_file), f"File {fname} missing in root js/ directory.")
-            with open(root_js_file, "rb") as rf, open(src_js_file, "rb") as sf:
-                self.assertEqual(
-                    rf.read(),
-                    sf.read(),
-                    f"Asset drift detected in js/{fname} compared to canonical src/frontend/js/{fname}."
-                )
-
-        # Enforce zero drift for canonical src/frontend/css/style.css against root style.css
-        src_css_file = os.path.join(PROJECT_ROOT, "src", "frontend", "css", "style.css")
-        if os.path.exists(src_css_file):
-            with open(src_css_file, "rb") as cf, open(os.path.join(PROJECT_ROOT, "style.css"), "rb") as rf:
-                self.assertEqual(
-                    cf.read(),
-                    rf.read(),
-                    "Asset drift detected: 'src/frontend/css/style.css' is not byte-identical to root 'style.css'."
-                )
-
 
     def test_constants_module_exports_invariants_and_tokens(self):
         """Verify constants.js contains design system tokens and invariant numbers."""
-        constants_path = os.path.join(PROJECT_ROOT, "js", "constants.js")
+        constants_path = os.path.join(FRONTEND_ROOT, "js", "constants.js")
         with open(constants_path, "r", encoding="utf-8") as f:
             content = f.read()
 
@@ -130,7 +88,7 @@ class TestZeroBuildCompliance(unittest.TestCase):
 
     def test_utils_module_exports_sanitizer_and_formatters(self):
         """Verify utils.js provides escapeHtml, debounce, and number formatters."""
-        utils_path = os.path.join(PROJECT_ROOT, "js", "utils.js")
+        utils_path = os.path.join(FRONTEND_ROOT, "js", "utils.js")
         with open(utils_path, "r", encoding="utf-8") as f:
             content = f.read()
 
@@ -141,7 +99,7 @@ class TestZeroBuildCompliance(unittest.TestCase):
 
     def test_services_module_exports_loaders_and_csv_engine(self):
         """Verify services.js provides telemetry loaders and RFC 4180 export."""
-        services_path = os.path.join(PROJECT_ROOT, "js", "services.js")
+        services_path = os.path.join(FRONTEND_ROOT, "js", "services.js")
         with open(services_path, "r", encoding="utf-8") as f:
             content = f.read()
 
@@ -154,10 +112,8 @@ class TestZeroBuildCompliance(unittest.TestCase):
     def test_html_script_and_asset_references_resolve_locally(self):
         """Verify all local script and CSS references in HTML files exist on disk."""
         html_files = [
-            os.path.join(PROJECT_ROOT, "index.html"),
-            os.path.join(PROJECT_ROOT, "ops_analytics.html"),
-            os.path.join(PROJECT_ROOT, "src", "frontend", "index.html"),
-            os.path.join(PROJECT_ROOT, "src", "frontend", "ops_analytics.html"),
+            os.path.join(FRONTEND_ROOT, "index.html"),
+            os.path.join(FRONTEND_ROOT, "ops_analytics.html"),
         ]
 
         for hfile in html_files:
