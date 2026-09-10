@@ -205,6 +205,119 @@ class SummaryRepository:
             "storage_coverage_pct": _pct(sample, len(rows)),
         }
 
+    async def get_location_analytics(
+        self,
+        source_system: Optional[str] = None,
+        sort_by: str = "total",
+    ) -> Dict[str, Any]:
+        """Per-location operational analytics, computed live from the database.
+
+        SolarWinds populates ``location`` from the Orion custom property
+        ``City`` (see the SWQL in ``solarwinds_client.fetch_nodes``). Intune
+        managed devices carry no location field, so an Intune-scoped call will
+        report everything under ``unlocated_cis``.
+
+        Args:
+            source_system: ``SOLARWINDS``, ``INTUNE``, or None for all sources.
+            sort_by: ``total`` (largest sites first), ``risk`` (most unhealthy
+                first), or ``name`` (alphabetical).
+
+        Returns:
+            A per-site report including availability, health mix and a
+            reader-facing coverage figure so consumers can tell how much of the
+            estate actually carries a location.
+        """
+        if self.session is None:
+            raise EmptyDatasetError(source_system or "ALL")
+
+        src = source_system.upper() if source_system else None
+
+        def _scoped(stmt):
+            return stmt.where(ConfigurationItem.source_system == src) if src else stmt
+
+        # One pass for status, one for health. Both grouped by location.
+        status_rows = (await self.session.execute(_scoped(
+            select(
+                ConfigurationItem.location,
+                ConfigurationItem.status,
+                func.count(ConfigurationItem.id),
+            ).group_by(ConfigurationItem.location, ConfigurationItem.status)
+        ))).all()
+
+        health_rows = (await self.session.execute(_scoped(
+            select(
+                ConfigurationItem.location,
+                ConfigurationItem.health_tier,
+                func.count(ConfigurationItem.id),
+            ).group_by(ConfigurationItem.location, ConfigurationItem.health_tier)
+        ))).all()
+
+        if not status_rows:
+            raise EmptyDatasetError(src or "ALL")
+
+        sites: Dict[str, Dict[str, Any]] = {}
+        unlocated = 0
+
+        for location, status, count in status_rows:
+            count = int(count)
+            name = (location or "").strip()
+            if not name:
+                unlocated += count
+                continue
+            site = sites.setdefault(name, {
+                "location": name,
+                "total_cis": 0,
+                "status_breakdown": {},
+                "health_breakdown": {"High": 0, "Medium": 0, "Low": 0},
+            })
+            site["total_cis"] += count
+            site["status_breakdown"][status or "Unknown"] = count
+
+        for location, health, count in health_rows:
+            name = (location or "").strip()
+            if not name or name not in sites:
+                continue
+            sites[name]["health_breakdown"][health or "Medium"] = int(count)
+
+        located = sum(site["total_cis"] for site in sites.values())
+        total = located + unlocated
+
+        for site in sites.values():
+            site_total = site["total_cis"]
+            available = _sum_matching(site["status_breakdown"], AVAILABLE_STATUSES)
+            health = site["health_breakdown"]
+
+            site["available_cis"] = available
+            site["unavailable_cis"] = site_total - available
+            site["availability_pct"] = _pct(available, site_total)
+            site["high_health_count"] = health.get("High", 0)
+            site["medium_health_count"] = health.get("Medium", 0)
+            site["low_health_count"] = health.get("Low", 0)
+            site["health_score_pct"] = _pct(health.get("High", 0), site_total)
+            # Nodes needing attention: anything not in the High tier.
+            site["at_risk_cis"] = health.get("Medium", 0) + health.get("Low", 0)
+
+        ordered = list(sites.values())
+        if sort_by == "risk":
+            ordered.sort(key=lambda s: (-s["low_health_count"], -s["at_risk_cis"], s["location"]))
+        elif sort_by == "name":
+            ordered.sort(key=lambda s: s["location"].lower())
+        else:
+            ordered.sort(key=lambda s: (-s["total_cis"], s["location"]))
+
+        return {
+            "source_system": src or "ALL",
+            "data_source": "DATABASE",
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "sorted_by": sort_by,
+            "total_cis": total,
+            "located_cis": located,
+            "unlocated_cis": unlocated,
+            "location_coverage_pct": _pct(located, total),
+            "total_locations": len(ordered),
+            "locations": ordered,
+        }
+
     async def _max_last_sync(self, source_system: str) -> Optional[datetime]:
         """Newest ``last_sync_time`` observed for the source system."""
         stmt = select(func.max(ConfigurationItem.last_sync_time)).where(
@@ -232,6 +345,7 @@ class SummaryRepository:
         health_breakdown = await self._group_count(ConfigurationItem.health_tier, src)
         type_distribution = await self._group_count(ConfigurationItem.ci_type, src)
         vendor_distribution = await self._group_count(ConfigurationItem.vendor, src)
+        location_distribution = await self._group_count(ConfigurationItem.location, src)
         last_sync = await self._max_last_sync(src)
 
         # Integrity guard: every breakdown partitions the same filtered row set,
@@ -272,6 +386,9 @@ class SummaryRepository:
             "status_breakdown": status_breakdown,
             "health_breakdown": health_breakdown,
             "vendor_distribution": vendor_distribution,
+            # Sites with no recorded location appear under the "Unknown" key,
+            # so the map still sums to total_cis and remains chart-safe.
+            "location_distribution": location_distribution,
             "_type_distribution": type_distribution,  # renamed per-domain below
         }
 

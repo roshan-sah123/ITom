@@ -35,3 +35,10 @@ exports/*.csv
 frontend/exports/*.csv
 frontend/exports/
 
+
+# Build artefacts
+__pycache__/
+*.pyc
+.pytest_cache/
+*.bak
+*.log
