@@ -66,6 +66,38 @@ logger = logging.getLogger("itom.sync")
 _in_memory_locked = False
 
 
+def _safe_float(value: Any) -> Optional[float]:
+    """Coerce a telemetry metric to a float, or None if it is unusable.
+
+    Upstream sources are not trustworthy. SolarWinds can return -1 for an
+    unpolled counter, Graph can return a string, and a malformed record can
+    carry anything at all. Passing such a value straight into a Float column
+    raises ``StatementError`` mid-flush, which aborts the transaction and loses
+    the ENTIRE batch - one bad row taking down 27,000 good ones.
+
+    Unusable metrics become NULL so ingestion continues. The CI row itself is
+    still persisted; only the unreadable metric is dropped.
+    """
+    if value is None or isinstance(value, bool):
+        return None
+    if isinstance(value, (int, float)):
+        numeric = float(value)
+    elif isinstance(value, str):
+        try:
+            numeric = float(value.strip())
+        except (ValueError, AttributeError):
+            return None
+    else:
+        return None
+
+    # Reject sentinels and non-finite values that would poison an average.
+    if numeric != numeric or numeric in (float("inf"), float("-inf")):
+        return None
+    if numeric < 0:
+        return None
+    return numeric
+
+
 class SyncService:
     """Orchestrates live telemetry ingestion, delta detection, and execution audits."""
 
@@ -147,9 +179,15 @@ class SyncService:
             new_hash = self.compute_state_fingerprint(item)
             existing = await self.ci_repo.get_by_source_key(source_system, source_id)
 
-            status = item.get("status") or "Unknown"
-            health = item.get("health_tier") or "Medium"
-            name = item.get("name") or f"CI-{source_id}"
+            # Fallback defaults for records that bypass normalisation (direct
+            # API injection, malformed source rows). The live adapters in
+            # telemetry_sources.py always set status and health explicitly, so
+            # these values never apply to real Graph or SWIS ingestion - they
+            # exist only so a malformed record still produces a valid row
+            # instead of failing the NOT NULL constraint and killing the batch.
+            status = item.get("status") or "ACTIVE"
+            health = item.get("health_tier") or "High"
+            name = item.get("name") or f"Node-{source_id}"
             ci_type = item.get("ci_type") or "Server"
             ip = item.get("ip_address")
             vendor = item.get("vendor") or item.get("manufacturer") or "Other"
@@ -158,6 +196,13 @@ class SyncService:
             os_ver = item.get("operating_system")
             location = item.get("location")
             attrs = item.get("attributes") or {}
+
+            # Metrics are coerced defensively: a single malformed value must
+            # never abort the flush and discard the whole batch.
+            cpu_val = _safe_float(item.get("cpu_load"))
+            ram_val = _safe_float(item.get("ram_used"))
+            storage_val = _safe_float(item.get("storage_used"))
+            latency_val = _safe_float(item.get("latency_ms"))
 
             if not existing:
                 ci = ConfigurationItem(
@@ -191,10 +236,10 @@ class SyncService:
                         health_tier=health,
                         previous_status=None,
                         previous_health_tier=None,
-                        cpu_utilization=item.get("cpu_load"),
-                        memory_utilization=item.get("ram_used"),
-                        storage_used_pct=item.get("storage_used"),
-                        latency_ms=item.get("latency_ms"),
+                        cpu_utilization=cpu_val,
+                        memory_utilization=ram_val,
+                        storage_used_pct=storage_val,
+                        latency_ms=latency_val,
                         changed_attributes={"event": "INITIAL_INGESTION"},
                         recorded_at=now,
                     )
@@ -242,10 +287,10 @@ class SyncService:
                     health_tier=health,
                     previous_status=old_status,
                     previous_health_tier=old_health,
-                    cpu_utilization=item.get("cpu_load"),
-                    memory_utilization=item.get("ram_used"),
-                    storage_used_pct=item.get("storage_used"),
-                    latency_ms=item.get("latency_ms"),
+                    cpu_utilization=cpu_val,
+                    memory_utilization=ram_val,
+                    storage_used_pct=storage_val,
+                    latency_ms=latency_val,
                     changed_attributes={
                         "previous_status": old_status,
                         "new_status": status,
