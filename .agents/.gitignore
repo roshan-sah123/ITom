@@ -1,0 +1,18 @@
+# Ephemeral agent run folders & scratchpads
+run_*
+task_*
+worker_*
+explorer_*
+reviewer_*
+auditor_*
+challenger_*
+orchestrator_*
+survey_*
+sentinel/
+swe_*
+teamwork_*
+test_writer_*
+victory_*
+scratch/
+*.log
+*.tmp

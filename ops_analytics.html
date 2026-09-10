@@ -39,15 +39,15 @@
       <nav class="dashboard-tabs" id="tabNavContainer" role="tablist" aria-label="Operational Domain Views">
         <button class="tab-btn active" data-tab="intune" role="tab" aria-selected="true" aria-controls="view-intune" id="tab-intune">
           <span class="tab-title">Digital Workplace & Endpoints</span>
-          <span class="tab-badge-pill">25,987</span>
+          <span class="tab-badge-pill" id="tabPillIntune">27,412 Endpoints</span>
         </button>
         <button class="tab-btn" data-tab="solarwinds" role="tab" aria-selected="false" aria-controls="view-solarwinds" id="tab-solarwinds">
           <span class="tab-title">Hybrid Cloud & Servers</span>
-          <span class="tab-badge-pill">1,548</span>
+          <span class="tab-badge-pill" id="tabPillSolarwinds">1,572 Server Nodes</span>
         </button>
         <button class="tab-btn" data-tab="cmdb" role="tab" aria-selected="false" aria-controls="view-cmdb" id="tab-cmdb">
           <span class="tab-title">Enterprise CMDB & Topology</span>
-          <span class="tab-badge-pill">1,543 CIs</span>
+          <span class="tab-badge-pill" id="tabPillCmdb">28,984 CIs</span>
         </button>
       </nav>
 
@@ -87,7 +87,7 @@
       </div>
       <div class="header-stat-box">
         <span class="stat-label" id="headerStatLabel">Total Verified Endpoints</span>
-        <span class="stat-value text-accent" id="statTotalEndpoints">25,987</span>
+        <span class="stat-value text-accent" id="statTotalEndpoints">27,412</span>
       </div>
     </header>
 
@@ -105,7 +105,7 @@
             <span class="kpi-title">Intune Managed Devices</span>
             <span class="kpi-tag success">100% Live</span>
           </div>
-          <div class="kpi-number" id="kpiTotalDevices">26,509</div>
+          <div class="kpi-number" id="kpiTotalDevices">25,987</div>
           <div class="kpi-subtext">Across Windows, macOS, Linux, iOS & Android</div>
         </div>
 
@@ -113,10 +113,10 @@
         <div class="kpi-card">
           <div class="kpi-header">
             <span class="kpi-title">Fleet Compliance Rate</span>
-            <span class="kpi-tag success" id="kpiComplianceTag">83.28%</span>
+            <span class="kpi-tag success" id="kpiComplianceTag">83.08%</span>
           </div>
-          <div class="kpi-number text-success" id="kpiCompliantCount">22,078</div>
-          <div class="kpi-subtext"><span class="text-danger" id="kpiNonCompliantCount">3,442</span> non-compliant (<span class="text-warning" id="kpiCoManagedCount">945</span> co-managed)</div>
+          <div class="kpi-number text-success" id="kpiCompliantCount">21,589</div>
+          <div class="kpi-subtext"><span class="text-danger" id="kpiNonCompliantCount">3,422</span> non-compliant (<span class="text-warning" id="kpiCoManagedCount">976</span> co-managed)</div>
         </div>
 
         <!-- KPI 3: Storage Utilization -->
@@ -273,12 +273,12 @@
             <table class="data-table">
               <thead>
                 <tr>
-                  <th>Device Name</th>
-                  <th>Operating System</th>
+                  <th class="sortable" data-sort="name">Device Name <span class="sort-indicator">↕</span></th>
+                  <th class="sortable" data-sort="ci_type">Operating System <span class="sort-indicator">↕</span></th>
                   <th>Assigned User (UPN)</th>
-                  <th>Model / OEM</th>
-                  <th>Serial Number</th>
-                  <th>Compliance</th>
+                  <th class="sortable" data-sort="vendor">Model / OEM <span class="sort-indicator">↕</span></th>
+                  <th class="sortable" data-sort="serial_number">Serial Number <span class="sort-indicator">↕</span></th>
+                  <th class="sortable" data-sort="status">Compliance <span class="sort-indicator">↕</span></th>
                   <th>Used Storage</th>
                   <th>Last Sync (UTC)</th>
                 </tr>
@@ -316,7 +316,7 @@
             <span class="kpi-title">Monitored Infrastructure Nodes</span>
             <span class="kpi-tag success">100% Live SWIS</span>
           </div>
-          <div class="kpi-number" id="swTotalNodes">1,547</div>
+          <div class="kpi-number" id="swTotalNodes">1,548</div>
           <div class="kpi-subtext">Queried live from Orion SWIS API v3</div>
         </div>
 
@@ -326,7 +326,7 @@
             <span class="kpi-title">Server Health Classification</span>
             <span class="kpi-tag success" id="swHealthTag">87.98% High</span>
           </div>
-          <div class="kpi-number text-success" id="swHighHealthCount">1,361</div>
+          <div class="kpi-number text-success" id="swHighHealthCount">1,362</div>
           <div class="kpi-subtext"><span class="text-warning" id="swMedHealthCount">136</span> Warning &bull; <span class="text-danger" id="swLowHealthCount">50</span> Critical</div>
         </div>
 
@@ -417,14 +417,14 @@
             <table class="data-table">
               <thead>
                 <tr>
-                  <th>Server Hostname</th>
-                  <th>IP Address</th>
-                  <th>Vendor / Type</th>
-                  <th>Health Tier</th>
+                  <th class="sortable" data-sort="name">Server Hostname <span class="sort-indicator">↕</span></th>
+                  <th class="sortable" data-sort="ip_address">IP Address <span class="sort-indicator">↕</span></th>
+                  <th class="sortable" data-sort="vendor">Vendor / Type <span class="sort-indicator">↕</span></th>
+                  <th class="sortable" data-sort="health_tier">Health Tier <span class="sort-indicator">↕</span></th>
                   <th>CPU Load</th>
                   <th>RAM Used</th>
                   <th>Latency</th>
-                  <th>Status</th>
+                  <th class="sortable" data-sort="status">Status <span class="sort-indicator">↕</span></th>
                 </tr>
               </thead>
               <tbody id="swTableBody">
@@ -512,9 +512,9 @@
       <div class="analytics-grid">
         <!-- Chart 1: Role / CI Type Distribution -->
         <div class="chart-card">
-          <div class="chart-header">
-            <h3 class="chart-title">CI Architectural Role Distribution</h3>
-            <span class="chart-badge">Click slice to filter</span>
+          <div class="card-header chart-header">
+            <h3 class="card-title chart-title">CI Architectural Role Distribution</h3>
+            <span class="badge chart-badge">Click slice to filter</span>
           </div>
           <div class="chart-wrapper">
             <canvas id="cmdbRoleChart"></canvas>
@@ -523,9 +523,9 @@
 
         <!-- Chart 2: Compliance / Health Posture -->
         <div class="chart-card">
-          <div class="chart-header">
-            <h3 class="chart-title">CI Health Posture</h3>
-            <span class="chart-badge">Click bar to filter</span>
+          <div class="card-header chart-header">
+            <h3 class="card-title chart-title">CI Health Posture</h3>
+            <span class="badge chart-badge">Click bar to filter</span>
           </div>
           <div class="chart-wrapper">
             <canvas id="cmdbComplianceChart"></canvas>
@@ -534,9 +534,9 @@
 
         <!-- Chart 3: IP Location Distribution -->
         <div class="chart-card">
-          <div class="chart-header">
-            <h3 class="chart-title">Top Regional Sites</h3>
-            <span class="chart-badge">Geographic</span>
+          <div class="card-header chart-header">
+            <h3 class="card-title chart-title">Top Regional Sites</h3>
+            <span class="badge chart-badge">Geographic</span>
           </div>
           <div class="chart-wrapper">
             <canvas id="cmdbLocationChart"></canvas>
@@ -547,10 +547,10 @@
       <!-- CMDB Searchable Data Table -->
       <div class="table-section">
         <div class="table-card">
-          <div class="table-header">
+          <div class="card-header table-header">
             <div>
-              <h3 class="table-title">Live Configuration Items Registry</h3>
-              <p class="table-desc">SolarWinds servers, physical switches, routers, firewalls, and wireless infrastructure.</p>
+              <h3 class="card-title table-title">Live Configuration Items Registry</h3>
+              <p class="card-subtitle table-desc">SolarWinds servers, physical switches, routers, firewalls, and wireless infrastructure.</p>
             </div>
             <div class="table-actions">
               <input type="text" class="table-search" id="cmdbSearchInput" placeholder="Filter by Name, IP, Type, Vendor, Location...">
@@ -561,14 +561,14 @@
             <table class="data-table">
               <thead>
                 <tr>
-                  <th>CI ID</th>
-                  <th>CI Type</th>
-                  <th>Name / Hostname</th>
-                  <th>IP Address</th>
-                  <th>Vendor & Platform</th>
-                  <th>Location</th>
-                  <th>Status</th>
-                  <th>Health Tier</th>
+                  <th class="sortable" data-sort="source_id">CI ID <span class="sort-indicator">↕</span></th>
+                  <th class="sortable" data-sort="ci_type">CI Type <span class="sort-indicator">↕</span></th>
+                  <th class="sortable" data-sort="name">Name / Hostname <span class="sort-indicator">↕</span></th>
+                  <th class="sortable" data-sort="ip_address">IP Address <span class="sort-indicator">↕</span></th>
+                  <th class="sortable" data-sort="vendor">Vendor & Platform <span class="sort-indicator">↕</span></th>
+                  <th class="sortable" data-sort="location">Location <span class="sort-indicator">↕</span></th>
+                  <th class="sortable" data-sort="status">Status <span class="sort-indicator">↕</span></th>
+                  <th class="sortable" data-sort="health_tier">Health Tier <span class="sort-indicator">↕</span></th>
                 </tr>
               </thead>
               <tbody id="cmdbTableBody">
@@ -593,8 +593,11 @@
 
   </main>
 
-  <!-- Script Inclusions -->
-  <script src="ops_analytics.js?v=22.0"></script>
+  <!-- Script Inclusions: design tokens, utilities, API services, and unified analytics dashboard controller -->
+  <script src="js/constants.js?v=2.0"></script>
+  <script src="js/utils.js?v=2.0"></script>
+  <script src="js/services.js?v=2.0"></script>
+  <script src="ops_analytics.js?v=24.0"></script>
 </body>
 </html>
 

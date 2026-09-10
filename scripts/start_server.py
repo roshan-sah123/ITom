@@ -105,8 +105,7 @@ class CustomHTTPHandler(SimpleHTTPRequestHandler):
     """Resilient HTTP Request Handler with REST API routes, CORS, and strict read-only guards."""
     
     def __init__(self, *args, **kwargs):
-        frontend_dir = os.path.join(PROJECT_ROOT, "frontend") if os.path.exists(os.path.join(PROJECT_ROOT, "frontend")) else PROJECT_ROOT
-        super().__init__(*args, directory=frontend_dir, **kwargs)
+        super().__init__(*args, directory=PROJECT_ROOT, **kwargs)
 
     def translate_path(self, path):
         clean_path = urllib.parse.unquote(urllib.parse.urlparse(path).path)
@@ -116,9 +115,8 @@ class CustomHTTPHandler(SimpleHTTPRequestHandler):
         if clean_path.startswith("/exports/"):
             rel = os.path.relpath(clean_path, "/exports")
             return os.path.normpath(os.path.join(PROJECT_ROOT, "exports", rel))
-        frontend_dir = os.path.join(PROJECT_ROOT, "frontend") if os.path.exists(os.path.join(PROJECT_ROOT, "frontend")) else PROJECT_ROOT
         rel = clean_path.lstrip("/")
-        return os.path.normpath(os.path.join(frontend_dir, rel))
+        return os.path.normpath(os.path.join(PROJECT_ROOT, rel))
 
     def log_message(self, format, *args):
         logger.info("%s - %s", self.address_string(), format % args)

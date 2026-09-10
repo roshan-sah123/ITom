@@ -172,8 +172,10 @@ document.addEventListener('DOMContentLoaded', () => {
   // --- KEYBOARD SHORTCUTS ---
   
   document.addEventListener('keydown', (e) => {
-    // Focus search on '/' key press (if not in an input already)
-    if (e.key === '/' && searchInput && document.activeElement !== searchInput) {
+    // Focus search on '⌘K', 'Ctrl+K', or '/' key press (if not in an input already)
+    const isKShortcut = (e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K');
+    const isSlashShortcut = e.key === '/' && document.activeElement !== searchInput;
+    if ((isKShortcut || isSlashShortcut) && searchInput) {
       e.preventDefault();
       searchInput.focus();
       searchInput.select();
@@ -290,14 +292,9 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    if (launcherStatus) launcherStatus.textContent = `Launching ${moduleName}...`;
-    if (launcherOverlay) launcherOverlay.classList.add('active');
-
-    // Quick 200ms visual feedback before direct navigation
-    launcherTimeout = setTimeout(() => {
-      closeLauncher();
-      window.location.href = resolveModuleDestination(moduleName, targetUrl);
-    }, 200);
+    // Direct, frictionless navigation (<50ms) for live modules without artificial delay or overlay popup
+    const destination = resolveModuleDestination(moduleName, targetUrl);
+    window.location.href = destination;
   }
 
   function closeLauncher() {
@@ -331,6 +328,13 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
   }
+
+  // BFCache and history recovery: ensure clean launcher state on back/forward return
+  window.addEventListener('pageshow', () => {
+    closeLauncher();
+    closeDomainModal();
+    document.body.style.overflow = '';
+  });
 
   // Export functions globally
   window.launchModule = launchModule;

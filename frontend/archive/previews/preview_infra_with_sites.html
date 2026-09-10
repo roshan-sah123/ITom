@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Coforge ITOM - Infrastructure & Location Analytics</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-base: #0B0B0C;
+      --card-bg: #131316;
+      --card-hover: #18181D;
+      --border-subtle: #222228;
+      --border-hover: #33333E;
+      --text-primary: #FFFFFF;
+      --text-secondary: #9494A0;
+      --text-muted: #5E5E6C;
+      --accent-orange: #F97316;
+      --accent-green: #10B981;
+      --accent-cyan: #06B6D4;
+      --accent-purple: #8B5CF6;
+      --accent-red: #EF4444;
+      --accent-amber: #F59E0B;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: var(--bg-base); color: var(--text-primary);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      -webkit-font-smoothing: antialiased; min-height: 100vh; display: flex; flex-direction: column;
+    }
+
+    /* Top Nav */
+    .top-nav {
+      height: 64px; border-bottom: 1px solid var(--border-subtle); background: rgba(11, 11, 12, 0.85);
+      backdrop-filter: blur(16px); display: flex; align-items: center; justify-content: space-between;
+      padding: 0 32px; position: sticky; top: 0; z-index: 50;
+    }
+    .nav-left { display: flex; align-items: center; gap: 24px; }
+    .brand-group { display: flex; align-items: center; gap: 10px; }
+    .brand-logo { font-size: 22px; font-weight: 800; letter-spacing: -0.5px; }
+    .brand-logo .orange { color: var(--accent-orange); }
+    .brand-logo .white { color: #FFFFFF; }
+    .brand-badge {
+      font-size: 11px; font-weight: 700; text-transform: uppercase; padding: 3px 8px; border-radius: 6px;
+      background: rgba(249, 115, 22, 0.12); color: var(--accent-orange); border: 1px solid rgba(249, 115, 22, 0.25);
+    }
+    .nav-breadcrumb { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-muted); }
+    .nav-breadcrumb a { color: var(--text-secondary); text-decoration: none; }
+    .nav-breadcrumb span.current {
+      color: var(--text-primary); font-weight: 600; background: rgba(255, 255, 255, 0.05);
+      padding: 4px 10px; border-radius: 6px; border: 1px solid var(--border-subtle);
+    }
+    .nav-right { display: flex; align-items: center; gap: 20px; }
+    .search-pill {
+      display: flex; align-items: center; gap: 10px; background: #151518; border: 1px solid var(--border-subtle);
+      border-radius: 8px; padding: 7px 14px; color: var(--text-muted); font-size: 13px; width: 260px;
+    }
+    .search-pill kbd {
+      margin-left: auto; font-size: 11px; background: #202026; padding: 2px 6px; border-radius: 4px;
+      color: var(--text-secondary); border: 1px solid #2B2B33;
+    }
+    .user-profile {
+      display: flex; align-items: center; gap: 10px; background: #151518; border: 1px solid var(--border-subtle);
+      padding: 5px 12px 5px 6px; border-radius: 20px;
+    }
+    .avatar-img { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; border: 1.5px solid var(--accent-orange); }
+    .user-name { font-size: 13px; font-weight: 600; color: #E2E2E8; }
+    .status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent-green); box-shadow: 0 0 6px rgba(16, 185, 129, 0.6); }
+
+    /* Main Container */
+    .main-content { flex: 1; max-width: 1380px; width: 100%; margin: 0 auto; padding: 36px 32px 60px 32px; }
+
+    /* Section 1: Infra Categories */
+    .section-header {
+      display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 24px;
+    }
+    .section-title-group h2 {
+      font-size: 24px; font-weight: 700; letter-spacing: -0.5px; color: #FFFFFF; margin-bottom: 6px;
+    }
+    .section-title-group p { font-size: 13px; color: var(--text-secondary); }
+
+    .categories-grid {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; margin-bottom: 48px;
+    }
+
+    .category-card {
+      background: var(--card-bg); border: 1px solid var(--border-subtle); border-radius: 12px;
+      padding: 20px; cursor: pointer; transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      position: relative; overflow: hidden;
+    }
+    .category-card:hover {
+      background: var(--card-hover); border-color: var(--border-hover); transform: translateY(-2px);
+    }
+    .card-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+    .card-title-group { display: flex; align-items: center; gap: 12px; }
+    .icon-box {
+      width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center;
+    }
+    .icon-box.cyan { background: rgba(6, 182, 212, 0.12); color: var(--accent-cyan); border: 1px solid rgba(6, 182, 212, 0.25); }
+    .icon-box.green { background: rgba(16, 185, 129, 0.12); color: var(--accent-green); border: 1px solid rgba(16, 185, 129, 0.25); }
+    .icon-box.purple { background: rgba(139, 92, 246, 0.12); color: var(--accent-purple); border: 1px solid rgba(139, 92, 246, 0.25); }
+    .icon-box.orange { background: rgba(249, 115, 22, 0.12); color: var(--accent-orange); border: 1px solid rgba(249, 115, 22, 0.25); }
+    .icon-box svg { width: 20px; height: 20px; }
+
+    .card-header-text h3 { font-size: 15px; font-weight: 700; color: #FFFFFF; }
+    .card-header-text span { font-size: 11px; font-weight: 500; color: var(--text-muted); text-transform: uppercase; }
+
+    .drill-icon { color: var(--text-muted); }
+    .category-card:hover .drill-icon { color: #FFFFFF; }
+
+    .kpi-row { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 12px; }
+    .kpi-num { font-size: 28px; font-weight: 800; color: #FFFFFF; font-feature-settings: 'tnum' on; line-height: 1; }
+    .status-pill {
+      font-size: 11px; font-weight: 600; padding: 4px 8px; border-radius: 12px;
+      background: rgba(16, 185, 129, 0.1); color: var(--accent-green); border: 1px solid rgba(16, 185, 129, 0.2);
+    }
+    .card-meta { font-size: 12px; color: var(--text-secondary); border-top: 1px solid var(--border-subtle); padding-top: 10px; }
+
+    /* Divider */
+    .section-divider {
+      height: 1px; background: linear-gradient(90deg, transparent, #26262E 20%, #26262E 80%, transparent);
+      margin-bottom: 40px;
+    }
+
+    /* Section 2: Location Wise Site Report */
+    .site-section { margin-top: 8px; }
+    .site-controls { display: flex; align-items: center; gap: 12px; }
+
+    .region-pills { display: flex; align-items: center; background: #151518; border: 1px solid var(--border-subtle); border-radius: 8px; padding: 3px; }
+    .region-tab {
+      padding: 5px 12px; font-size: 12px; font-weight: 600; color: var(--text-secondary);
+      border-radius: 6px; cursor: pointer; border: none; background: transparent;
+    }
+    .region-tab.active { background: #22222A; color: #FFFFFF; }
+
+    /* Single Unified Graph Card */
+    .graph-card {
+      background: var(--card-bg); border: 1px solid var(--border-subtle); border-radius: 12px;
+      padding: 20px 24px; margin-bottom: 24px;
+    }
+    .graph-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+    .graph-header h3 { font-size: 15px; font-weight: 600; }
+    .graph-header span { font-size: 12px; color: var(--text-muted); }
+
+    .stacked-bar-container {
+      display: flex; height: 14px; border-radius: 7px; overflow: hidden; background: #202026; margin-bottom: 14px;
+    }
+    .bar-segment { height: 100%; }
+    .bar-healthy { background: #10B981; width: 76.7%; }
+    .bar-warn { background: #F59E0B; width: 11.6%; }
+    .bar-crit { background: #EF4444; width: 11.7%; }
+
+    .bar-legend { display: flex; align-items: center; gap: 24px; font-size: 12px; }
+    .legend-item { display: flex; align-items: center; gap: 8px; color: var(--text-secondary); }
+    .legend-dot { width: 8px; height: 8px; border-radius: 50%; }
+    .legend-val { font-weight: 600; color: #FFFFFF; }
+
+    /* Location Table */
+    .table-card { background: var(--card-bg); border: 1px solid var(--border-subtle); border-radius: 12px; overflow: hidden; }
+    .table-toolbar {
+      display: flex; align-items: center; justify-content: space-between; padding: 16px 24px; border-bottom: 1px solid var(--border-subtle);
+    }
+    .table-title { font-size: 15px; font-weight: 600; }
+    .table-actions { display: flex; align-items: center; gap: 12px; }
+    .table-search {
+      background: #18181D; border: 1px solid var(--border-subtle); border-radius: 8px;
+      padding: 6px 12px; font-size: 12px; color: #FFFFFF; width: 220px; outline: none;
+    }
+
+    table { width: 100%; border-collapse: collapse; text-align: left; font-size: 13px; }
+    th {
+      padding: 12px 24px; font-size: 11px; font-weight: 600; text-transform: uppercase;
+      color: var(--text-muted); background: #151518; border-bottom: 1px solid var(--border-subtle);
+    }
+    td { padding: 14px 24px; border-bottom: 1px solid #1C1C22; color: #E2E2E8; font-feature-settings: 'tnum' on; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #16161B; }
+
+    .site-tag { display: flex; align-items: center; gap: 8px; font-weight: 600; color: #FFFFFF; }
+    .health-badge {
+      display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 600;
+      padding: 4px 9px; border-radius: 12px;
+    }
+    .health-badge.green { background: rgba(16, 185, 129, 0.1); color: var(--accent-green); border: 1px solid rgba(16, 185, 129, 0.2); }
+    .health-badge.amber { background: rgba(245, 158, 11, 0.1); color: var(--accent-amber); border: 1px solid rgba(245, 158, 11, 0.2); }
+    .health-badge.red { background: rgba(239, 68, 68, 0.1); color: var(--accent-red); border: 1px solid rgba(239, 68, 68, 0.2); }
+  </style>
+</head>
+<body>
+
+  <!-- Top Navigation Bar -->
+  <header class="top-nav">
+    <div class="nav-left">
+      <div class="brand-group">
+        <div class="brand-logo"><span class="orange">Co</span><span class="white">forge</span></div>
+        <span class="brand-badge">ITOM</span>
+      </div>
+      <div class="nav-breadcrumb">
+        <a href="index.html">Dashboard</a>
+        <span>/</span>
+        <span class="current">Infrastructure & Site Health</span>
+      </div>
+    </div>
+    <div class="nav-right">
+      <div class="search-pill">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"></circle>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+        <span>Search metrics, sites...</span>
+        <kbd>⌘K</kbd>
+      </div>
+      <div class="user-profile">
+        <img src="avatar.jpg" alt="User Profile" class="avatar-img" onerror="this.src='https://ui-avatars.com/api/?name=Roshan+Sah&background=F97316&color=fff'">
+        <span class="user-name">Roshan Sah</span>
+        <div class="status-dot"></div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="main-content">
+
+    <!-- Section 1: Infrastructure Analytics Categories -->
+    <div class="section-header">
+      <div class="section-title-group">
+        <h2>Infrastructure Analytics</h2>
+        <p>Real-time cross-domain operational telemetry across endpoints, compute servers, telecom, and network fabric.</p>
+      </div>
+    </div>
+
+    <div class="categories-grid">
+      <!-- Card 1 -->
+      <div class="category-card" onclick="window.location.href='preview_ia01_endpoints.html'">
+        <div class="card-top">
+          <div class="card-title-group">
+            <div class="icon-box cyan">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                <line x1="8" y1="21" x2="16" y2="21"></line>
+                <line x1="12" y1="17" x2="12" y2="21"></line>
+              </svg>
+            </div>
+            <div class="card-header-text">
+              <h3>Endpoints</h3>
+              <span>Intune</span>
+            </div>
+          </div>
+          <div class="drill-icon">↗</div>
+        </div>
+        <div class="kpi-row">
+          <div class="kpi-num">25,987</div>
+          <div class="status-pill">98.4% Compliant</div>
+        </div>
+        <div class="card-meta">Windows 23.4k · macOS 1.2k · Mobile 1.3k</div>
+      </div>
+
+      <!-- Card 2 -->
+      <div class="category-card" onclick="window.location.href='preview_ia02_servers.html'">
+        <div class="card-top">
+          <div class="card-title-group">
+            <div class="icon-box green">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect>
+                <rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect>
+                <line x1="6" y1="6" x2="6.01" y2="6"></line>
+                <line x1="6" y1="18" x2="6.01" y2="18"></line>
+              </svg>
+            </div>
+            <div class="card-header-text">
+              <h3>Servers</h3>
+              <span>SolarWinds</span>
+            </div>
+          </div>
+          <div class="drill-icon">↗</div>
+        </div>
+        <div class="kpi-row">
+          <div class="kpi-num">1,548</div>
+          <div class="status-pill">96.8% Up</div>
+        </div>
+        <div class="card-meta">High Health 1,412 · Warning 89 · Down 47</div>
+      </div>
+
+      <!-- Card 3 -->
+      <div class="category-card" onclick="window.location.href='preview_ia03_telecom.html'">
+        <div class="card-top">
+          <div class="card-title-group">
+            <div class="icon-box purple">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4.9 19.1C1 15.2 1 8.8 4.9 4.9"></path>
+                <path d="M7.8 16.2c-2.3-2.3-2.3-6.1 0-8.5"></path>
+                <circle cx="12" cy="12" r="2"></circle>
+                <path d="M16.2 7.8c2.3 2.3 2.3 6.1 0 8.5"></path>
+                <path d="M19.1 4.9C23 8.8 23 15.2 19.1 19.1"></path>
+              </svg>
+            </div>
+            <div class="card-header-text">
+              <h3>Telecom</h3>
+              <span>WAN / Links</span>
+            </div>
+          </div>
+          <div class="drill-icon">↗</div>
+        </div>
+        <div class="kpi-row">
+          <div class="kpi-num">260</div>
+          <div class="status-pill">99.4% Uptime</div>
+        </div>
+        <div class="card-meta">MPLS 118 · SD-WAN 84 · Latency 18ms</div>
+      </div>
+
+      <!-- Card 4 -->
+      <div class="category-card" onclick="window.location.href='preview_ia04_network.html'">
+        <div class="card-top">
+          <div class="card-title-group">
+            <div class="icon-box orange">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="2" y="4" width="20" height="8" rx="2"></rect>
+                <path d="M6 12v4"></path>
+                <path d="M18 12v4"></path>
+                <path d="M2 16h20"></path>
+                <circle cx="6" cy="8" r="1"></circle>
+                <circle cx="10" cy="8" r="1"></circle>
+                <circle cx="14" cy="8" r="1"></circle>
+                <circle cx="18" cy="8" r="1"></circle>
+              </svg>
+            </div>
+            <div class="card-header-text">
+              <h3>Network</h3>
+              <span>Switches & CMDB</span>
+            </div>
+          </div>
+          <div class="drill-icon">↗</div>
+        </div>
+        <div class="kpi-row">
+          <div class="kpi-num">710</div>
+          <div class="status-pill">92.8% Healthy</div>
+        </div>
+        <div class="card-meta">Access 480 · Firewalls 86 · Core 64</div>
+      </div>
+    </div>
+
+    <!-- Visual Separation -->
+    <div class="section-divider"></div>
+
+    <!-- Section 2: Site Overview / Location Wise Site Report -->
+    <div class="site-section">
+      <div class="section-header">
+        <div class="section-title-group">
+          <h2>Location-Wise Site Report</h2>
+          <p>Real-time campus availability, device density, and health flags across all 60 enterprise facilities & data centers.</p>
+        </div>
+
+        <div class="site-controls">
+          <div class="region-pills">
+            <button class="region-tab active">All Sites (60)</button>
+            <button class="region-tab">India (13)</button>
+            <button class="region-tab">Americas (25)</button>
+            <button class="region-tab">APAC & EMEA (22)</button>
+          </div>
+          <input type="text" placeholder="Filter site..." class="table-search" style="background:#151518; border:1px solid var(--border-subtle); border-radius:8px; padding:6px 12px; font-size:12px; color:#fff; width:180px;">
+        </div>
+      </div>
+
+      <!-- Single Unified Graph for Sites -->
+      <div class="graph-card">
+        <div class="graph-header">
+          <h3>Global Site Health Distribution (Availability SLA)</h3>
+          <span>60 Global Enterprise Facilities</span>
+        </div>
+        <div class="stacked-bar-container">
+          <div class="bar-segment bar-healthy"></div>
+          <div class="bar-segment bar-warn"></div>
+          <div class="bar-segment bar-crit"></div>
+        </div>
+        <div class="bar-legend">
+          <div class="legend-item">
+            <div class="legend-dot" style="background: #10B981;"></div>
+            <span>Healthy (≥90% SLA):</span>
+            <span class="legend-val">46 Sites (76.7%)</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-dot" style="background: #F59E0B;"></div>
+            <span>Warning (70–89% SLA):</span>
+            <span class="legend-val">7 Sites (11.6%)</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-dot" style="background: #EF4444;"></div>
+            <span>Critical (&lt;70% SLA):</span>
+            <span class="legend-val">7 Sites (11.7%)</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Location Wise Site Table -->
+      <div class="table-card">
+        <div class="table-toolbar">
+          <div class="table-title">Live Enterprise Site Registry (SolarWinds + Intune)</div>
+          <span style="font-size: 12px; color: var(--text-muted);">60 Monitored Facilities</span>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Site / Campus Location</th>
+              <th>Health Status</th>
+              <th>SolarWinds Nodes</th>
+              <th>Intune Endpoints</th>
+              <th>Availability</th>
+              <th>Avg CPU</th>
+              <th>Avg RAM</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="site-tag">
+                <span>🏢</span>
+                <span>Greater Noida (Campus Tower A, B, C & D)</span>
+              </td>
+              <td><span class="health-badge green">● Healthy</span></td>
+              <td><strong>502</strong> (477 Up)</td>
+              <td>7,927</td>
+              <td style="font-weight: 700; color: #10B981;">95.1%</td>
+              <td>8.7%</td>
+              <td>25.3%</td>
+            </tr>
+            <tr>
+              <td class="site-tag">
+                <span>🏢</span>
+                <span>Bengaluru (Main Facility & Encora)</span>
+              </td>
+              <td><span class="health-badge green">● Healthy</span></td>
+              <td><strong>152</strong> (140 Up)</td>
+              <td>563</td>
+              <td style="font-weight: 700; color: #10B981;">92.1%</td>
+              <td>7.6%</td>
+              <td>23.1%</td>
+            </tr>
+            <tr>
+              <td class="site-tag">
+                <span>🏢</span>
+                <span>Hyderabad (Main DC & QE Campus)</span>
+              </td>
+              <td><span class="health-badge green">● Healthy</span></td>
+              <td><strong>112</strong> (110 Up)</td>
+              <td>2,642</td>
+              <td style="font-weight: 700; color: #10B981;">98.2%</td>
+              <td>8.1%</td>
+              <td>22.9%</td>
+            </tr>
+            <tr>
+              <td class="site-tag">
+                <span>🏢</span>
+                <span>Pune (BPS Shanti One & Encora)</span>
+              </td>
+              <td><span class="health-badge green">● Healthy</span></td>
+              <td><strong>104</strong> (96 Up)</td>
+              <td>1,445</td>
+              <td style="font-weight: 700; color: #10B981;">92.3%</td>
+              <td>3.9%</td>
+              <td>14.1%</td>
+            </tr>
+            <tr>
+              <td class="site-tag">
+                <span>🏢</span>
+                <span>Gurugram (Campus Facility)</span>
+              </td>
+              <td><span class="health-badge green">● Healthy</span></td>
+              <td><strong>85</strong> (84 Up)</td>
+              <td>1,422</td>
+              <td style="font-weight: 700; color: #10B981;">98.8%</td>
+              <td>12.0%</td>
+              <td>21.0%</td>
+            </tr>
+            <tr>
+              <td class="site-tag">
+                <span>🌏</span>
+                <span>Manila (Axis 1, Vector 3, IHUB)</span>
+              </td>
+              <td><span class="health-badge green">● Healthy</span></td>
+              <td><strong>94</strong> (90 Up)</td>
+              <td>399</td>
+              <td style="font-weight: 700; color: #10B981;">94.7%</td>
+              <td>10.4%</td>
+              <td>22.1%</td>
+            </tr>
+            <tr>
+              <td class="site-tag">
+                <span>🏢</span>
+                <span>BPS Kolhapur</span>
+              </td>
+              <td><span class="health-badge green">● Healthy</span></td>
+              <td><strong>64</strong> (62 Up)</td>
+              <td>208</td>
+              <td style="font-weight: 700; color: #10B981;">96.9%</td>
+              <td>13.0%</td>
+              <td>22.0%</td>
+            </tr>
+            <tr>
+              <td class="site-tag">
+                <span>🗽</span>
+                <span>USA - New Jersey</span>
+              </td>
+              <td><span class="health-badge amber">▲ Warning</span></td>
+              <td><strong>40</strong> (35 Up)</td>
+              <td>875</td>
+              <td style="font-weight: 700; color: #F59E0B;">87.5%</td>
+              <td>4.0%</td>
+              <td>20.0%</td>
+            </tr>
+            <tr>
+              <td class="site-tag">
+                <span>🌴</span>
+                <span>Costa Rica (Main DC & Heredia)</span>
+              </td>
+              <td><span class="health-badge red">■ Critical</span></td>
+              <td><strong>43</strong> (28 Up)</td>
+              <td>35</td>
+              <td style="font-weight: 700; color: #EF4444;">65.1%</td>
+              <td>9.0%</td>
+              <td>19.0%</td>
+            </tr>
+            <tr>
+              <td class="site-tag">
+                <span>🇧🇷</span>
+                <span>Brazil Campinas (SAB Encora)</span>
+              </td>
+              <td><span class="health-badge red">■ Critical</span></td>
+              <td><strong>23</strong> (6 Up)</td>
+              <td>40</td>
+              <td style="font-weight: 700; color: #EF4444;">26.1%</td>
+              <td>4.0%</td>
+              <td>10.0%</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+
+  </main>
+</body>
+</html>

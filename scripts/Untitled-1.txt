@@ -1,0 +1,36 @@
+# Infrastructure Analytics | Coforge ITOM Portal
+
+[Coforge
+        
+        
+          ITOM](http://localhost:8080/index.html)
+[Home](http://localhost:8080/index.html)
+
+# Infrastructure Analytics
+Unified multi-domain operational command: SolarWinds Orion SWIS, Microsoft Intune Endpoint Posture, and 60-Campus Observability.
+
+## 24h Fleet CPU & Memory Utilization
+
+## 24h Availability SLA (%)
+
+## Active Alert & Incident Frequency
+
+## Health Tier Distribution
+
+## Server Hardware & OS Distribution
+
+## Top Resource-Saturated Nodes
+
+## 🛡️ Endpoint Security Posture & Compliance Analytics
+Patch status, Defender Antivirus, BitLocker encryption, and OS Version Drift across workplace endpoints.
+
+## Operating System Distribution
+
+## Hardware Manufacturer Breakdown
+
+## Top 10 Campus Facilities by Server Node Density
+
+## Regional Node Distribution
+
+## Selected Facility - 24h Availability & Performance
+Dynamic historical drilldown from SolarWinds API
