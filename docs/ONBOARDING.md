@@ -211,12 +211,11 @@ curl "http://localhost:8080/api/cmdb/items?type=Server"
 ## ⚡ Section 5: Common Development Tasks & Fast Feedback Loops
 
 ### 1. Adding or Modifying Frontend Components
-* Frontend logic resides in `src/frontend/` and root:
-  - `src/frontend/js/constants.js` / `js/constants.js`: Theme tokens, invariant constants, tab definitions.
-  - `src/frontend/js/utils.js` / `js/utils.js`: XSS sanitizer (`escapeHtml`), debouncers, number/byte formatters.
-  - `src/frontend/js/services.js` / `js/services.js`: Telemetry loaders and CSV export engine.
-  - `src/frontend/ops_analytics.js` / `ops_analytics.js`: Dashboard chart controllers, tables, and tab routing.
-* **Important**: Because the portal supports both modular directory structures and zero-build static serving, keep `src/frontend/` and root mirror files synchronized.
+* Frontend logic resides at the repository root (single canonical source, zero-build):
+  - `js/constants.js`: Theme tokens, invariant constants, tab definitions.
+  - `js/utils.js`: XSS sanitizer (`escapeHtml`), debouncers, number/byte formatters.
+  - `js/services.js`: Telemetry loaders and CSV export engine.
+  - `ops_analytics.js`: Dashboard chart controllers, tables, and tab routing.
 * Test your frontend changes with the Zero-Build Compliance suite:
   ```bash
   python -m unittest tests.test_zero_build_compliance -v

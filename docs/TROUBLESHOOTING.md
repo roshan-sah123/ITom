@@ -161,7 +161,7 @@ PORT=8090 python scripts/start_server.py
 ### Symptom: Excel Displays Characters with Broken Accents or Misaligned Columns
 * **Root Cause**: CSV lacking UTF-8 Byte Order Mark (BOM) or unescaped embedded commas.
 * **Remediation**:
-  - The CSV engine in `src/frontend/js/services.js` prepends `\uFEFF` (UTF-8 BOM) and encloses all fields containing commas, quotes, or newlines in double quotes per RFC 4180.
+  - The CSV engine in `js/services.js` prepends `\uFEFF` (UTF-8 BOM) and encloses all fields containing commas, quotes, or newlines in double quotes per RFC 4180.
 
 ---
 

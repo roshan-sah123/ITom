@@ -144,3 +144,47 @@ Integrity mode: development
 - [ ] `tests/verify_solarwinds_data.py` contains descriptive failure messages directing to sync scripts.
 - [ ] Root-level and `src/frontend/` assets are verified byte-identical.
 - [ ] `python tests/run_e2e_tests.py` reports **214/214 (100%) tests passing** with exit code 0.
+
+## Follow-up — 2026-09-05T20:08:26+05:30
+
+Upgrade and polish the ITOM Portal frontend UI/UX across index.html, infrastructure_analytics.html, ops_analytics.html, ops_analytics.js, and style.css.
+
+Working directory: c:\Users\Roshan.Sah\Documents\antigravity\optimistic-pasteur
+Integrity mode: development
+
+## Requirements
+
+### R1. Cohesive Visual Consistency & Number Invariants
+- Unify count labels and header stats so telemetry badge pills ('25,987 Endpoints', '1,548 Server Nodes', '1,543 CIs') match the top-right header stat and KPI totals exactly without visual dissonance.
+- Ensure the right navigation controls ('Export CSV', 'Refresh', 'Auto-Sync: 10:00') have dedicated breathing room on all desktop viewports (1280px to 1920px).
+
+### R2. Frictionless Navigation & UX Streamlining
+- Resolve any conceptual overlap between clicking 'Infrastructure Analytics' and 'Launch Full Dashboard' vs 'CMDB Explorer'.
+- Ensure that clicking 'CMDB Explorer' on the homepage opens the dashboard directly at the 'Enterprise CMDB & Topology' tab, while clicking 'Infrastructure Analytics' opens the full unified dashboard.
+- Streamline redundant modal triggers so users never experience repetitive popups or confusing double-clicks.
+
+### R3. Chart Canvas Layering & Container Sizing
+- Harmonize card heights, border radiuses, and padding across all 3 domain views (Digital Workplace, Hybrid Cloud, CMDB Topology).
+- Eliminate any chart canvas layout shift during tab switching with explicit aspect ratio preservation and immediate responsive resize triggers.
+- Polish the Top 10 Saturated Server Triage card and table controller controls (debounced search, page size dropdowns, pagination buttons) with high-contrast Obsidian tokens ('#0B0B0B', '#141414', '#222222', '#F97316').
+
+### R4. Zero Backend Impact & 100% Test Invariant Compliance
+- Do not alter existing FastAPI backend endpoints, schemas, database models, or telemetry ingestion scripts ('src/sync/', 'app/').
+- Preserve all DOM IDs ('tab-intune', 'tab-solarwinds', 'tab-cmdb', 'card-ops-analytics', 'card-cmdb'), 'data-tab' attributes, and URL hash routing so all 216 test assertions in 'tests/' pass with 100% green.
+
+## Acceptance Criteria
+
+### Visual Polish & Layout Integrity
+- [ ] No horizontal scrollbars or clipped badges on 1280px, 1440px, or 1920px viewports.
+- [ ] Coforge logo renders crisp and prominent (58px height) with balanced optical alignment next to the navigation links.
+- [ ] Tab buttons display consistent typography, padding, and active amber accent highlights.
+- [ ] All 9 Chart.js canvases render immediately with zero visual pop-in or canvas clipping.
+
+### User Flow & Navigation
+- [ ] Clicking 'Infrastructure Analytics' loads the full dashboard in < 50ms.
+- [ ] Clicking 'CMDB Explorer' opens directly to the Enterprise CMDB & Topology tab.
+- [ ] Returning via the back button ('‹') returns seamlessly to the home launcher without state corruption.
+
+### Quality & Regression Prevention
+- [ ] 0 console errors or JavaScript exceptions across all tabs.
+- [ ] 216 / 216 pytest tests pass with 100% green.

@@ -1,4 +1,24 @@
-"""Business logic service for Configuration Items, CMDB analytics, and domain telemetry."""
+"""Business logic service for Configuration Items, CMDB analytics, and domain telemetry.
+
+STEP 1 CHANGE
+-------------
+``get_intune_summary()`` and ``get_solarwinds_summary()`` previously returned
+hardcoded dictionaries. They now delegate to :class:`SummaryRepository`, which
+computes every figure with a SQL aggregate against ``configuration_items``.
+
+STEP 2 CHANGE
+-------------
+Every endpoint that returns Configuration Items, status history, or
+relationships now converts SQLAlchemy ORM rows into plain JSON-safe dicts
+before handing them to FastAPI. Without this, ``GET /api/v1/cmdb/cis``,
+``/intune/devices`` and ``/solarwinds/nodes`` all fail with:
+
+    PydanticSerializationError: Unable to serialize unknown type:
+    <class 'app.models.ci.ConfigurationItem'>
+
+These are the three list endpoints the frontend relies on for tables and
+pagination, so they must return valid JSON.
+"""
 
 import os
 import uuid
@@ -7,22 +27,12 @@ from typing import Any, Dict, List, Optional
 from app.models.ci import CIRelationship, ConfigurationItem
 from app.models.history import CIStatusHistory
 from app.repositories.ci_repository import CIRepository
+from app.repositories.summary_repository import EmptyDatasetError, SummaryRepository
+from app.schemas.serializers import orm_list_to_dicts, orm_to_dict
 
-from app.schemas.ci import (
-    CIRelationshipRead,
-    CIStatusHistoryRead,
-    ConfigurationItemRead,
-)
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-def _find_project_root() -> str:
-    cur = os.path.abspath(__file__)
-    while cur and os.path.dirname(cur) != cur:
-        cur = os.path.dirname(cur)
-        if os.path.exists(os.path.join(cur, "data")):
-            return cur
-    return os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-
-PROJECT_ROOT = _find_project_root()
+__all__ = ["CIService", "EmptyDatasetError"]
 
 
 class CIService:
@@ -30,6 +40,9 @@ class CIService:
 
     def __init__(self, ci_repo: CIRepository) -> None:
         self.ci_repo = ci_repo
+        # The summary repository shares the request-scoped session already bound
+        # to the CI repository, so no additional dependency wiring is required.
+        self.summary_repo = SummaryRepository(getattr(ci_repo, "session", None))
 
     async def get_cis_paginated(
         self,
@@ -44,7 +57,10 @@ class CIService:
         sort_by: Optional[str] = "name",
         sort_order: Optional[str] = "asc",
     ) -> Dict[str, Any]:
-        """Fetch paginated CIs wrapped in the standard response envelope."""
+        """Fetch paginated CIs wrapped in the standard response envelope.
+
+        Items are serialised to plain dicts so the response is valid JSON.
+        """
         items, total = await self.ci_repo.get_cis_paginated(
             page=page,
             page_size=page_size,
@@ -60,15 +76,8 @@ class CIService:
 
         total_pages = max(1, (total + page_size - 1) // page_size)
 
-        serialized_items = []
-        for it in items:
-            if hasattr(it, "__table__"):
-                serialized_items.append(ConfigurationItemRead.model_validate(it).model_dump(mode="json"))
-            else:
-                serialized_items.append(it)
-
         return {
-            "items": serialized_items,
+            "items": orm_list_to_dicts(items),
             "total": total,
             "page": page,
             "page_size": page_size,
@@ -78,56 +87,39 @@ class CIService:
         }
 
     async def get_ci_by_id(self, ci_id: str | uuid.UUID) -> Optional[Any]:
-        """Fetch a specific CI record by UUID."""
-        ci = await self.ci_repo.get_by_id(ci_id)
-        if ci is not None and hasattr(ci, "__table__"):
-            return ConfigurationItemRead.model_validate(ci).model_dump(mode="json")
-        return ci
+        """Fetch a specific CI record by UUID, serialised to a plain dict."""
+        record = await self.ci_repo.get_by_id(ci_id)
+        return orm_to_dict(record) if record is not None else None
 
     async def get_cmdb_summary(self) -> Dict[str, Any]:
         """Retrieve aggregated CMDB health and inventory metrics."""
         return await self.ci_repo.get_cmdb_summary()
 
     async def get_intune_summary(self) -> Dict[str, Any]:
-        """Retrieve live Microsoft Intune telemetry and compliance metrics aggregated from persisted CIs."""
-        return await self.ci_repo.get_intune_summary()
+        """Microsoft Intune telemetry and compliance metrics, computed from the database.
+
+        Raises:
+            EmptyDatasetError: If no Intune CIs have been ingested. The API layer
+                translates this into HTTP 503 rather than serving placeholder data.
+        """
+        return await self.summary_repo.get_intune_summary()
 
     async def get_solarwinds_summary(self) -> Dict[str, Any]:
-        """Retrieve live SolarWinds Orion server node telemetry and health metrics aggregated from persisted CIs."""
-        return await self.ci_repo.get_solarwinds_summary()
+        """SolarWinds Orion node telemetry and health metrics, computed from the database.
 
-    async def get_ci_history(self, ci_id: str | uuid.UUID, limit: int = 50) -> List[Dict[str, Any]]:
-        """Retrieve time-series state history for a specific CI."""
+        Raises:
+            EmptyDatasetError: If no SolarWinds CIs have been ingested.
+        """
+        return await self.summary_repo.get_solarwinds_summary()
+
+    async def get_ci_history(
+        self, ci_id: str | uuid.UUID, limit: int = 50
+    ) -> List[Dict[str, Any]]:
+        """Retrieve time-series state history for a specific CI, as plain dicts."""
         records = await self.ci_repo.get_history_by_ci_id(ci_id, limit=limit)
-        serialized = []
-        for r in records:
-            if hasattr(r, "__table__"):
-                serialized.append(CIStatusHistoryRead.model_validate(r).model_dump(mode="json"))
-            elif hasattr(r, "to_dict"):
-                serialized.append(r.to_dict())
-            else:
-                serialized.append(r)
-        return serialized
+        return orm_list_to_dicts(records)
 
     async def get_ci_relationships(self, ci_id: str | uuid.UUID) -> List[Dict[str, Any]]:
-        """Retrieve graph relationships for a specific CI."""
+        """Retrieve graph relationships for a specific CI, as plain dicts."""
         records = await self.ci_repo.get_relationships_by_ci_id(ci_id)
-        serialized = []
-        for r in records:
-            if hasattr(r, "__table__"):
-                serialized.append(CIRelationshipRead.model_validate(r).model_dump(mode="json"))
-            elif hasattr(r, "to_dict"):
-                serialized.append(r.to_dict())
-            else:
-                serialized.append(r)
-        return serialized
-
-    async def get_solarwinds_sites(self) -> List[Dict[str, Any]]:
-        """Retrieve 60-campus location breakdown with health status and sparkline trends."""
-        return await self.ci_repo.get_solarwinds_sites()
-
-    async def get_solarwinds_site_trend(self, site_id: str, hours: int = 24) -> Dict[str, Any]:
-        """Retrieve 24h historical availability and performance trends for a specific campus facility."""
-        return await self.ci_repo.get_solarwinds_site_trend(site_id, hours=hours)
-
-
+        return orm_list_to_dicts(records)

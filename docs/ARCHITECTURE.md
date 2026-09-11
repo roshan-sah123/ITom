@@ -1,14 +1,19 @@
 # ITOM Operations Analytics & Telemetry Platform — System Architecture
 
+> **Canonical system-of-record**: FastAPI + PostgreSQL 16 (`app/`). The legacy Python
+> `http.server` + flat-JSON stack described in earlier revisions of this document has
+> been superseded and is documented in §6 (Legacy/Alternate Path) for operational
+> awareness only — it is not the architecture new features should be built against.
+
 ## 1. Executive Summary & Architecture Overview
 
 The IT Operations Management (ITOM) Operations Analytics platform provides centralized, real-time observability across enterprise endpoints, server infrastructure, network devices, and Configuration Management Database (CMDB) Configuration Items (CIs).
 
-The platform adheres to **Clean Architecture** and **Zero-Build** principles:
-- **Presentation Layer**: Pure vanilla HTML5/CSS3/ES6+ and Universal Module Definition (UMD) helpers that run directly in any standard browser without Node.js transpilation or bundling.
-- **Service & Ingestion Layer**: Resilient Python connectors for Microsoft Graph Intune API and SolarWinds Orion SWIS API v3, mathematical normalization engines, and a multi-threaded server supervisor (`scripts/start_server.py`) with integrated REST routing and background sync daemon.
-- **Persistence & Storage Layer**: Optimized JSON snapshots, RFC 4180 CSV exports, and optional Cloud Firestore integration.
-- **Mathematical Invariant Gates**: Hard validation enforcing strict reconciliation across all domains before any payload is rendered or published.
+The platform adheres to **Clean Layered Architecture**, **Industry-Standard Monorepo Structure**, and **Zero-Build Frontend** principles:
+- **Presentation Layer (`frontend/`)**: Pure vanilla HTML5/CSS3/ES6+ served directly from `frontend/` — no bundlers, no Node.js, no transpilation. Domain logic is split into modular scripts (`frontend/js/shared.js`, `frontend/js/intune.js`, `frontend/js/solarwinds.js`, `frontend/js/cmdb.js`) consuming the live REST API.
+- **API & Persistence Layer (`backend/`)**: Asynchronous FastAPI application (`backend/app/api/v1`) exposing paginated, filterable REST endpoints backed by SQLAlchemy 2.0 async repositories, with authoritative freshness headers on every response.
+- **Persistence Tier**: PostgreSQL 16 relational storage — current CI state (`configuration_items`), topology (`ci_relationships`), append-only time-series history (`ci_status_history`), and sync execution audit trail (`sync_runs`, `sync_error_logs`). Schema evolution is tracked exclusively via Alembic migrations (`backend/alembic`).
+- **Ingestion Layer**: A resilient APScheduler background worker (`backend/app/workers/scheduler.py`) executes a 10-minute delta-sync cycle guarded by a PostgreSQL advisory lock, ensuring multi-worker safety across ASGI workers.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -16,65 +21,50 @@ The platform adheres to **Clean Architecture** and **Zero-Build** principles:
 │                                                                             │
 │   ┌───────────────────────────────┐     ┌───────────────────────────────┐   │
 │   │     ITOM Portal Launcher      │     │    OPS Analytics Dashboard    │   │
-│   │    (index.html / app.js)      │────▶│ (ops_analytics.html / .js)   │   │
-│   │  • System-Wide Search (/)     │     │  • 5 Interactive Tab Views    │   │
-│   │  • Domain Drilldown Modal     │     │  • Responsive Chart.js Canvas │   │
-│   │  • Deep Link Tab Routing      │     │  • Debounced Table Search     │   │
-│   │  • Notification System        │     │  • RFC 4180 CSV Data Export   │   │
+│   │    (index.html / app.js)      │────▶│ (ops_analytics.html + js/*)  │   │
+│   │  • System-Wide Search (/)     │     │  • Tab Router (js/shared.js)  │   │
+│   │  • Domain Drilldown Modal     │     │  • Domain Modules (intune.js, │   │
+│   │  • Deep Link Tab Routing      │     │    solarwinds.js, cmdb.js)    │   │
 │   └──────────────┬────────────────┘     └──────────────┬────────────────┘   │
-│                  │                                     │                    │
 │                  └──────────────────┬──────────────────┘                    │
 │                                     ▼                                       │
-│          ┌──────────────────────────────────────────────────────┐           │
-│          │ UMD Modular Helpers (constants.js, utils.js, services)│          │
-│          │ • Theme tokens & Invariants  • escapeHtml() XSS Guard│           │
-│          │ • Resilient HTTP Fetchers    • CSV Generation Engine │           │
-│          └──────────────────────────────────────────────────────┘           │
+│          Fetch /api/v1/* (paginated JSON, static-file fallback only)        │
 └──────────────────────────────────────┬──────────────────────────────────────┘
-                                       │ HTTP GET / REST Routes
+                                       │ HTTP GET (proxied by NGINX /api/ ⇒ :8000/api/)
                                        ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                       2. SERVICE & INGESTION TIER                           │
+│                   2. FASTAPI ASYNC REST API TIER (app/)                     │
 │                                                                             │
-│   ┌─────────────────────────────────────────────────────────────────────┐   │
-│   │        Multi-Threaded Server Supervisor (scripts/start_server.py)    │   │
-│   │  • Static File Server (Port 8080)   • REST Router (/api/cmdb/*)     │   │
-│   │  • 10-Minute Auto-Sync Daemon       • Read-Only Mutation Block (405)│   │
-│   └──────────────────────────────────┬──────────────────────────────────┘   │
-│                                      │                                      │
-│                ┌─────────────────────┴─────────────────────┐                │
-│                ▼                                           ▼                │
-│   ┌─────────────────────────┐                 ┌─────────────────────────┐   │
-│   │  Graph API Client       │                 │  SolarWinds SWIS Client │   │
-│   │(src/sync/graph_client)  │                 │(src/sync/solarwinds_cli)│   │
-│   │• Azure AD OAuth 2.0     │                 │• SWIS v3 REST & SWQL    │   │
-│   │• Paginated Device Stream│                 │• Health Tier Classifier │   │
-│   └────────────┬────────────┘                 └────────────┬────────────┘   │
-│                │                                           │                │
-│                ▼                                           ▼                │
-│   ┌─────────────────────────┐                 ┌─────────────────────────┐   │
-│   │  Payload Generator      │                 │  CMDB & Digest Engine   │   │
-│   │(src/sync/payload_gen)   │                 │(cmdb_generator, digest) │   │
-│   │• Case-Insensitive OEM   │                 │• CI Type Categorization │   │
-│   │• Invariant Math Gate    │                 │• Fleet Digest Consol.   │   │
-│   └────────────┬────────────┘                 └────────────┬────────────┘   │
-└────────────────┼───────────────────────────────────────────┼────────────────┘
-                 │                                           │
-                 ▼                                           ▼
+│   /api/v1/cmdb/{summary,cis,cis/{id},cis/{id}/history,relationships}        │
+│   /api/v1/intune/{summary,devices}     /api/v1/solarwinds/{summary,nodes}   │
+│   /api/v1/sync/{runs,runs/latest,runs/{id}}          /healthz  /ready       │
+│                                                                             │
+│   Middleware: FreshnessHeadersMiddleware (X-Last-Synchronized-At,          │
+│   X-Data-Age-Seconds, X-Sync-Status) + strict-405 read-only guard.          │
+└──────────────────────────────────────┬──────────────────────────────────────┘
+                                       │ SQLAlchemy 2.0 async (asyncpg)
+                                       ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                       3. PERSISTENCE & EXPORT TIER                          │
-│                                                                             │
-│   ┌─────────────────────────┐  ┌───────────────────────┐  ┌─────────────┐   │
-│   │    Raw JSON Datasets    │  │  Summary Fast Payloads │  │  CSV Exports│   │
-│   │ • intune_ops_analytics  │  │ • intune_summary.json │  │ • intune    │   │
-│   │ • solarwinds_nodes      │  │ • solarwinds_summary  │  │ • solarwinds│   │
-│   │                         │  │ • cmdb_summary.json   │  │ • cmdb      │   │
-│   │                         │  │ • executive_digest    │  │             │   │
-│   └─────────────────────────┘  └───────────────────────┘  └─────────────┘   │
+│                    3. POSTGRESQL 16 PERSISTENCE TIER                        │
+│  configuration_items │ ci_relationships │ ci_status_history │ sync_runs      │
+└──────────────────────────────────────▲──────────────────────────────────────┘
+                                       │ upsert + SHA-256 delta detection
+                                       │ (app/services/sync_service.py)
+┌──────────────────────────────────────┴──────────────────────────────────────┐
+│              4. BACKGROUND INGESTION (app/workers/scheduler.py)             │
+│   APScheduler, 10-min interval, pg_try_advisory_lock(1048576) multi-worker   │
+│   guard. Reads staged JSON written by the live extraction clients below.    │
+└──────────────────────────────────────▲──────────────────────────────────────┘
+                                       │ data/intune_ops_analytics.json
+                                       │ data/solarwinds_nodes.json
+┌──────────────────────────────────────┴──────────────────────────────────────┐
+│         5. LIVE EXTRACTION (GitHub Actions cron → scripts/run_sync.py)      │
+│   src/sync/graph_client.py (MS Graph OAuth2)  │ src/sync/solarwinds_client   │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
----
+**Data flow in one sentence**: live telemetry is pulled from Microsoft Graph / SolarWinds SWIS by scheduled GitHub Actions into staged JSON files, which the in-process APScheduler worker deltas into PostgreSQL every 10 minutes; the FastAPI REST API reads exclusively from PostgreSQL; the frontend reads exclusively from the FastAPI REST API (static JSON is a fallback-only safety net if the API is unreachable).
+
 
 ## 2. Multi-Domain Telemetry Scope & Metrics
 
@@ -139,60 +129,38 @@ The platform reconciles metrics across four authoritative operational domains:
 
 ## 3. Tier Breakdown & Detailed Components
 
-### 3.1 Presentation Tier (`src/frontend/` & Served Root)
-1. **Zero-Build Architecture**: The presentation tier requires no bundlers, compilation, or npm install commands. Assets are pure HTML5, CSS3, and modern ES6+ JavaScript.
-2. **Modular Helper Architecture**:
-   - `constants.js`: Holds immutable design tokens (`THEME`), chart color palettes (`CHART_PALETTES`), invariant numbers (`INVARIANTS`), tab definitions (`VALID_TABS`), and storage keys (`STORAGE`).
-   - `utils.js`: Core utility functions including DOM XSS sanitizer (`escapeHtml()`), input debouncer (`debounce()`), and localized formatters (`formatNumber()`, `formatBytes()`, `bytesToGB()`, `formatDate()`).
-   - `services.js`: Resilient HTTP client (`fetchJson()`), data loaders (`loadIntuneTelemetry()`, `loadSolarWindsTelemetry()`, `loadCmdbTelemetry()`, `loadExecutiveDigest()`), and RFC 4180 compliant CSV export engine (`exportToCsv()`).
-3. **Enterprise Launcher (`index.html` & `app.js`)**:
-   - Universal search indexing with keyboard shortcut (`/` to search, `Esc` to clear).
-   - Domain drilldown modal for VP-level executive inspection.
-   - Deep-linking bridge to dashboard tabs (`#overview`, `#intune`, `#solarwinds`, `#cmdb`, `#dex`).
-4. **Operations Analytics Dashboard (`ops_analytics.html` & `ops_analytics.js`)**:
-   - Dynamic tab switching with tab-aware header telemetry badges.
-   - Chart.js visualizers with automatic memory destruction guards (`destroyChartSafe()`) preventing canvas memory leaks.
-   - Debounced multi-field searching, column sorting, pagination controls (`[10, 25, 50, 100]`), and instant CSV dataset download.
+### 3.1 Presentation Tier (repository root — single canonical source, zero-build)
+1. **Zero-Build Architecture**: No bundlers, compilation, or npm install commands. Pure HTML5, CSS3, and modern ES6+ JavaScript, served as-is by NGINX/any static file server.
+2. **Shared Modular Helpers (`js/`)**:
+   - `constants.js`: Design tokens (`THEME`), chart palettes (`CHART_PALETTES`), invariant numbers (`INVARIANTS`), tab definitions, and REST `ENDPOINTS` (including the live `/api/v1/*` routes).
+   - `utils.js`: DOM XSS sanitizer (`escapeHtml()`), input debouncer (`debounce()`), and localized formatters.
+   - `services.js`: Generic `fetchJson()` HTTP wrapper and the RFC 4180 CSV export engine (`exportToCsv()`).
+   - `shared.js`: Domain-agnostic tab router (`switchTab`, `initTabRouter`, `updateHeaderStat`), a `registerDomain()` registry so new domains never require editing the router, the unified pagination controller, Chart.js lifecycle guard (`destroyChartSafe()`), the bounded-concurrency `fetchAllPages()` REST paginator, and the 10-minute auto-refresh engine.
+3. **Domain Modules** (`js/intune.js`, `js/solarwinds.js`, `js/cmdb.js`): each owns its own state, KPI/Chart.js rendering, search/pagination, and CSV export, and registers itself with `shared.js` on load. Every module's primary data source is the live FastAPI REST API; a static JSON snapshot fetch is attempted only if the API call fails, purely as an availability fallback.
+4. **Enterprise Launcher (`index.html` & `app.js`)**: universal search (`/` to focus, `Esc` to clear), domain drilldown modal, and deep-linking bridge to dashboard tabs.
+5. **Operations Analytics Dashboard (`ops_analytics.html` + `js/ops_analytics.js` bootstrap)**: loads `constants.js` → `utils.js` → `services.js` → `shared.js` → the three domain modules → the bootstrap, which wires the router, search inputs, CSV export buttons, and the initial `loadAllTelemetry()` call.
 
-### 3.2 Service & Ingestion Tier (`src/sync/`, `src/automation/`, `scripts/`)
-1. **`scripts/start_server.py`**:
-   - Multi-threaded HTTP server based on `socketserver.ThreadingMixIn` and `HTTPServer`.
-   - Socket reuse configuration (`SO_REUSEADDR` / `SO_REUSEPORT`) for rapid restarts.
-   - Built-in background daemon thread (`run_sync_daemon()`) executing `scripts/run_sync.py` every 10 minutes.
-   - Read-only REST API endpoints:
-     - `GET /api/cmdb/summary` -> Returns full CMDB summary.
-     - `GET /api/cmdb/items?type=&status=&vendor=` -> Returns filtered CI items.
-     - `GET /api/cmdb/servers` -> Returns server CI subset.
-     - `GET /api/cmdb/network-devices` -> Returns network hardware CI subset.
-     - `GET /api/cmdb/health` -> Returns system health and connectivity status.
-   - Rejects mutating requests (`POST`, `PUT`, `DELETE`, `PATCH`) with HTTP 405 Method Not Allowed.
-2. **`src/sync/graph_client.py`**:
-   - Azure AD / Entra ID OAuth 2.0 Client Credentials Grant.
-   - Automatic bearer token caching and proactive renewal (60s buffer).
-   - Jittered exponential backoff for HTTP 429 and 5xx responses.
-   - Paginated OData streaming for 25,987+ devices.
-3. **`src/sync/solarwinds_client.py`**:
-   - SolarWinds Information Service (SWIS) v3 REST client.
-   - Executes SWQL queries against `Orion.Nodes` and calculates health tiers based on Status, CPU, and RAM thresholds.
-4. **`src/sync/payload_generator.py` & `src/sync/cmdb_generator.py`**:
-   - Case-insensitive vendor normalization.
-   - Enforces mathematical invariant equations before writing output payloads.
-5. **`src/automation/executive_digest.py`**:
-   - Aggregates multi-domain metrics into a single consolidated executive digest payload (`data/executive_digest.json`).
+### 3.2 API Tier (`app/api/v1`, `app/services`, `app/repositories`)
+1. **Clean layering**: `api/v1/endpoints` (routing/validation) → `services` (business logic, e.g. `CIService`) → `repositories` (`CIRepository`, `SyncRepository` — SQL query construction) → `models` (SQLAlchemy 2.0 declarative tables).
+2. **Endpoints**: paginated `cmdb/cis`, `intune/devices`, `solarwinds/nodes` (search, filter, sort, `page`/`page_size` in `{10,25,50,100}`); DB-aggregated `cmdb/summary`, `intune/summary`, `solarwinds/summary` (chart-ready breakdowns, computed live from `configuration_items`/`ci_status_history` with a hardcoded-baseline fallback only when the table is empty); `sync/runs*` execution audit trail; `/healthz`, `/ready`.
+3. **Freshness contract**: `FreshnessHeadersMiddleware` stamps every response with `X-Last-Synchronized-At`, `X-Data-Age-Seconds`, `X-Sync-Status` and rejects `POST`/`PUT`/`DELETE`/`PATCH` on telemetry routes with `405`.
 
-### 3.3 Storage & Persistence Tier (`data/` & `exports/`)
-1. **Raw Telemetry Store**:
-   - `data/intune_ops_analytics.json` (25,987 raw records).
-   - `data/solarwinds_nodes.json` (1,548 raw nodes).
-2. **Precomputed Fast Summary Payloads**:
-   - `data/intune_summary.json` (Intune metrics & sample table rows).
-   - `data/solarwinds_summary.json` (SolarWinds metrics & sample node rows).
-   - `data/cmdb_summary.json` (CMDB summary & CI rows).
-   - `data/executive_digest.json` (Fleetwide summary).
-3. **RFC 4180 CSV Export Files**:
-   - `exports/intune_devices_complete.csv`
-   - `exports/solarwinds_nodes_complete.csv`
-   - `exports/cmdb_network_cis_complete.csv`
+### 3.3 Ingestion Tier (`app/workers/scheduler.py`, `app/services/sync_service.py`)
+1. **APScheduler** runs `run_periodic_telemetry_sync()` every `SYNC_INTERVAL_SECONDS` (600s), guarded by `pg_try_advisory_lock(1048576)` so multiple ASGI workers never double-sync.
+2. **`SyncService.execute_sync_with_lock()`** reads the staged JSON files below, computes a SHA-256 state fingerprint per record, and only writes to `ci_status_history` when the fingerprint changes (delta detection).
+3. **Staged JSON inputs** (`data/intune_ops_analytics.json`, `data/solarwinds_nodes.json`) are produced by the live extraction clients in §3.4 — they are an ETL staging format, not a serving format; nothing downstream of PostgreSQL reads them directly except the frontend's fallback path.
+
+### 3.4 Live Extraction Tier (`src/sync/`, `scripts/`, `.github/workflows/`)
+1. **`src/sync/graph_client.py`**: Azure AD / Entra ID OAuth 2.0 Client Credentials Grant, bearer token caching, jittered exponential backoff, paginated OData streaming for 25,987+ devices.
+2. **`src/sync/solarwinds_client.py`**: SolarWinds Information Service (SWIS) v3 REST client executing SWQL against `Orion.Nodes`.
+3. **`scripts/run_sync.py`**: CLI orchestrator invoked by `.github/workflows/telemetry-sync-cron.yml` (every 30 min) and `intune_telemetry_sync.yml` (weekly), writing the staged JSON files consumed by §3.3.
+
+### 3.5 Persistence Tier (PostgreSQL 16)
+- `configuration_items` — authoritative current state (indexed on `source_system`, `ci_type`, `vendor`, `health_tier`, `status`, with GIN trigram indexes for free-text search).
+- `ci_relationships` — topology graph edges.
+- `ci_status_history` — append-only time-series (status/health/CPU/RAM/storage/latency transitions).
+- `sync_runs` / `sync_error_logs` — execution telemetry and diagnostic audit trail.
+- Schema changes are tracked exclusively via **Alembic** migrations (`alembic upgrade head`); manual DDL is prohibited.
 
 ---
 
@@ -221,6 +189,14 @@ The pipeline enforces hard mathematical invariant checks. Any discrepancy raises
 2. **DOM XSS Sanitization**:
    - All dynamic text interpolated into DOM innerHTML passes through `escapeHtml()`, neutralizing standard tags, event handlers, attribute breakouts, and javascript URI schemes.
 3. **Strict Read-Only REST API**:
-   - The embedded web server permits only HTTP `GET` requests for `/api/cmdb/*`. All mutating verbs (`POST`, `PUT`, `DELETE`, `PATCH`) return `405 Method Not Allowed`.
+   - The FastAPI backend permits only HTTP `GET` requests for `/api/v1/cmdb/*`, `/api/v1/intune/*`, and `/api/v1/solarwinds/*`. All mutating verbs (`POST`, `PUT`, `DELETE`, `PATCH`) return `405 Method Not Allowed` with a JSON error envelope.
 4. **Air-Gapped On-Premise Execution**:
    - Operates completely within the local network or internal VPN without transmitting corporate telemetry to external cloud endpoints.
+
+---
+
+## 6. Legacy / Alternate Deployment Path & Known Gaps
+
+1. **Legacy Python `http.server` mode still exists**: `scripts/start_server.py` (a `ThreadingHTTPServer` supervisor with its own `/api/cmdb/*` routes and background sync daemon) predates the FastAPI/PostgreSQL stack. It is still what `start_itom_service.bat`, `register_startup_service.ps1`, and `systemd/itom.service` launch today. **Known gap**: production process-management scripts have not yet been migrated to launch `uvicorn app.main:app`; this is a recommended follow-up, not yet implemented.
+2. **Static JSON snapshots (`data/*.json`)** are retained as (a) the ETL staging format consumed by the background ingestion worker (§3.3) and (b) a frontend fallback-only data source if `/api/v1/*` is unreachable. They are never the primary read path for the frontend.
+3. **Docker Compose (`docker-compose.yml`)** runs the canonical stack (`nginx` + `api` (uvicorn) + `postgres`) and is the recommended way to run this platform end-to-end.

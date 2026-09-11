@@ -63,12 +63,33 @@
     }
   });
 
-  // Telemetry Invariant Target Figures
+  // Dynamic API Base URL resolution supporting direct FastAPI, proxy, and dev ports
+  const resolveApiBase = () => {
+    if (typeof window !== 'undefined' && window.ITOM_API_BASE) {
+      return window.ITOM_API_BASE;
+    }
+    if (typeof window !== 'undefined' && window.location) {
+      if (window.location.port === '8000' || window.location.port === '8080') {
+        return '/api/v1';
+      }
+      if (window.location.protocol === 'file:') {
+        return 'http://localhost:8000/api/v1';
+      }
+    }
+    return '/api/v1';
+  };
+
+  const API_BASE = resolveApiBase();
+
+  // Telemetry Invariant Target Figures (Verified PostgreSQL Database State & Baseline)
   const INVARIANTS = Object.freeze({
-    INTUNE_TOTAL_DEVICES: 25987,
-    SOLARWINDS_TOTAL_NODES: 1548,
-    CMDB_TOTAL_CIS: 1548,
-    CMDB_NETWORK_CIS: 364,
+    INTUNE_TOTAL_DEVICES: 27412,
+    INTUNE_BASELINE_DEVICES: 25987,
+    SOLARWINDS_TOTAL_NODES: 1572,
+    SOLARWINDS_BASELINE_NODES: 1548,
+    CMDB_TOTAL_CIS: 28984,
+    CMDB_BASELINE_CIS: 1548,
+    CMDB_NETWORK_CIS: 1312,
   });
 
   // Tab & Router Definitions
@@ -77,12 +98,20 @@
 
   // API Endpoints and Static Fallbacks
   const ENDPOINTS = Object.freeze({
+    // Legacy static snapshot fallbacks (used only if the live API is unreachable)
     INTUNE_SUMMARY: 'data/intune_summary.json',
     SOLARWINDS_SUMMARY: 'data/solarwinds_summary.json',
     CMDB_SUMMARY: 'data/cmdb_summary.json',
     EXECUTIVE_DIGEST: 'data/executive_digest.json',
-    API_CMDB_SUMMARY: '/api/cmdb/summary',
-    API_CMDB_CIS: '/api/cmdb/cis',
+    // Live FastAPI + PostgreSQL REST API (authoritative source of truth)
+    API_BASE: API_BASE,
+    API_INTUNE_SUMMARY: `${API_BASE}/intune/summary`,
+    API_INTUNE_DEVICES: `${API_BASE}/intune/devices`,
+    API_SOLARWINDS_SUMMARY: `${API_BASE}/solarwinds/summary`,
+    API_SOLARWINDS_NODES: `${API_BASE}/solarwinds/nodes`,
+    API_CMDB_SUMMARY: `${API_BASE}/cmdb/summary`,
+    API_CMDB_CIS: `${API_BASE}/cmdb/cis`,
+    API_SYNC_LATEST: `${API_BASE}/sync/runs/latest`,
   });
 
   // Pagination Configuration

@@ -32,3 +32,17 @@ build/
 data/*.json
 !data/.gitkeep
 exports/*.csv
+frontend/exports/*.csv
+frontend/exports/
+
+
+# Build artefacts
+__pycache__/
+*.pyc
+.pytest_cache/
+*.bak
+*.log
+
+# Local database - never commit
+data/*.db
+data/*.sqlite

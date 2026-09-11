@@ -31,7 +31,7 @@ The ITOM Portal is an enterprise-grade IT Operations Management platform featuri
 | 4 | Strict XSS Sanitization & DOM Safety | 100% cell escaping via `escapeHtml()`, zero dynamic evaluation sinks | M1 | ORIGINAL_REQUEST §R1 |
 | 5 | Accessibility & Screen Reader A11y | `role="tablist"`, `role="region"`, `aria-label`, `aria-current="page"`, keyboard hotkeys | M1 | ORIGINAL_REQUEST §R1 |
 | 6 | Sub-50ms Dashboard Initial Paint | Two-phase progressive summary loading and instant DOM render | M1 | Acceptance Criteria |
-| 7 | Dual-Asset Synchronicity | Synchronize `./` and `src/frontend/` assets to comply with zero-build invariants | M1 | Codebase Survey |
+| 7 | Single-Source Frontend Root | Removed the duplicated `src/frontend/` mirror; root (`./`) is now the sole canonical zero-build frontend source | M1 | Codebase Survey |
 | 8 | PostgreSQL 16 Relational Models | SQLAlchemy 2.0 async models for CIs, relationships, history, sync runs, and error logs | M2 | ORIGINAL_REQUEST §R2 |
 | 9 | Alembic Async Migration Pipeline | Async migration environment and initial schema migrations (`0001_initial_schema.py`) | M2 | ORIGINAL_REQUEST §R2 |
 | 10 | High-Performance Indexing & Trigrams | Composite B-trees, covering indexes, and GIN trigram indexes for sub-20ms queries | M2 | Backend Survey |
