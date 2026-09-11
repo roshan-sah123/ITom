@@ -16,6 +16,7 @@ from app.core.config import settings
 from app.core.database import create_db_and_tables, engine
 from app.core.middleware import FreshnessHeadersMiddleware, get_last_sync_timestamp
 from app.core.security import SolarWindsSecurityError
+from app.repositories.summary_repository import EmptyDatasetError
 from app.workers.scheduler import start_scheduler, stop_scheduler
 
 logging.basicConfig(
@@ -78,6 +79,21 @@ app.add_middleware(
 
 # Authoritative Freshness & Read-Only Guard Middleware
 app.add_middleware(FreshnessHeadersMiddleware)
+
+
+# Custom Exception Handlers
+@app.exception_handler(EmptyDatasetError)
+async def empty_dataset_exception_handler(request: Request, exc: EmptyDatasetError):
+    """Return HTTP 503 when a telemetry domain has no ingested data."""
+    return JSONResponse(
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        content={
+            "error": "Telemetry dataset unavailable",
+            "detail": str(exc),
+            "source_system": exc.source_system,
+            "data_source": "NONE",
+        },
+    )
 
 
 # Custom Exception Handlers
