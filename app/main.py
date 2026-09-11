@@ -1,3 +1,6 @@
+from dotenv import load_dotenv
+load_dotenv()
+
 """Main FastAPI Application initialization, lifespan events, middleware, and route mounting."""
 
 import logging
