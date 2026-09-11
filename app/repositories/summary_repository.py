@@ -37,14 +37,26 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timezone
-from typing import Any, Dict, Optional, Set
+from typing import Any, Dict, List, Optional, Set
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.ci import ConfigurationItem
+from app.models.sync import SyncRun
 
 logger = logging.getLogger("itom.summary")
+
+# Age buckets for stale-asset reporting, in days. An asset that stopped
+# reporting yesterday is an incident; one that stopped six months ago is a
+# records-cleanup task. The dashboard should be able to tell them apart.
+STALE_AGE_BUCKETS = [
+    ("0-1 days", 0, 1),
+    ("2-7 days", 1, 7),
+    ("8-30 days", 7, 30),
+    ("31-90 days", 30, 90),
+    ("90+ days", 90, None),
+]
 
 # Compliance state tokens, normalised to lowercase before comparison.
 COMPLIANT_STATES: Set[str] = {"compliant"}
@@ -71,6 +83,15 @@ class EmptyDatasetError(RuntimeError):
             f"No Configuration Items persisted for source system "
             f"'{source_system}'. Run a telemetry synchronization first."
         )
+
+
+def _as_utc(value: Optional[datetime]) -> Optional[datetime]:
+    """Return a timezone-aware UTC datetime, tolerating naive database values."""
+    if value is None:
+        return None
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
 
 
 def _pct(part: int, whole: int, digits: int = 2) -> float:
@@ -203,6 +224,163 @@ class SummaryRepository:
             "median_device_storage_used_pct": round(median_pct, 1),
             "storage_sample_size": sample,
             "storage_coverage_pct": _pct(sample, len(rows)),
+        }
+
+    async def _last_successful_sync_start(self, source_system: str) -> Optional[datetime]:
+        """When the most recent successful sync for a source BEGAN.
+
+        The start time is the correct reference, not the completion time. Every
+        CI the source returned had its ``last_sync_time`` stamped at some point
+        between start and completion, so a CI whose ``last_sync_time`` predates
+        the start was NOT in that extraction.
+        """
+        stmt = (
+            select(func.max(SyncRun.started_at))
+            .where(SyncRun.status == "SUCCESS")
+            .where(SyncRun.source_system.in_([source_system.upper(), "ALL"]))
+        )
+        result = await self.session.execute(stmt)
+        return _as_utc(result.scalar_one_or_none())
+
+    async def get_stale_assets(
+        self,
+        source_system: Optional[str] = None,
+        limit: int = 100,
+    ) -> Dict[str, Any]:
+        """Assets held in the CMDB that the source system no longer reports.
+
+        WHY THIS MATTERS
+        ----------------
+        These are not bad records to be purged. Each one is an asset the
+        organisation still has on its books but which has stopped appearing in
+        Intune or SolarWinds. That gap is the finding:
+
+            * a laptop that stopped checking in - lost, stolen, or failed
+            * a server decommissioned without a CMDB update
+            * a licence still being paid for on a machine nobody uses
+            * a node dropped from monitoring, so nobody is watching it
+
+        HOW STALENESS IS DETERMINED
+        ---------------------------
+        Every sync stamps ``last_sync_time`` on every CI the source returned -
+        including unchanged ones. So a CI whose ``last_sync_time`` predates the
+        start of the last successful sync was absent from that extraction.
+
+        No schema change and no extra bookkeeping: the evidence is already in
+        the data.
+
+        Args:
+            source_system: ``INTUNE``, ``SOLARWINDS``, or None for all sources.
+            limit: How many individual asset records to return (0 for none).
+
+        Returns:
+            Counts, breakdowns for charting, and a sample of the assets.
+        """
+        if self.session is None:
+            raise EmptyDatasetError(source_system or "ALL")
+
+        now = datetime.now(timezone.utc)
+        wanted = [source_system.upper()] if source_system else ["INTUNE", "SOLARWINDS"]
+
+        reference: Dict[str, Optional[str]] = {}
+        stale_rows: List[Any] = []
+        active_by_source: Dict[str, int] = {}
+        stale_by_source: Dict[str, int] = {}
+
+        for src in wanted:
+            cutoff = await self._last_successful_sync_start(src)
+            reference[src] = cutoff.isoformat() if cutoff else None
+
+            total = int((await self.session.execute(
+                select(func.count(ConfigurationItem.id))
+                .where(ConfigurationItem.source_system == src)
+            )).scalar_one())
+
+            if cutoff is None:
+                # Never synced successfully - staleness is not measurable, and
+                # guessing would be worse than saying so.
+                active_by_source[src] = total
+                stale_by_source[src] = 0
+                continue
+
+            rows = (await self.session.execute(
+                select(ConfigurationItem)
+                .where(ConfigurationItem.source_system == src)
+                .where(ConfigurationItem.last_sync_time < cutoff)
+                .order_by(ConfigurationItem.last_sync_time.asc())
+            )).scalars().all()
+
+            stale_rows.extend(rows)
+            stale_by_source[src] = len(rows)
+            active_by_source[src] = total - len(rows)
+
+        total_cis = sum(active_by_source.values()) + sum(stale_by_source.values())
+        stale_count = len(stale_rows)
+
+        # Breakdowns for the dashboard.
+        by_age: Dict[str, int] = {label: 0 for label, _, _ in STALE_AGE_BUCKETS}
+        by_location: Dict[str, int] = {}
+        by_vendor: Dict[str, int] = {}
+        by_last_status: Dict[str, int] = {}
+        by_ci_type: Dict[str, int] = {}
+
+        assets: List[Dict[str, Any]] = []
+
+        for row in stale_rows:
+            last_seen = _as_utc(row.last_sync_time)
+            days = (now - last_seen).total_seconds() / 86400 if last_seen else 0.0
+
+            for label, lower, upper in STALE_AGE_BUCKETS:
+                if days >= lower and (upper is None or days < upper):
+                    by_age[label] += 1
+                    break
+
+            site = (row.location or "").strip() or "Unknown"
+            by_location[site] = by_location.get(site, 0) + 1
+            by_vendor[row.vendor or "Other"] = by_vendor.get(row.vendor or "Other", 0) + 1
+            by_last_status[row.status or "Unknown"] = by_last_status.get(row.status or "Unknown", 0) + 1
+            by_ci_type[row.ci_type or "Unknown"] = by_ci_type.get(row.ci_type or "Unknown", 0) + 1
+
+            if len(assets) < limit:
+                assets.append({
+                    "id": str(row.id),
+                    "source_id": row.source_id,
+                    "source_system": row.source_system,
+                    "name": (row.name or "").strip(),
+                    "ci_type": row.ci_type,
+                    "last_known_status": row.status,
+                    "last_known_health_tier": row.health_tier,
+                    "vendor": row.vendor,
+                    "model": row.model,
+                    "serial_number": row.serial_number,
+                    "ip_address": row.ip_address,
+                    "location": row.location,
+                    "last_seen_at": last_seen.isoformat() if last_seen else None,
+                    "days_since_last_seen": round(days, 1),
+                })
+
+        return {
+            "source_system": source_system.upper() if source_system else "ALL",
+            "data_source": "DATABASE",
+            "generated_at": now.isoformat(),
+            "definition": (
+                "Assets present in the CMDB that were absent from the most "
+                "recent successful synchronization of their source system."
+            ),
+            "reference_sync_started_at": reference,
+            "total_cis": total_cis,
+            "active_cis": sum(active_by_source.values()),
+            "stale_cis": stale_count,
+            "stale_pct": _pct(stale_count, total_cis),
+            "active_by_source": active_by_source,
+            "stale_by_source": stale_by_source,
+            "stale_by_age": by_age,
+            "stale_by_location": dict(sorted(by_location.items(), key=lambda kv: -kv[1])),
+            "stale_by_vendor": dict(sorted(by_vendor.items(), key=lambda kv: -kv[1])),
+            "stale_by_last_known_status": by_last_status,
+            "stale_by_ci_type": dict(sorted(by_ci_type.items(), key=lambda kv: -kv[1])),
+            "returned_assets": len(assets),
+            "assets": assets,
         }
 
     async def get_location_analytics(
