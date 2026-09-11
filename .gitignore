@@ -42,3 +42,7 @@ __pycache__/
 .pytest_cache/
 *.bak
 *.log
+
+# Local database - never commit
+data/*.db
+data/*.sqlite
