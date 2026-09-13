@@ -40,11 +40,15 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     except Exception as exc:
         logger.warning("Auto table creation encountered notice: %s", exc)
 
-    # Start APScheduler background sync worker if not running tests
-    try:
-        start_scheduler()
-    except Exception as exc:
-        logger.warning("Background scheduler startup notice: %s", exc)
+    # The deployed VM keeps ingestion enabled by default. Local API contract
+    # checks can explicitly disable it without changing the production cadence.
+    if settings.SCHEDULER_ENABLED:
+        try:
+            start_scheduler()
+        except Exception as exc:
+            logger.warning("Background scheduler startup notice: %s", exc)
+    else:
+        logger.info("Background scheduler disabled by SCHEDULER_ENABLED=false.")
 
     yield
 

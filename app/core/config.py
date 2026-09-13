@@ -51,6 +51,9 @@ class Settings(BaseSettings):
 
     # Sync Engine & Schedulers
     SYNC_INTERVAL_SECONDS: int = 600
+    # Keep periodic ingestion enabled by default for the deployed VM. Set this
+    # false only for local API development or read-only endpoint verification.
+    SCHEDULER_ENABLED: bool = True
     ADVISORY_LOCK_ID: int = 1048576  # PostgreSQL advisory lock ID for ITOM telemetry ETL
 
     # Local VM Deployment Configuration

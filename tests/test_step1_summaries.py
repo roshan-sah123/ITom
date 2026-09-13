@@ -189,6 +189,17 @@ async def test_solarwinds_summary_includes_every_status(session: AsyncSession):
     assert summary["status_breakdown"]["Unmanaged"] == 1
     assert summary["status_breakdown"]["Down"] == 1
 
+    # Frontend contract: charts consume normalized, lowercase status keys from
+    # metrics. Keep the source-labelled status_breakdown above for detail and
+    # backward compatibility, but do not make the UI translate it itself.
+    assert metrics["status_counts"] == {
+        "up": 2,
+        "warning": 1,
+        "critical": 1,
+        "down": 1,
+        "unmanaged_unknown": 1,
+    }
+
     # The Low health tier must be reachable.
     assert metrics["low_health_count"] == 2
 

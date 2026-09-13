@@ -22,6 +22,8 @@ additional names for the same live figures.
                  low_critical_nodes     -> alias of low_health_count
                  active_monitored_nodes -> nodes not in an Unmanaged state
                  node_type_breakdown    -> alias of ci_type_distribution
+                 status_counts          -> normalized chart-ready availability
+                                           counts (lowercase keys)
 
 Column semantics assumed (established by the ingestion mapping):
     ConfigurationItem.status       SolarWinds -> Up / Down / Warning / Critical /
@@ -625,6 +627,19 @@ class SummaryRepository:
                 "high_health_nodes": metrics["high_health_count"],
                 "medium_health_nodes": metrics["medium_health_count"],
                 "low_critical_nodes": metrics["low_health_count"],
+                # Contract for portal availability charts.  The raw source
+                # labels remain available in payload["status_breakdown"] for
+                # detail and backwards compatibility; this map deliberately
+                # gives consumers one stable, normalized set of keys.
+                "status_counts": {
+                    "up": _sum_matching(status_breakdown, {"up"}),
+                    "warning": _sum_matching(status_breakdown, {"warning"}),
+                    "critical": _sum_matching(status_breakdown, {"critical"}),
+                    "down": _sum_matching(status_breakdown, {"down"}),
+                    "unmanaged_unknown": _sum_matching(
+                        status_breakdown, UNMONITORED_STATUSES
+                    ),
+                },
             }
         )
         type_distribution = payload.pop("_type_distribution")

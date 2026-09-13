@@ -170,15 +170,27 @@ Same envelope. Different metrics:
     "active_monitored_nodes": 1436,
     "high_health_nodes": 1357,
     "medium_health_nodes": 150,
-    "low_critical_nodes": 41
+    "low_critical_nodes": 41,
+    "status_counts": {
+      "up": 1370,
+      "warning": 25,
+      "critical": 35,
+      "down": 6,
+      "unmanaged_unknown": 112
+    }
   },
   "status_breakdown": { "Up": 1370, "Warning": 25, "Critical": 35, "Down": 6, "Unmanaged": 112 },
   "ci_type_distribution": { "Server": 1548 }
 }
 ```
 
+Use `metrics.status_counts` for availability charts. Its lowercase keys are the
+stable frontend contract. `status_breakdown` remains the source-labelled
+SolarWinds detail for tables and backward compatibility.
+
 `Critical`, `Down` and `Unmanaged` are **distinct** — do not merge them.
-An unmanaged node is not down; it is simply not being watched.
+An unmanaged node is not down; it is simply not being watched. `Unknown` and
+`Unmanaged` are combined only in `unmanaged_unknown`.
 
 ### 503 response
 
