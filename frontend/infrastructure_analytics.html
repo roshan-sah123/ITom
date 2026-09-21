@@ -1,703 +1,1902 @@
-<!DOCTYPE html>
-<html lang="en">
+<!doctype html>
+<html lang="en" dir="ltr">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Infrastructure Analytics | Coforge ITOM Portal</title>
-  <meta name="description" content="Authoritative enterprise infrastructure analytics, SolarWinds server telemetry, Microsoft Intune endpoint security, and 60-campus location observability.">
-
-  <!-- Tailwind CSS v3 CDN with plugins -->
-  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-  
-  <!-- Fonts: Inter & JetBrains Mono -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-  
-  <!-- Chart.js CDN -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-  <!-- Tailwind Configuration -->
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          colors: {
-            brandDark: '#080c14',
-            surfaceCard: '#0f172a',
-            surfaceCardHover: '#131d35',
-            borderSubtle: '#1e293b',
-            accentOrange: '#f97316',
-          },
-          fontFamily: {
-            sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
-            mono: ['JetBrains Mono', 'monospace'],
-          }
-        }
-      }
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Infrastructure Analytics | Coforge ITOM</title>
+  <meta name="description" content="Live endpoint, server, and network analytics for the Coforge ITOM portal.">
+  <style>
+    :root {
+      --ink: #e7edf6;
+      --muted: #8b9aae;
+      --subtle: #506076;
+      --canvas: #080c14;
+      --surface: #0b121e;
+      --surface-raised: #101a2b;
+      --surface-soft: #0d1624;
+      --line: #1d2a3d;
+      --line-strong: #33445d;
+      --orange: #f97316;
+      --orange-soft: rgba(249, 115, 22, .12);
+      --green: #35d09a;
+      --green-soft: rgba(53, 208, 154, .12);
+      --amber: #f9b84a;
+      --amber-soft: rgba(249, 184, 74, .12);
+      --red: #fb7185;
+      --red-soft: rgba(251, 113, 133, .12);
+      --blue: #5cc8ff;
+      --blue-soft: rgba(92, 200, 255, .12);
+      --violet: #a78bfa;
+      --mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+      --sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
-  </script>
-
-  <!-- Global Atmospheric Background & Custom Scrollbar -->
-  <style data-purpose="custom-ambience">
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
     body {
-      background-color: #080c14;
-      background-image: 
-        radial-gradient(circle at 10% 8%, rgba(249, 115, 22, 0.06) 0%, transparent 45%),
-        radial-gradient(circle at 85% 15%, rgba(30, 58, 138, 0.08) 0%, transparent 45%),
-        radial-gradient(circle at 50% 100%, rgba(15, 23, 42, 0.6) 0%, transparent 60%);
-      background-repeat: no-repeat;
-      background-attachment: fixed;
-      min-height: 100vh;
-      color: #e2e8f0;
+      min-block-size: 100vh;
+      margin: 0;
+      color: var(--ink);
+      font-family: var(--sans);
+      background:
+        radial-gradient(circle at 9% 5%, rgba(249, 115, 22, .075), transparent 28rem),
+        radial-gradient(circle at 87% 10%, rgba(31, 78, 160, .13), transparent 30rem),
+        radial-gradient(circle at 50% 100%, rgba(17, 33, 61, .55), transparent 38rem),
+        var(--canvas);
     }
-    ::-webkit-scrollbar { width: 6px; height: 6px; }
-    ::-webkit-scrollbar-track { background: #080c14; }
-    ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 3px; }
-    ::-webkit-scrollbar-thumb:hover { background: #334155; }
+    button, input, select { font: inherit; }
+    button { cursor: pointer; }
+    button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible {
+      outline: 2px solid var(--orange);
+      outline-offset: 2px;
+    }
+    .shell { max-inline-size: 1440px; margin-inline: auto; padding: 0 28px 64px; }
+    .topbar {
+      display: flex; align-items: center; justify-content: space-between; gap: 20px;
+      min-block-size: 76px; padding: 14px 28px; border-block-end: 1px solid rgba(255,255,255,.055);
+      background: rgba(8, 12, 20, .88); backdrop-filter: blur(18px);
+      position: sticky; inset-block-start: 0; z-index: 10;
+    }
+    .brand { display: flex; align-items: center; gap: 12px; text-decoration: none; color: var(--ink); }
+    .brand-name { font-size: 23px; font-weight: 800; letter-spacing: -.8px; }
+    .brand-name .accent { color: var(--orange); }
+    .product-tag, .eyebrow, .pill {
+      font-family: var(--mono); font-size: 10px; letter-spacing: .075em; text-transform: uppercase;
+    }
+    .product-tag { color: var(--muted); border: 1px solid var(--line-strong); border-radius: 999px; padding: 4px 8px; }
+    .top-status { display: flex; align-items: center; gap: 8px; color: var(--muted); font: 11px var(--mono); }
+    .status-dot { inline-size: 8px; block-size: 8px; border-radius: 99px; background: var(--subtle); box-shadow: 0 0 0 4px rgba(80,96,118,.12); }
+    .status-dot.fresh { background: var(--green); box-shadow: 0 0 0 4px rgba(53,208,154,.1); }
+    .status-dot.stale { background: var(--amber); box-shadow: 0 0 0 4px rgba(249,184,74,.1); }
+    .status-dot.error { background: var(--red); box-shadow: 0 0 0 4px rgba(251,113,133,.1); }
+    .hero { display: flex; align-items: end; justify-content: space-between; gap: 22px; padding-block: 42px 28px; border-block-end: 1px solid var(--line); }
+    .eyebrow { color: var(--orange); margin: 0 0 9px; }
+    h1 { margin: 0; font-size: clamp(29px, 4vw, 42px); line-height: 1.06; letter-spacing: -1.6px; }
+    .hero p { max-inline-size: 710px; margin: 11px 0 0; color: var(--muted); font-size: 14px; line-height: 1.55; }
+    .refresh-btn, .action-btn, .tab, .filter-btn, .pager-btn {
+      border: 1px solid var(--line-strong); color: var(--ink); background: var(--surface-raised);
+      border-radius: 8px; transition: border-color .16s ease, background .16s ease, color .16s ease, transform .16s ease;
+    }
+    .refresh-btn, .action-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-block-size: 37px; padding: 0 13px; font-size: 12px; font-weight: 700; }
+    .refresh-btn:hover, .action-btn:hover, .pager-btn:hover { border-color: var(--orange); background: var(--orange-soft); }
+    .refresh-btn:active, .action-btn:active { transform: translateY(1px); }
+    .freshness-banner {
+      display: none; gap: 10px; align-items: center; margin-block: 18px 0; padding: 12px 14px;
+      border: 1px solid var(--amber); border-radius: 9px; color: #fbd38d; background: var(--amber-soft); font-size: 12px;
+    }
+    .freshness-banner.show { display: flex; }
+    .freshness-banner.error { color: #fecdd3; border-color: rgba(251,113,133,.65); background: var(--red-soft); }
+    .config-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-block: 17px; }
+    details { color: var(--muted); font-size: 12px; }
+    summary { cursor: pointer; user-select: none; }
+    .api-config { display: flex; flex-wrap: wrap; align-items: end; gap: 9px; margin-block-start: 10px; }
+    .field { display: grid; gap: 5px; }
+    .field label { color: var(--subtle); font: 10px var(--mono); text-transform: uppercase; letter-spacing: .06em; }
+    .input, .select {
+      min-block-size: 34px; border: 1px solid var(--line); border-radius: 7px; color: var(--ink);
+      background: var(--surface-soft); padding: 0 10px; font-size: 12px; outline: none;
+    }
+    .input { inline-size: min(390px, 76vw); font-family: var(--mono); }
+    .select { min-inline-size: 104px; }
+    .overview-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-block: 10px 31px; }
+    .domain-card {
+      position: relative; min-block-size: 286px; overflow: hidden; border: 1px solid var(--line); border-radius: 14px;
+      padding: 24px; background: linear-gradient(145deg, rgba(17,28,47,.92), rgba(9,15,25,.92));
+      text-align: start; color: var(--ink);
+    }
+    .domain-card::after {
+      content: ""; position: absolute; inset: auto -50px -70px auto; inline-size: 190px; block-size: 190px; border-radius: 99px;
+      background: var(--glow); filter: blur(1px); opacity: .66;
+    }
+    .domain-card.endpoint { --glow: rgba(92,200,255,.12); }
+    .domain-card.server { --glow: rgba(249,115,22,.12); }
+    .domain-card.network { --glow: rgba(167,139,250,.13); }
+    .domain-card:hover { border-color: var(--card-accent); background: linear-gradient(145deg, rgba(22,38,62,.95), rgba(9,15,25,.94)); }
+    .endpoint { --card-accent: rgba(92,200,255,.62); }
+    .server { --card-accent: rgba(249,115,22,.65); }
+    .network { --card-accent: rgba(167,139,250,.68); }
+    .domain-card > * { position: relative; z-index: 1; }
+    .domain-card-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .icon-box { display: grid; place-items: center; inline-size: 42px; block-size: 42px; border: 1px solid currentColor; border-radius: 10px; font-size: 19px; }
+    .endpoint .icon-box { color: var(--blue); background: var(--blue-soft); }
+    .server .icon-box { color: var(--orange); background: var(--orange-soft); }
+    .network .icon-box { color: var(--violet); background: rgba(167,139,250,.12); }
+    .domain-card h2 { margin: 21px 0 6px; font-size: 20px; letter-spacing: -.4px; }
+    .domain-card p { max-inline-size: 510px; margin: 0; color: var(--muted); font-size: 12px; line-height: 1.55; }
+    .domain-metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-block-start: 23px; }
+    .mini-metric { padding-inline-start: 10px; border-inline-start: 2px solid var(--line-strong); }
+    .mini-metric b { display: block; min-block-size: 24px; color: var(--ink); font: 700 17px var(--mono); }
+    .mini-metric span { display: block; color: var(--muted); font-size: 10px; }
+    .domain-open { display: inline-flex; align-items: center; gap: 7px; margin-block-start: 22px; color: var(--card-accent); font-size: 12px; font-weight: 700; }
+    .module-nav { display: flex; flex-wrap: wrap; gap: 8px; margin-block: 0 20px; border-block-end: 1px solid var(--line); padding-block-end: 12px; }
+    .tab { min-block-size: 35px; padding: 0 13px; color: var(--muted); font-size: 12px; font-weight: 700; }
+    .tab:hover { color: var(--ink); border-color: var(--line-strong); }
+    .tab.active { border-color: var(--orange); color: var(--ink); background: var(--orange-soft); }
+    .panel { display: none; }
+    .panel.active { display: block; }
+    .section-heading { display: flex; align-items: end; justify-content: space-between; gap: 18px; margin-block: 24px 15px; }
+    .section-heading h2 { margin: 0; font-size: 20px; letter-spacing: -.5px; }
+    .section-heading p { margin: 5px 0 0; color: var(--muted); font-size: 12px; }
+    .as-of { color: var(--subtle); font: 10px var(--mono); text-align: end; }
+    .kpi-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
+    .kpi {
+      min-block-size: 128px; border: 1px solid var(--line); border-radius: 11px; padding: 15px;
+      background: rgba(11,18,30,.83); display: flex; flex-direction: column; justify-content: space-between;
+    }
+    .kpi-label { color: var(--muted); font-size: 10px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+    .kpi-value { color: var(--ink); font: 700 clamp(21px, 2.35vw, 29px) var(--mono); letter-spacing: -1.25px; }
+    .kpi-value-button { border: 0; padding: 0; background: transparent; text-align: start; cursor: pointer; }
+    .kpi-value-button:hover { text-decoration: underline; text-underline-offset: 4px; }
+    .kpi-note { color: var(--subtle); font-size: 10px; line-height: 1.35; }
+    .tone-green { color: var(--green); } .tone-amber { color: var(--amber); } .tone-red { color: var(--red); } .tone-blue { color: var(--blue); } .tone-orange { color: var(--orange); }
+    .site-health-section { margin-block: 2px 27px; padding-block-end: 25px; border-block-end: 1px solid var(--line); }
+    .site-summary-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-block-start: 15px; }
+    .site-status-card {
+      min-block-size: 142px; border: 1px solid var(--line); border-radius: 11px; padding: 16px;
+      background: rgba(11,18,30,.83); color: var(--ink); text-align: start;
+      transition: border-color .16s ease, background .16s ease, transform .16s ease;
+    }
+    .site-status-card:hover { transform: translateY(-1px); }
+    .site-status-card.active { border-color: var(--status-color); background: var(--status-soft); }
+    .site-status-card.healthy { --status-color: var(--green); --status-soft: var(--green-soft); }
+    .site-status-card.warning { --status-color: var(--amber); --status-soft: var(--amber-soft); }
+    .site-status-card.critical { --status-color: var(--red); --status-soft: var(--red-soft); }
+    .site-card-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .site-card-label { color: var(--muted); font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+    .site-card-dot { inline-size: 10px; block-size: 10px; border-radius: 99px; background: var(--status-color); box-shadow: 0 0 0 4px var(--status-soft); }
+    .site-card-count { display: block; margin-block: 17px 4px; color: var(--status-color); font: 700 30px var(--mono); letter-spacing: -1.4px; }
+    .site-card-note { color: var(--muted); font-size: 10px; line-height: 1.35; }
+    .site-list-card { display: none; margin-block-start: 13px; overflow: hidden; border: 1px solid var(--line); border-radius: 11px; background: rgba(11,18,30,.83); }
+    .site-list-card.show { display: block; }
+    .site-list-heading { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 13px 15px; border-block-end: 1px solid var(--line); }
+    .site-list-heading strong { font-size: 12px; }
+    .site-list-heading span { color: var(--muted); font: 10px var(--mono); }
+    .site-drilldown-btn { border: 0; border-block-end: 1px dashed currentColor; padding: 0; color: var(--blue); background: transparent; font: inherit; font-weight: 700; text-align: start; }
+    .site-drilldown-btn.alert { color: var(--amber); font-family: var(--mono); font-weight: 500; }
+    .site-drilldown-btn:hover { color: var(--ink); }
+    .device-detail-btn { border: 0; border-block-end: 1px dashed currentColor; padding: 0; color: var(--ink); background: transparent; font: inherit; font-weight: 700; text-align: start; }
+    .device-detail-btn:hover { color: var(--blue); }
+    .node-detail-card, .compliance-detail-modal { display: none; position: fixed; inset: 0; z-index: 50; overflow: auto; padding: clamp(16px, 4vw, 50px); background: rgba(2, 6, 14, .78); backdrop-filter: blur(7px); }
+    .node-detail-card.show, .compliance-detail-modal.show { display: block; }
+    .node-detail-card > *, .compliance-detail-modal > * { max-inline-size: 1260px; margin-inline: auto; background: var(--surface); }
+    .node-detail-card > :first-child, .compliance-detail-modal > :first-child { border: 1px solid var(--blue); border-block-end: 0; border-radius: 13px 13px 0 0; }
+    .node-detail-card > :last-child, .compliance-detail-modal > :last-child { border: 1px solid var(--blue); border-block-start: 0; border-radius: 0 0 13px 13px; }
+    .node-detail-header { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 17px; border-block-end: 1px solid var(--line); }
+    .node-detail-header h3 { margin: 0; font-size: 14px; }
+    .node-detail-header p { margin: 4px 0 0; color: var(--muted); font-size: 10px; }
+    .node-tier-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; padding: 14px; border-block-end: 1px solid var(--line); }
+    .node-tier-card { min-block-size: 78px; border: 1px solid var(--line); border-radius: 8px; padding: 11px; color: var(--ink); background: var(--surface-soft); text-align: start; }
+    .node-tier-card.active { border-color: var(--node-color); background: var(--node-soft); }
+    .node-tier-card.healthy { --node-color: var(--green); --node-soft: var(--green-soft); }
+    .node-tier-card.warning { --node-color: var(--amber); --node-soft: var(--amber-soft); }
+    .node-tier-card.critical { --node-color: var(--red); --node-soft: var(--red-soft); }
+    .node-tier-card b { display: block; margin-block: 5px 2px; color: var(--node-color); font: 700 21px var(--mono); }
+    .node-tier-card span { color: var(--muted); font-size: 10px; }
+    .diagnostic-grid { display: grid; grid-template-columns: 1.1fr 1fr 1fr; gap: 10px; padding: 14px; border-block-end: 1px solid var(--line); }
+    .diagnostic-item { min-block-size: 82px; border: 1px solid var(--line); border-radius: 8px; padding: 11px; background: var(--surface-soft); }
+    .diagnostic-item b { display: block; margin-block: 5px 2px; color: var(--ink); font-size: 12px; }
+    .diagnostic-item span { color: var(--muted); font-size: 10px; line-height: 1.35; }
+    .close-modal { flex: 0 0 auto; min-inline-size: 34px; padding-inline: 10px; }
+    .evidence-note { padding: 14px; border-block-end: 1px solid var(--line); color: var(--muted); font-size: 11px; line-height: 1.5; }
+    .evidence-note strong { color: var(--ink); }
+    .remediation-card { margin-block: 13px; border: 1px solid rgba(249, 115, 22, .45); border-radius: 11px; overflow: hidden; background: rgba(11,18,30,.83); }
+    .remediation-card .table-toolbar { background: rgba(249,115,22,.045); }
+    .reason-select { min-inline-size: min(360px, 72vw); max-inline-size: 100%; }
+    .reason-summary { padding: 11px 14px; border-block-end: 1px solid var(--line); color: var(--muted); font-size: 11px; line-height: 1.45; }
+    .insight-grid { display: grid; grid-template-columns: 1.15fr 1fr 1fr; gap: 12px; margin-block: 13px; }
+    .card { border: 1px solid var(--line); border-radius: 11px; background: rgba(11,18,30,.83); padding: 17px; }
+    .card h3 { margin: 0; font-size: 12px; letter-spacing: -.1px; }
+    .card-subtitle { margin: 5px 0 14px; color: var(--muted); font-size: 10px; line-height: 1.5; }
+    .bar-list { display: grid; gap: 11px; }
+    .bar-row { display: grid; grid-template-columns: minmax(84px, .8fr) 2fr auto; gap: 8px; align-items: center; }
+    .bar-row span { color: var(--muted); font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .bar-row b { color: var(--ink); font: 10px var(--mono); }
+    .bar-track { overflow: hidden; block-size: 7px; border-radius: 999px; background: #172337; }
+    .bar-fill { block-size: 100%; min-inline-size: 2px; border-radius: inherit; background: var(--bar-color, var(--blue)); }
+    .health-stack { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .health-stat { padding: 12px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-soft); }
+    .health-stat b { display: block; margin-block-end: 4px; font: 700 18px var(--mono); }
+    .health-stat span { color: var(--muted); font-size: 10px; }
+    .callout { border-inline-start: 3px solid var(--orange); padding: 13px 14px; border-radius: 0 8px 8px 0; background: var(--orange-soft); }
+    .callout b { display: block; margin-block-end: 3px; font-size: 11px; }
+    .callout span { color: var(--muted); font-size: 10px; line-height: 1.45; }
+    .table-card { margin-block: 13px; overflow: hidden; border: 1px solid var(--line); border-radius: 11px; background: rgba(11,18,30,.83); }
+    .table-toolbar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 11px; padding: 13px; border-block-end: 1px solid var(--line); }
+    .toolbar-set { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; }
+    .search { inline-size: min(320px, 72vw); }
+    .filter-btn { min-block-size: 31px; padding: 0 10px; color: var(--muted); font-size: 11px; }
+    .filter-btn.active { border-color: var(--orange); color: var(--orange); background: var(--orange-soft); }
+    .table-wrap { overflow: auto; min-block-size: 265px; }
+    table { inline-size: 100%; min-inline-size: 830px; border-collapse: collapse; }
+    th { padding: 11px 14px; color: var(--subtle); background: rgba(15,24,40,.72); font-size: 10px; letter-spacing: .055em; text-align: start; text-transform: uppercase; white-space: nowrap; }
+    td { padding: 13px 14px; border-block-start: 1px solid rgba(29,42,61,.83); color: #c9d4e3; font-size: 11px; vertical-align: middle; }
+    tr:hover td { background: rgba(28,43,66,.3); }
+    .name-cell { color: var(--ink); font-weight: 700; }
+    .mono { font-family: var(--mono); }
+    .badge { display: inline-flex; align-items: center; gap: 5px; min-block-size: 22px; padding: 0 8px; border: 1px solid transparent; border-radius: 999px; font-size: 10px; font-weight: 700; white-space: nowrap; }
+    .badge.good { color: var(--green); border-color: rgba(53,208,154,.3); background: var(--green-soft); }
+    .badge.warn { color: var(--amber); border-color: rgba(249,184,74,.3); background: var(--amber-soft); }
+    .badge.bad { color: var(--red); border-color: rgba(251,113,133,.3); background: var(--red-soft); }
+    .badge.neutral { color: var(--muted); border-color: var(--line-strong); background: rgba(80,96,118,.12); }
+    .table-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 13px; border-block-start: 1px solid var(--line); }
+    .table-footer > span { color: var(--muted); font: 10px var(--mono); }
+    .pager { display: flex; gap: 6px; }
+    .pager-btn { min-block-size: 30px; min-inline-size: 34px; padding: 0 9px; font-size: 11px; }
+    .pager-btn:disabled { opacity: .38; cursor: not-allowed; }
+    .empty { padding: 42px 18px; color: var(--muted); font-size: 12px; text-align: center; }
+    .empty strong { display: block; margin-block-end: 6px; color: var(--ink); font-size: 13px; }
+    .skeleton { color: var(--subtle); font: 11px var(--mono); }
+    .error-text { color: var(--red); }
+    @media (max-width: 1000px) {
+      .overview-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .kpi-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .insight-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .insight-grid .card:first-child { grid-column: span 2; }
+    }
+    @media (max-width: 690px) {
+      .topbar { min-block-size: 62px; padding-inline: 17px; }
+      .top-status { display: none; }
+      .shell { padding-inline: 17px; }
+      .hero { align-items: start; flex-direction: column; padding-block-start: 30px; }
+      .overview-grid, .kpi-grid, .insight-grid { grid-template-columns: 1fr; }
+      .site-summary-grid { grid-template-columns: 1fr; }
+      .node-tier-grid { grid-template-columns: 1fr; }
+      .diagnostic-grid { grid-template-columns: 1fr; }
+      .insight-grid .card:first-child { grid-column: auto; }
+      .domain-metrics { gap: 5px; }
+      .config-row { align-items: start; flex-direction: column; }
+      .section-heading { align-items: start; flex-direction: column; }
+      .as-of { text-align: start; }
+    }
   </style>
 </head>
-<body class="font-sans antialiased text-slate-200 selection:bg-orange-500 selection:text-white flex flex-col min-h-screen">
-
-  <!-- =========================================================================
-       1. TOP GLOBAL NAVIGATION
-       ========================================================================= -->
-  <header class="w-full px-6 sm:px-8 py-4 flex items-center justify-between border-b border-white/[0.05] bg-[#080c14]/90 backdrop-blur-md sticky top-0 z-50">
-    
-    <!-- Left: Brand Lockup & Breadcrumb -->
-    <div class="flex items-center space-x-4">
-      <a href="index.html" class="flex items-center space-x-2 group">
-        <div class="flex items-baseline font-bold text-xl tracking-tight text-white">
-          <span class="text-orange-500 font-extrabold text-xl leading-none">C</span><span class="text-orange-500">o</span><span>forge</span>
-        </div>
-        <span class="px-2 py-0.5 text-[10px] font-semibold tracking-wider text-slate-400 bg-slate-800/80 border border-slate-700/60 rounded-full uppercase">
-          ITOM
-        </span>
-      </a>
-      <span class="text-slate-600 font-light">/</span>
-      <div class="flex items-center space-x-2">
-        <a href="index.html" class="text-xs text-slate-400 hover:text-white transition">Home</a>
-        <span class="text-slate-600 text-xs">/</span>
-        <span class="text-xs font-semibold text-white px-2 py-0.5 rounded bg-slate-800/50 border border-slate-700/50">Infrastructure Analytics</span>
-      </div>
-    </div>
-
-    <!-- Right: Telemetry Sync Pill & User Profile -->
-    <div class="flex items-center space-x-3">
-      <div class="hidden md:flex items-center space-x-2 px-3 py-1 rounded-full bg-slate-900/90 border border-slate-800">
-        <div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
-        <span class="text-[11px] font-mono text-slate-300">Live Telemetry • <span class="text-emerald-400">Fresh &lt;1m</span></span>
-      </div>
-      
-      <button id="btn-sync-now" class="px-3 py-1 text-xs font-medium bg-slate-900 hover:bg-slate-800 text-orange-400 border border-orange-500/30 hover:border-orange-500/60 rounded-md transition flex items-center space-x-1.5 shadow-sm">
-        <span>⚡</span>
-        <span>Sync Now</span>
-      </button>
-
-      <div class="flex items-center space-x-2 pl-2 border-l border-slate-800 cursor-pointer">
-        <div class="w-7 h-7 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-300">
-          <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"></path></svg>
-        </div>
-      </div>
+<body>
+  <header class="topbar">
+    <a class="brand" href="Index.html" aria-label="Return to Coforge ITOM home">
+      <span class="brand-name"><span class="accent">Co</span>forge</span>
+      <span class="product-tag">ITOM</span>
+    </a>
+    <div class="top-status" aria-live="polite">
+      <span id="statusDot" class="status-dot"></span>
+      <span id="statusText">Telemetry check pending</span>
     </div>
   </header>
 
-  <!-- =========================================================================
-       2. MAIN APPLICATION VIEWPORT
-       ========================================================================= -->
-  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-16 flex flex-col space-y-6">
-
-    <!-- Header Title Banner -->
-    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800/80 pb-5">
+  <main class="shell">
+    <section class="hero">
       <div>
-        <h1 class="text-2xl sm:text-3xl font-bold tracking-tight text-white flex items-center gap-2.5">
-          <span class="w-3 h-3 rounded-full bg-orange-500"></span>
-          Infrastructure Analytics
-        </h1>
-        <p class="text-xs sm:text-sm text-slate-400 mt-1">
-          Unified multi-domain operational command: SolarWinds Orion SWIS, Microsoft Intune Endpoint Posture, and 60-Campus Observability.
-        </p>
+        <div class="eyebrow">Operations command center</div>
+        <h1>Infrastructure Analytics</h1>
+        <p>Separate operational workspaces for Intune endpoints, SolarWinds servers, and SolarWinds network devices. Each team sees only its own inventory, health, and site impact.</p>
       </div>
+      <button id="refreshAll" class="refresh-btn" type="button" aria-label="Refresh all telemetry">Refresh telemetry <span aria-hidden="true">↻</span></button>
+    </section>
 
-      <!-- Navigation Sub-Tabs (3 Dedicated Modules) -->
-      <div class="flex items-center bg-slate-900/90 border border-slate-800 p-1 rounded-xl shadow-inner">
-        <button class="infra-tab-btn px-4 py-2 text-xs font-semibold rounded-lg transition flex items-center space-x-2 border bg-slate-800 text-white border-slate-700" data-tab="solarwinds">
-          <span>🖥️</span>
-          <span>SolarWinds Analytics</span>
-        </button>
-        <button class="infra-tab-btn px-4 py-2 text-xs font-semibold rounded-lg transition flex items-center space-x-2 border border-transparent text-slate-400 hover:text-white" data-tab="intune">
-          <span>📱</span>
-          <span>Intune Analytics</span>
-        </button>
-        <button class="infra-tab-btn px-4 py-2 text-xs font-semibold rounded-lg transition flex items-center space-x-2 border border-transparent text-slate-400 hover:text-white" data-tab="location">
-          <span>📍</span>
-          <span>Location Analytics</span>
-        </button>
-      </div>
+    <div id="freshnessBanner" class="freshness-banner" role="status"></div>
+
+    <div class="config-row">
+      <details>
+        <summary>Connection settings</summary>
+        <div class="api-config">
+          <div class="field">
+            <label for="apiBase">ITOM API base URL (include /api/v1)</label>
+            <input id="apiBase" class="input" type="text" value="/api/v1" spellcheck="false">
+          </div>
+          <button id="saveApiBase" class="action-btn" type="button">Apply connection</button>
+        </div>
+      </details>
+      <span class="as-of">ITOM server on port 8080: /api/v1 · Direct local API: 127.0.0.1:8000/api/v1</span>
     </div>
 
-    <!-- Global Control & Filter Bar -->
-    <div class="w-full bg-[#0b121e]/90 border border-slate-800 rounded-xl p-4 flex flex-wrap items-center justify-between gap-3 text-xs">
-      <div class="flex flex-wrap items-center gap-3">
-        <!-- Date Range Filter -->
-        <div class="flex items-center space-x-1.5">
-          <span class="text-slate-400 font-medium">Range:</span>
-          <select id="filter-global-daterange" class="bg-slate-900 text-slate-200 border border-slate-800 rounded-md px-2.5 py-1.5 focus:outline-none focus:border-slate-600 font-mono">
-            <option value="24h" selected>Last 24 Hours</option>
-            <option value="7d">Last 7 Days</option>
-            <option value="30d">Last 30 Days</option>
-            <option value="90d">Last 90 Days</option>
-          </select>
-        </div>
-
-        <!-- Campus / Location Filter -->
-        <div class="flex items-center space-x-1.5">
-          <span class="text-slate-400 font-medium">Campus:</span>
-          <select id="filter-global-location" class="bg-slate-900 text-slate-200 border border-slate-800 rounded-md px-2.5 py-1.5 focus:outline-none focus:border-slate-600 max-w-[200px]">
-            <option value="all">Global (All 60 Facilities)</option>
-          </select>
-        </div>
-
-        <!-- Environment Filter -->
-        <div class="flex items-center space-x-1.5">
-          <span class="text-slate-400 font-medium">Env:</span>
-          <select id="filter-global-env" class="bg-slate-900 text-slate-200 border border-slate-800 rounded-md px-2.5 py-1.5 focus:outline-none focus:border-slate-600">
-            <option value="all">All Environments</option>
-            <option value="prod">Production (Tier 1)</option>
-            <option value="stage">Staging / Non-Prod</option>
-            <option value="core">Core Network</option>
-          </select>
+    <section id="overview" aria-labelledby="overviewTitle">
+      <div class="section-heading">
+        <div>
+          <h2 id="overviewTitle">Choose an analytics workspace</h2>
+          <p>Live figures appear after a successful connection. No static fallback data is used.</p>
         </div>
       </div>
-
-      <!-- Quick Search Indicator -->
-      <div class="flex items-center text-slate-500 font-mono text-[11px]">
-        <span>Auto-refreshes every 10m via APScheduler • PostgreSQL 16</span>
+      <div class="overview-grid">
+        <button class="domain-card endpoint" type="button" data-open-panel="endpoints">
+          <div class="domain-card-top">
+            <div class="icon-box" aria-hidden="true">▣</div>
+            <span class="pill tone-blue">Microsoft Intune</span>
+          </div>
+          <h2>Endpoint Analytics</h2>
+          <p>Compliance posture, OS and manufacturer distribution, storage coverage, and a searchable device inventory.</p>
+          <div class="domain-metrics">
+            <div class="mini-metric"><b id="overviewDevices">--</b><span>managed devices</span></div>
+            <div class="mini-metric"><b id="overviewCompliance">--</b><span>compliance</span></div>
+            <div class="mini-metric"><b id="overviewNoncompliant">--</b><span>need review</span></div>
+          </div>
+          <span class="domain-open">Open endpoint estate <span aria-hidden="true">→</span></span>
+        </button>
+        <button class="domain-card server" type="button" data-open-panel="servers">
+          <div class="domain-card-top">
+            <div class="icon-box" aria-hidden="true">▤</div>
+            <span class="pill tone-orange">SolarWinds</span>
+          </div>
+          <h2>Server Analytics</h2>
+          <p>Availability, health tiers, status distribution, current resource signals, and a searchable server inventory.</p>
+          <div class="domain-metrics">
+            <div class="mini-metric"><b id="overviewServers">--</b><span>server nodes</span></div>
+            <div class="mini-metric"><b id="overviewAvailability">--</b><span>availability</span></div>
+            <div class="mini-metric"><b id="overviewCritical">--</b><span>critical health</span></div>
+          </div>
+          <span class="domain-open">Open server estate <span aria-hidden="true">→</span></span>
+        </button>
+        <button class="domain-card network" type="button" data-open-panel="networks">
+          <div class="domain-card-top">
+            <div class="icon-box" aria-hidden="true">⌘</div>
+            <span class="pill tone-blue">SolarWinds Network</span>
+          </div>
+          <h2>Network Analytics</h2>
+          <p>Network-node availability, health and status distribution, site impact, and a searchable switch, router, firewall, wireless, and appliance inventory.</p>
+          <div class="domain-metrics">
+            <div class="mini-metric"><b id="overviewNetworks">--</b><span>network nodes</span></div>
+            <div class="mini-metric"><b id="overviewNetworkAvailability">--</b><span>availability</span></div>
+            <div class="mini-metric"><b id="overviewNetworkCritical">--</b><span>critical health</span></div>
+          </div>
+          <span class="domain-open">Open network estate <span aria-hidden="true">→</span></span>
+        </button>
       </div>
-    </div>
+    </section>
 
-    <!-- =========================================================================
-         TAB PANE 1: SOLARWINDS ANALYTICS
-         ========================================================================= -->
-    <section id="tab-pane-solarwinds" class="infra-tab-pane space-y-6">
-      
-      <!-- Executive KPI Summary Cards (Row 1) -->
-      <div id="sw-kpi-summary" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3.5">
-        
-        <!-- KPI 1: Total Server Nodes -->
-        <div class="bg-[#0b121e]/90 border border-slate-800 rounded-xl p-4 flex flex-col justify-between">
-          <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Total Server Nodes</span>
-          <div class="my-2">
-            <div id="sw-stat-total-nodes" class="text-2xl font-bold font-mono text-white"><span class="animate-pulse text-slate-600">--</span></div>
-            <div id="sw-stat-monitored-nodes" class="text-[10px] text-emerald-400 font-mono mt-0.5">-- Monitored</div>
-          </div>
-          <span class="text-[10px] text-slate-500">SolarWinds SWIS Ingestion</span>
-        </div>
+    <nav class="module-nav" aria-label="Infrastructure analytics sections">
+      <button class="tab active" type="button" data-panel="overview">Estate overview</button>
+      <button class="tab" type="button" data-panel="endpoints">Endpoint Analytics</button>
+      <button class="tab" type="button" data-panel="servers">Server Analytics</button>
+      <button class="tab" type="button" data-panel="networks">Network Analytics</button>
+    </nav>
 
-        <!-- KPI 2: High Health Tier -->
-        <div class="bg-[#0b121e]/90 border border-slate-800 rounded-xl p-4 flex flex-col justify-between">
-          <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">High Health Fleet</span>
-          <div class="my-2">
-            <div id="sw-stat-high-health" class="text-2xl font-bold font-mono text-emerald-400"><span class="animate-pulse text-slate-600">--</span></div>
-            <div id="sw-stat-high-pct" class="text-[10px] text-emerald-400 font-mono mt-0.5">--% of fleet</div>
-          </div>
-          <span class="text-[10px] text-slate-500">Up & CPU&lt;75% & RAM&lt;80%</span>
+    <section id="endpoints" class="panel" aria-labelledby="endpointHeading">
+      <div class="section-heading">
+        <div>
+          <div class="eyebrow">Endpoint box · Microsoft Intune</div>
+          <h2 id="endpointHeading">Endpoint posture and device intelligence</h2>
+          <p>Compliance and fleet composition are sourced from Intune. Use the inventory below to work through every device page.</p>
         </div>
-
-        <!-- KPI 3: Warning & Critical -->
-        <div class="bg-[#0b121e]/90 border border-slate-800 rounded-xl p-4 flex flex-col justify-between">
-          <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Degraded / Critical</span>
-          <div class="my-2">
-            <div class="flex items-baseline space-x-2">
-              <span id="sw-stat-med-health" class="text-xl font-bold font-mono text-amber-400">--</span>
-              <span class="text-slate-600">/</span>
-              <span id="sw-stat-crit-health" class="text-xl font-bold font-mono text-rose-400">--</span>
-            </div>
-            <div class="text-[10px] text-slate-400 font-mono mt-0.5">Warning / Down Nodes</div>
-          </div>
-          <span class="text-[10px] text-slate-500">Requires NOC Triage</span>
-        </div>
-
-        <!-- KPI 4: Fleet CPU Load -->
-        <div class="bg-[#0b121e]/90 border border-slate-800 rounded-xl p-4 flex flex-col justify-between">
-          <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Avg Fleet CPU</span>
-          <div class="my-2">
-            <div id="sw-stat-cpu-load" class="text-2xl font-bold font-mono text-orange-400"><span class="animate-pulse text-slate-600">--</span></div>
-            <div class="text-[10px] text-slate-400 font-mono mt-0.5">Multi-core baseline</div>
-          </div>
-          <span class="text-[10px] text-slate-500">Normal Range (&lt;70%)</span>
-        </div>
-
-        <!-- KPI 5: Fleet RAM Used -->
-        <div class="bg-[#0b121e]/90 border border-slate-800 rounded-xl p-4 flex flex-col justify-between">
-          <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Avg Fleet RAM</span>
-          <div class="my-2">
-            <div id="sw-stat-ram-used" class="text-2xl font-bold font-mono text-sky-400"><span class="animate-pulse text-slate-600">--</span></div>
-            <div class="text-[10px] text-slate-400 font-mono mt-0.5">Physical + Virtual</div>
-          </div>
-          <span class="text-[10px] text-slate-500">Stable allocation</span>
-        </div>
-
-        <!-- KPI 6: Fleet Latency & SLA -->
-        <div class="bg-[#0b121e]/90 border border-slate-800 rounded-xl p-4 flex flex-col justify-between">
-          <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Ping SLA & Latency</span>
-          <div class="my-2">
-            <div id="sw-stat-latency" class="text-2xl font-bold font-mono text-white"><span class="animate-pulse text-slate-600">--</span></div>
-            <div id="sw-stat-sla" class="text-[10px] text-emerald-400 font-mono mt-0.5">99.98% Uptime SLA</div>
-          </div>
-          <span class="text-[10px] text-slate-500">ICMP Poll Average</span>
-        </div>
+        <span id="endpointAsOf" class="as-of">Awaiting Intune summary</span>
       </div>
-
-      <!-- 24-Hour Telemetry Trend Visualizations (Row 2) -->
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        
-        <!-- Trend 1: 24h Fleet CPU & Memory Curves -->
-        <div class="bg-[#0b121e]/90 border border-slate-800 rounded-xl p-5 flex flex-col justify-between">
-          <div class="flex items-center justify-between mb-3">
-            <h2 class="text-xs font-semibold text-white">24h Fleet CPU & Memory Utilization</h2>
-            <span class="text-[10px] font-mono text-slate-400">Hourly Averages</span>
-          </div>
-          <div class="h-44 w-full">
-            <canvas id="chart-sw-perf-trend"></canvas>
-          </div>
-        </div>
-
-        <!-- Trend 2: 24h Availability SLA vs Baseline -->
-        <div class="bg-[#0b121e]/90 border border-slate-800 rounded-xl p-5 flex flex-col justify-between">
-          <div class="flex items-center justify-between mb-3">
-            <h2 class="text-xs font-semibold text-white">24h Availability SLA (%)</h2>
-            <span class="text-[10px] font-mono text-emerald-400">Threshold: 99.0%</span>
-          </div>
-          <div class="h-44 w-full">
-            <canvas id="chart-sw-avail-trend"></canvas>
-          </div>
-        </div>
-
-        <!-- Trend 3: Active Incident & Alert Frequency -->
-        <div class="bg-[#0b121e]/90 border border-slate-800 rounded-xl p-5 flex flex-col justify-between">
-          <div class="flex items-center justify-between mb-3">
-            <h2 class="text-xs font-semibold text-white">Active Alert & Incident Frequency</h2>
-            <span class="text-[10px] font-mono text-rose-400">Hourly NOC Alerts</span>
-          </div>
-          <div class="h-44 w-full">
-            <canvas id="chart-sw-incident-trend"></canvas>
-          </div>
-        </div>
+      <div class="kpi-grid">
+        <article class="kpi"><span class="kpi-label">Managed devices</span><strong id="epTotal" class="kpi-value">--</strong><span class="kpi-note">Intune enrolled fleet</span></article>
+        <article class="kpi"><span class="kpi-label">Compliant</span><strong id="epCompliant" class="kpi-value tone-green">--</strong><span id="epComplianceNote" class="kpi-note">Policy posture</span></article>
+        <article class="kpi"><span class="kpi-label">Non-compliant</span><button id="epNoncompliant" class="kpi-value kpi-value-button tone-red" type="button" title="Show non-compliant devices">--</button><span class="kpi-note">Select to investigate devices</span></article>
+        <article class="kpi"><span class="kpi-label">Median storage used</span><strong id="epStorage" class="kpi-value tone-amber">--</strong><span id="epStorageNote" class="kpi-note">Reported storage baseline</span></article>
+        <article class="kpi"><span class="kpi-label">In grace period</span><strong id="epGrace" class="kpi-value tone-amber">--</strong><span class="kpi-note">Pending user action</span></article>
       </div>
-
-      <!-- Fleet Distribution & Top Saturated Nodes (Row 3) -->
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        
-        <!-- Health Tier Doughnut -->
-        <div class="bg-[#0b121e]/90 border border-slate-800 rounded-xl p-5">
-          <h2 class="text-xs font-semibold text-white mb-3">Health Tier Distribution</h2>
-          <div class="h-44 w-full flex items-center justify-center">
-            <canvas id="chart-sw-health-doughnut"></canvas>
+      <div class="insight-grid">
+        <article class="card">
+          <h3>Compliance state distribution</h3>
+          <p class="card-subtitle">A separate category is kept for every status reported by the API.</p>
+          <div id="endpointComplianceBars" class="bar-list"><span class="skeleton">Loading compliance breakdown…</span></div>
+        </article>
+        <article class="card">
+          <h3>Operating system mix</h3>
+          <p class="card-subtitle">Endpoint operating systems by enrolled-device count.</p>
+          <div id="endpointOsBars" class="bar-list"><span class="skeleton">Loading OS distribution…</span></div>
+        </article>
+        <article class="card">
+          <h3>Endpoint health tiers</h3>
+          <p class="card-subtitle">Health classification exposed by Intune telemetry.</p>
+          <div id="endpointHealth" class="health-stack">
+            <div class="health-stat"><b>--</b><span>High</span></div><div class="health-stat"><b>--</b><span>Medium</span></div><div class="health-stat"><b>--</b><span>Low</span></div>
           </div>
-        </div>
-
-        <!-- Vendor Distribution Bar -->
-        <div class="bg-[#0b121e]/90 border border-slate-800 rounded-xl p-5">
-          <h2 class="text-xs font-semibold text-white mb-3">Server Hardware & OS Distribution</h2>
-          <div class="h-44 w-full">
-            <canvas id="chart-sw-vendor-bar"></canvas>
-          </div>
-        </div>
-
-        <!-- Top Saturated Nodes Ranking -->
-        <div class="bg-[#0b121e]/90 border border-slate-800 rounded-xl p-5 flex flex-col justify-between">
-          <h2 class="text-xs font-semibold text-white mb-3">Top Resource-Saturated Nodes</h2>
-          <div id="sw-top-saturated-list" class="space-y-2 overflow-y-auto max-h-48 pr-1">
-            <div class="animate-pulse space-y-2">
-              <div class="h-8 bg-slate-900 rounded"></div>
-              <div class="h-8 bg-slate-900 rounded"></div>
-              <div class="h-8 bg-slate-900 rounded"></div>
-            </div>
-          </div>
-        </div>
+        </article>
       </div>
-
-      <!-- Server-Side Paginated Server Nodes Table -->
-      <div class="bg-[#0b121e]/90 border border-slate-800 rounded-xl overflow-hidden shadow-lg" id="sw-nodes-table-container">
-        
-        <!-- Table Control Toolbar -->
-        <div class="p-4 border-b border-slate-800 flex flex-wrap items-center justify-between gap-3 bg-slate-950/40">
-          <div class="flex flex-wrap items-center gap-2">
-            <div class="relative">
-              <input id="sw-nodes-search" type="text" placeholder="Search host, IP, OS, or vendor..." class="pl-8 pr-3 py-1.5 text-xs bg-slate-900 text-slate-200 placeholder-slate-500 rounded-lg border border-slate-800 focus:outline-none focus:border-slate-600 w-60 font-mono">
-              <svg class="w-3.5 h-3.5 text-slate-500 absolute left-2.5 top-2.5 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
-            </div>
-
-            <!-- Health Tier Filter Pills -->
-            <div class="flex items-center space-x-1 pl-2">
-              <button class="sw-health-filter-btn px-2.5 py-1 text-[11px] font-medium rounded-md border bg-orange-500/20 text-orange-400 border-orange-500/40 transition" data-tier="all">All</button>
-              <button class="sw-health-filter-btn px-2.5 py-1 text-[11px] font-medium rounded-md border border-slate-800 text-slate-400 hover:text-white transition" data-tier="High">High</button>
-              <button class="sw-health-filter-btn px-2.5 py-1 text-[11px] font-medium rounded-md border border-slate-800 text-slate-400 hover:text-white transition" data-tier="Medium">Medium</button>
-              <button class="sw-health-filter-btn px-2.5 py-1 text-[11px] font-medium rounded-md border border-slate-800 text-slate-400 hover:text-white transition" data-tier="Low">Critical</button>
-            </div>
-          </div>
-
-          <!-- Table Actions & CSV Export -->
-          <div class="flex items-center space-x-2">
-            <select id="sw-nodes-page-size" class="bg-slate-900 text-slate-300 border border-slate-800 rounded-md px-2 py-1 text-xs font-mono">
-              <option value="10">10 / page</option>
-              <option value="25" selected>25 / page</option>
-              <option value="50">50 / page</option>
-              <option value="100">100 / page</option>
+      <section class="remediation-card" aria-labelledby="remediationTitle">
+        <div class="table-toolbar">
+          <div class="toolbar-set">
+            <strong id="remediationTitle" class="kpi-label">Intune remediation worklist</strong>
+            <button id="loadReasonCatalog" class="action-btn" type="button">Load remediation worklist</button>
+            <select id="complianceReasonSelect" class="select reason-select" disabled>
+              <option value="">Load reported reasons to select an exact Intune setting</option>
             </select>
-            <button id="btn-export-sw-csv" class="px-3 py-1 text-xs font-medium bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700 rounded-md transition flex items-center space-x-1">
-              <span>📥</span>
-              <span>Export CSV</span>
+            <input id="reasonDeviceSearch" class="input search" type="search" placeholder="Search affected devices" disabled>
+          </div>
+          <button id="exportReasonWorklist" class="action-btn" type="button" disabled>Export selected list</button>
+        </div>
+        <div id="reasonWorklistSummary" class="reason-summary">Load reported reasons to build a source-backed remediation worklist. This does not infer categories from device names or status.</div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Device</th><th>Model</th><th>Reported setting</th><th>Reported state</th><th>Grace period expiry</th></tr></thead>
+            <tbody id="reasonWorklistBody"><tr><td colspan="5"><div class="empty"><strong>No reason selected</strong>Choose an exact Intune compliance setting to list affected devices.</div></td></tr></tbody>
+          </table>
+        </div>
+      </section>
+      <section class="table-card" aria-labelledby="devicesTableTitle">
+        <div class="table-toolbar">
+          <div class="toolbar-set">
+            <strong id="devicesTableTitle" class="kpi-label">All Intune devices</strong>
+            <input id="deviceSearch" class="input search" type="search" placeholder="Search device, serial, vendor, or OS">
+            <button class="filter-btn active" type="button" data-device-status="">All</button>
+            <button class="filter-btn" type="button" data-device-status="Compliant">Compliant</button>
+            <button class="filter-btn" type="button" data-device-status="Noncompliant">Non-compliant</button>
+            <button class="filter-btn" type="button" data-device-status="Unknown">No compliance state</button>
+          </div>
+          <div class="toolbar-set">
+            <label class="kpi-label" for="devicePageSize">Rows</label>
+            <select id="devicePageSize" class="select"><option>10</option><option selected>25</option><option>50</option><option>100</option></select>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Device</th><th>Serial</th><th>Operating system</th><th>Manufacturer / model</th><th>Compliance</th><th>Health</th><th>Last sync</th></tr></thead>
+            <tbody id="devicesBody"><tr><td colspan="7"><div class="empty"><strong>Loading device inventory</strong>Connecting to the Intune devices endpoint.</div></td></tr></tbody>
+          </table>
+        </div>
+        <div class="table-footer"><span id="devicePageInfo">No device page loaded</span><div class="pager"><button id="devicePrev" class="pager-btn" type="button" disabled>Prev</button><button id="deviceNext" class="pager-btn" type="button" disabled>Next</button></div></div>
+      </section>
+    </section>
+
+    <section id="deviceComplianceDetail" class="compliance-detail-modal" aria-live="polite" aria-labelledby="deviceComplianceTitle">
+      <div class="node-detail-header">
+        <div>
+          <h3 id="deviceComplianceTitle">Intune compliance evidence</h3>
+          <p id="deviceComplianceSubtitle">Select a device to retrieve its policy and setting evidence from Intune.</p>
+        </div>
+        <div class="toolbar-set">
+          <span id="deviceComplianceMeta" class="as-of">No device selected</span>
+          <button id="closeDeviceComplianceDetail" class="action-btn close-modal" type="button" aria-label="Close compliance details">Close</button>
+        </div>
+      </div>
+      <div class="diagnostic-grid">
+        <div class="diagnostic-item"><span>Device</span><b id="deviceComplianceName">No device selected</b><span id="deviceComplianceState">Select a non-compliant device.</span></div>
+        <div class="diagnostic-item"><span>Non-compliant policies</span><b id="deviceCompliancePolicyCount">--</b><span>Policies whose source state is not compliant.</span></div>
+        <div class="diagnostic-item"><span>Failing settings returned</span><b id="deviceComplianceSettingCount">--</b><span>Exact setting states supplied by Intune.</span></div>
+      </div>
+      <div id="deviceComplianceNote" class="evidence-note">No policy evidence loaded.</div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Compliance policy</th><th>Platform</th><th>Policy state</th><th>Reported setting</th><th>Setting state</th></tr></thead>
+          <tbody id="deviceComplianceBody"><tr><td colspan="5"><div class="empty"><strong>Select a device</strong>Only source-returned policy and setting details will appear here.</div></td></tr></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="servers" class="panel" aria-labelledby="serverHeading">
+      <section class="site-health-section" aria-labelledby="siteHealthHeading">
+        <div class="section-heading">
+          <div>
+            <div class="eyebrow">Server sites · SolarWinds</div>
+            <h2 id="siteHealthHeading">Server site availability</h2>
+            <p>Choose a health band to see location health calculated from server nodes only.</p>
+          </div>
+          <span id="siteDataState" class="as-of">Awaiting SolarWinds site telemetry</span>
+        </div>
+        <div class="site-summary-grid" role="group" aria-label="Site availability filters">
+          <button id="siteHealthyButton" class="site-status-card healthy active" type="button" data-site-tier="healthy">
+            <span class="site-card-top"><span class="site-card-label">Healthy sites</span><span class="site-card-dot" aria-hidden="true"></span></span>
+            <strong id="siteHealthyCount" class="site-card-count">--</strong>
+            <span class="site-card-note">Healthy status with availability at or above 90%</span>
+          </button>
+          <button id="siteWarningButton" class="site-status-card warning" type="button" data-site-tier="warning">
+            <span class="site-card-top"><span class="site-card-label">At-risk sites</span><span class="site-card-dot" aria-hidden="true"></span></span>
+            <strong id="siteWarningCount" class="site-card-count">--</strong>
+            <span class="site-card-note">Warning status or availability from 75% to under 90%</span>
+          </button>
+          <button id="siteCriticalButton" class="site-status-card critical" type="button" data-site-tier="critical">
+            <span class="site-card-top"><span class="site-card-label">Critical sites</span><span class="site-card-dot" aria-hidden="true"></span></span>
+            <strong id="siteCriticalCount" class="site-card-count">--</strong>
+            <span class="site-card-note">Critical status or availability below 75%</span>
+          </button>
+        </div>
+        <section id="siteListCard" class="site-list-card show" aria-live="polite" aria-labelledby="siteListTitle">
+          <div class="site-list-heading">
+            <strong id="siteListTitle">Healthy SolarWinds sites</strong>
+            <span id="siteListMeta">Waiting for site telemetry</span>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Site</th><th>Region</th><th>Availability</th><th>Up / total servers</th><th>Warning / critical / down</th><th>Health</th></tr></thead>
+              <tbody id="siteListBody"><tr><td colspan="6"><div class="empty"><strong>Loading site availability</strong>Retrieving SolarWinds site telemetry.</div></td></tr></tbody>
+            </table>
+          </div>
+        </section>
+        <section id="siteNodeDetail" class="node-detail-card" aria-live="polite" aria-labelledby="siteNodeDetailTitle">
+          <div class="node-detail-header">
+            <div>
+              <h3 id="siteNodeDetailTitle">Site node drill-down</h3>
+              <p id="siteNodeDetailSubtitle">Select a site name or its warning / critical / down count to inspect its server nodes.</p>
+            </div>
+            <div class="toolbar-set">
+              <span id="siteNodeDetailMeta" class="as-of">No site selected</span>
+              <button id="closeSiteNodeDetail" class="action-btn close-modal" type="button" aria-label="Close site node drill-down">Close</button>
+            </div>
+          </div>
+          <div class="diagnostic-grid" aria-label="Selected site health assessment">
+            <div class="diagnostic-item">
+              <span>Availability judgement</span>
+              <b id="siteAvailabilityDiagnosis">No site selected</b>
+              <span id="siteAvailabilityDetail">Availability is calculated as up nodes divided by total nodes.</span>
+            </div>
+            <div class="diagnostic-item">
+              <span>Observed node impact</span>
+              <b id="siteNodeImpactDiagnosis">No site selected</b>
+              <span id="siteNodeImpactDetail">The view distinguishes warning, critical, and down statuses.</span>
+            </div>
+            <div class="diagnostic-item">
+              <span>Estate impact</span>
+              <b id="siteNetworkDiagnosis">No site selected</b>
+              <span id="siteNetworkDetail">The drill-down contains one asset type at a time.</span>
+            </div>
+          </div>
+          <div class="node-tier-grid" role="group" aria-label="Selected site node health filters">
+            <button class="node-tier-card healthy active" type="button" data-node-tier="healthy">
+              <span>Healthy nodes</span><b id="siteNodeHealthyCount">--</b><span>High health classification</span>
+            </button>
+            <button class="node-tier-card warning" type="button" data-node-tier="warning">
+              <span>At-risk nodes</span><b id="siteNodeWarningCount">--</b><span>Medium health or warning / unmanaged</span>
+            </button>
+            <button class="node-tier-card critical" type="button" data-node-tier="critical">
+              <span>Critical nodes</span><b id="siteNodeCriticalCount">--</b><span>Low health, critical, or down</span>
             </button>
           </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th id="siteNodeNameHeader">Server</th><th>IP address</th><th id="siteNodePlatformHeader">Operating system</th><th>Vendor / model</th><th>CPU</th><th>Memory</th><th>Health</th><th>Status</th></tr></thead>
+              <tbody id="siteNodeBody"><tr><td colspan="8"><div class="empty"><strong>Select a site to inspect nodes</strong>Node details are loaded from the matching SolarWinds location.</div></td></tr></tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+      <div class="section-heading">
+        <div>
+          <div class="eyebrow">Server box · SolarWinds</div>
+          <h2 id="serverHeading">Server availability and performance signals</h2>
+          <p>Keep availability, unmanaged, warning, critical, and down nodes distinct to preserve operational meaning.</p>
         </div>
-
-        <!-- Table Viewport -->
-        <div class="overflow-x-auto min-h-[300px]">
-          <table class="w-full text-left border-collapse">
-            <thead>
-              <tr class="border-b border-slate-800 text-[11px] font-semibold text-slate-400 bg-slate-900/60 uppercase tracking-wider">
-                <th class="px-4 py-3">Server Node / Hostname</th>
-                <th class="px-4 py-3 font-mono">IP Address</th>
-                <th class="px-4 py-3">Vendor</th>
-                <th class="px-4 py-3">OS / Model</th>
-                <th class="px-4 py-3">CPU</th>
-                <th class="px-4 py-3">RAM</th>
-                <th class="px-4 py-3">Health Tier</th>
-                <th class="px-4 py-3">Status</th>
-              </tr>
-            </thead>
-            <tbody id="sw-nodes-tbody">
-              <!-- Populated dynamically via loadSolarWindsNodes() -->
-            </tbody>
+        <span id="serverAsOf" class="as-of">Awaiting SolarWinds summary</span>
+      </div>
+      <div class="kpi-grid">
+        <article class="kpi"><span class="kpi-label">Server nodes</span><strong id="svTotal" class="kpi-value">--</strong><span id="svMonitoredNote" class="kpi-note">Monitored node count</span></article>
+        <article class="kpi"><span class="kpi-label">Availability</span><strong id="svAvailability" class="kpi-value tone-green">--</strong><span class="kpi-note">Reported availability</span></article>
+        <article class="kpi"><span class="kpi-label">Unavailable</span><strong id="svUnavailable" class="kpi-value tone-red">--</strong><span class="kpi-note">Not currently available</span></article>
+        <article class="kpi"><span class="kpi-label">High health</span><strong id="svHighHealth" class="kpi-value tone-green">--</strong><span class="kpi-note">Healthy server tier</span></article>
+        <article class="kpi"><span class="kpi-label">Low / critical health</span><strong id="svCritical" class="kpi-value tone-red">--</strong><span class="kpi-note">Needs NOC attention</span></article>
+      </div>
+      <div class="insight-grid">
+        <article class="card">
+          <h3>Server status distribution</h3>
+          <p class="card-subtitle">Critical, down, and unmanaged remain separate status categories.</p>
+          <div id="serverStatusBars" class="bar-list"><span class="skeleton">Loading server status…</span></div>
+        </article>
+        <article class="card">
+          <h3>Health tier distribution</h3>
+          <p class="card-subtitle">Current health classification for the full server estate.</p>
+          <div id="serverHealth" class="health-stack">
+            <div class="health-stat"><b>--</b><span>High</span></div><div class="health-stat"><b>--</b><span>Medium</span></div><div class="health-stat"><b>--</b><span>Low</span></div>
+          </div>
+        </article>
+        <article class="card">
+          <h3>Current-page resource review</h3>
+          <p class="card-subtitle">High CPU and memory signals are calculated only from the server rows on this page.</p>
+          <div class="callout">
+            <b id="resourceReviewTitle">Load a server page to inspect signals</b>
+            <span id="resourceReviewText">CPU and memory fields are read defensively from each server's telemetry attributes.</span>
+          </div>
+        </article>
+      </div>
+      <section class="table-card" aria-labelledby="serversTableTitle">
+        <div class="table-toolbar">
+          <div class="toolbar-set">
+            <strong id="serversTableTitle" class="kpi-label">All SolarWinds server nodes</strong>
+            <input id="serverSearch" class="input search" type="search" placeholder="Search server, IP, vendor, or OS">
+            <button class="filter-btn active" type="button" data-server-status="">All</button>
+            <button class="filter-btn" type="button" data-server-status="Up">Up</button>
+            <button class="filter-btn" type="button" data-server-status="Warning">Warning</button>
+            <button class="filter-btn" type="button" data-server-status="Critical">Critical</button>
+            <button class="filter-btn" type="button" data-server-status="Down">Down</button>
+          </div>
+          <div class="toolbar-set">
+            <label class="kpi-label" for="serverPageSize">Rows</label>
+            <select id="serverPageSize" class="select"><option>10</option><option selected>25</option><option>50</option><option>100</option></select>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Server</th><th>IP address</th><th>Vendor / model</th><th>Operating system</th><th>CPU</th><th>Memory</th><th>Health</th><th>Status</th></tr></thead>
+            <tbody id="serversBody"><tr><td colspan="8"><div class="empty"><strong>Loading server inventory</strong>Connecting to the SolarWinds nodes endpoint.</div></td></tr></tbody>
           </table>
         </div>
-
-        <!-- Table Footer Pagination -->
-        <div class="p-3.5 border-t border-slate-800 flex items-center justify-between text-xs bg-slate-950/40">
-          <span id="sw-nodes-page-info" class="text-slate-400 font-mono">Showing -- of -- servers</span>
-          <div class="flex items-center space-x-2">
-            <button id="sw-nodes-btn-prev" class="px-3 py-1 bg-slate-900 text-slate-300 border border-slate-800 rounded-md disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-800 transition">Prev</button>
-            <button id="sw-nodes-btn-next" class="px-3 py-1 bg-slate-900 text-slate-300 border border-slate-800 rounded-md disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-800 transition">Next</button>
-          </div>
-        </div>
-      </div>
+        <div class="table-footer"><span id="serverPageInfo">No server page loaded</span><div class="pager"><button id="serverPrev" class="pager-btn" type="button" disabled>Prev</button><button id="serverNext" class="pager-btn" type="button" disabled>Next</button></div></div>
+      </section>
     </section>
 
-    <!-- =========================================================================
-         TAB PANE 2: INTUNE ANALYTICS (WITH SECURITY ANALYTICS)
-         ========================================================================= -->
-    <section id="tab-pane-intune" class="infra-tab-pane space-y-6 hidden">
-      
-      <!-- Executive KPI Summary Cards -->
-      <div id="intune-kpi-summary" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3.5">
-        
-        <div class="bg-[#0b121e]/90 border border-slate-800 rounded-xl p-4 flex flex-col justify-between">
-          <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Total Managed Devices</span>
-          <div class="my-2">
-            <div id="intune-stat-total-devices" class="text-2xl font-bold font-mono text-white"><span class="animate-pulse text-slate-600">--</span></div>
-            <div class="text-[10px] text-sky-400 font-mono mt-0.5">Intune Graph Ingestion</div>
-          </div>
-          <span class="text-[10px] text-slate-500">Corporate & BYOD Fleet</span>
-        </div>
-
-        <div class="bg-[#0b121e]/90 border border-slate-800 rounded-xl p-4 flex flex-col justify-between">
-          <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Compliant Devices</span>
-          <div class="my-2">
-            <div id="intune-stat-compliant-count" class="text-2xl font-bold font-mono text-emerald-400"><span class="animate-pulse text-slate-600">--</span></div>
-            <div id="intune-stat-compliance-rate" class="text-[10px] text-emerald-400 font-mono mt-0.5">--% Posture</div>
-          </div>
-          <span class="text-[10px] text-slate-500">Meets all baseline rules</span>
-        </div>
-
-        <div class="bg-[#0b121e]/90 border border-slate-800 rounded-xl p-4 flex flex-col justify-between">
-          <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Non-Compliant</span>
-          <div class="my-2">
-            <div id="intune-stat-noncompliant-count" class="text-2xl font-bold font-mono text-rose-400"><span class="animate-pulse text-slate-600">--</span></div>
-            <div class="text-[10px] text-rose-400 font-mono mt-0.5">Requires Remediation</div>
-          </div>
-          <span class="text-[10px] text-slate-500">Conditional Access Block</span>
-        </div>
-
-        <div class="bg-[#0b121e]/90 border border-slate-800 rounded-xl p-4 flex flex-col justify-between">
-          <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Avg Storage Used</span>
-          <div class="my-2">
-            <div id="intune-stat-avg-storage" class="text-2xl font-bold font-mono text-amber-400"><span class="animate-pulse text-slate-600">--</span></div>
-            <div class="text-[10px] text-slate-400 font-mono mt-0.5">Endpoint Disk Baseline</div>
-          </div>
-          <span class="text-[10px] text-slate-500">Healthy Headroom</span>
-        </div>
-
-        <div class="bg-[#0b121e]/90 border border-slate-800 rounded-xl p-4 flex flex-col justify-between">
-          <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">In Grace Period</span>
-          <div class="my-2">
-            <div id="intune-stat-grace-count" class="text-2xl font-bold font-mono text-amber-400"><span class="animate-pulse text-slate-600">--</span></div>
-            <div class="text-[10px] text-slate-400 font-mono mt-0.5">Pending User Action</div>
-          </div>
-          <span class="text-[10px] text-slate-500">Within policy grace</span>
-        </div>
-
-        <div class="bg-[#0b121e]/90 border border-slate-800 rounded-xl p-4 flex flex-col justify-between">
-          <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Security Gate</span>
-          <div class="my-2">
-            <div class="text-2xl font-bold font-mono text-emerald-400">Active</div>
-            <div class="text-[10px] text-emerald-400 font-mono mt-0.5">BitLocker + Defender</div>
-          </div>
-          <span class="text-[10px] text-slate-500">Zero-Trust Verified</span>
-        </div>
-      </div>
-
-      <!-- Security Analytics Section (User Feedback Mandate) -->
-      <div class="bg-[#0b121e]/90 border border-slate-800 rounded-xl p-5 space-y-4">
-        <div class="flex items-center justify-between border-b border-slate-800/80 pb-3">
+    <section id="networks" class="panel" aria-labelledby="networkHeading">
+      <section class="site-health-section" aria-labelledby="networkSiteHeading">
+        <div class="section-heading">
           <div>
-            <h2 class="text-sm font-bold text-white flex items-center gap-2">
-              <span class="text-orange-400">🛡️</span>
-              Endpoint Security Posture & Compliance Analytics
-            </h2>
-            <p class="text-[11px] text-slate-400">Patch status, Defender Antivirus, BitLocker encryption, and OS Version Drift across workplace endpoints.</p>
+            <div class="eyebrow">Network sites · SolarWinds</div>
+            <h2 id="networkSiteHeading">Network site availability</h2>
+            <p>Site health is calculated only from switches, routers, firewalls, wireless devices, controllers, and network appliances.</p>
           </div>
-          <span class="px-2 py-0.5 text-[10px] font-mono text-emerald-400 bg-emerald-950/60 border border-emerald-500/30 rounded">SOC Tier-1 Compliant</span>
+          <span id="networkSiteDataState" class="as-of">Awaiting network site telemetry</span>
         </div>
-
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5 pt-2">
-          
-          <!-- Security KPI 1: Patch Compliance -->
-          <div class="p-3.5 bg-slate-900/60 rounded-lg border border-slate-800">
-            <div class="text-[11px] text-slate-400 font-medium">Patch Compliance</div>
-            <div id="intune-sec-patch-pct" class="text-xl font-bold font-mono text-emerald-400 my-1">--</div>
-            <div id="intune-sec-patch-pending" class="text-[10px] text-amber-400 font-mono">-- Pending</div>
-            <div id="intune-sec-patch-crit" class="text-[10px] text-slate-500 font-mono mt-0.5">-- Critical Needed</div>
-          </div>
-
-          <!-- Security KPI 2: AV Compliance -->
-          <div class="p-3.5 bg-slate-900/60 rounded-lg border border-slate-800">
-            <div class="text-[11px] text-slate-400 font-medium">Defender AV Health</div>
-            <div id="intune-sec-av-pct" class="text-xl font-bold font-mono text-emerald-400 my-1">--</div>
-            <div id="intune-sec-av-outdated" class="text-[10px] text-amber-400 font-mono">-- Outdated</div>
-            <div id="intune-sec-av-threats" class="text-[10px] text-slate-500 font-mono mt-0.5">-- Threats Isolated</div>
-          </div>
-
-          <!-- Security KPI 3: BitLocker Status -->
-          <div class="p-3.5 bg-slate-900/60 rounded-lg border border-slate-800">
-            <div class="text-[11px] text-slate-400 font-medium">BitLocker Encryption</div>
-            <div id="intune-sec-bitlocker-pct" class="text-xl font-bold font-mono text-emerald-400 my-1">--</div>
-            <div id="intune-sec-bitlocker-unenc" class="text-[10px] text-rose-400 font-mono">-- Unencrypted</div>
-            <div class="text-[10px] text-slate-500 font-mono mt-0.5">99.1% Keys Backed Up</div>
-          </div>
-
-          <!-- Security Chart 4: Device Risk Levels -->
-          <div class="p-3.5 bg-slate-900/60 rounded-lg border border-slate-800">
-            <div class="text-[11px] text-slate-400 font-medium mb-1">Device Risk Levels</div>
-            <div class="h-20 w-full">
-              <canvas id="chart-intune-risk-levels"></canvas>
-            </div>
-          </div>
-
-          <!-- Security Chart 5: OS Version Drift -->
-          <div class="p-3.5 bg-slate-900/60 rounded-lg border border-slate-800">
-            <div class="text-[11px] text-slate-400 font-medium mb-1">OS Version Drift</div>
-            <div class="h-20 w-full flex items-center justify-center">
-              <canvas id="chart-intune-os-drift"></canvas>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- OS Distribution & Manufacturer Charts -->
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div class="bg-[#0b121e]/90 border border-slate-800 rounded-xl p-5">
-          <h2 class="text-xs font-semibold text-white mb-3">Operating System Distribution</h2>
-          <div class="h-44 w-full flex items-center justify-center">
-            <canvas id="chart-intune-os-doughnut"></canvas>
-          </div>
-        </div>
-        <div class="bg-[#0b121e]/90 border border-slate-800 rounded-xl p-5">
-          <h2 class="text-xs font-semibold text-white mb-3">Hardware Manufacturer Breakdown</h2>
-          <div class="h-44 w-full">
-            <canvas id="chart-intune-man-bar"></canvas>
-          </div>
-        </div>
-      </div>
-
-      <!-- Server-Side Paginated Intune Devices Table -->
-      <div class="bg-[#0b121e]/90 border border-slate-800 rounded-xl overflow-hidden shadow-lg">
-        <div class="p-4 border-b border-slate-800 flex flex-wrap items-center justify-between gap-3 bg-slate-950/40">
-          <div class="flex flex-wrap items-center gap-2">
-            <input id="intune-devices-search" type="text" placeholder="Search device, serial, user, or OS..." class="px-3 py-1.5 text-xs bg-slate-900 text-slate-200 placeholder-slate-500 rounded-lg border border-slate-800 focus:outline-none focus:border-slate-600 w-64 font-mono">
-            <div class="flex items-center space-x-1 pl-2">
-              <button class="intune-status-filter-btn px-2.5 py-1 text-[11px] font-medium rounded-md border bg-orange-500/20 text-orange-400 border-orange-500/40 transition" data-status="all">All</button>
-              <button class="intune-status-filter-btn px-2.5 py-1 text-[11px] font-medium rounded-md border border-slate-800 text-slate-400 hover:text-white transition" data-status="Compliant">Compliant</button>
-              <button class="intune-status-filter-btn px-2.5 py-1 text-[11px] font-medium rounded-md border border-slate-800 text-slate-400 hover:text-white transition" data-status="Noncompliant">Non-Compliant</button>
-            </div>
-          </div>
-          <button id="btn-export-intune-csv" class="px-3 py-1 text-xs font-medium bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700 rounded-md transition flex items-center space-x-1">
-            <span>📥</span>
-            <span>Export CSV</span>
+        <div class="site-summary-grid" role="group" aria-label="Network site availability filters">
+          <button class="site-status-card healthy active" type="button" data-network-site-tier="healthy">
+            <span class="site-card-top"><span class="site-card-label">Healthy sites</span><span class="site-card-dot" aria-hidden="true"></span></span>
+            <strong id="networkSiteHealthyCount" class="site-card-count">--</strong>
+            <span class="site-card-note">Network availability at or above 90%</span>
+          </button>
+          <button class="site-status-card warning" type="button" data-network-site-tier="warning">
+            <span class="site-card-top"><span class="site-card-label">At-risk sites</span><span class="site-card-dot" aria-hidden="true"></span></span>
+            <strong id="networkSiteWarningCount" class="site-card-count">--</strong>
+            <span class="site-card-note">Network availability from 75% to under 90%</span>
+          </button>
+          <button class="site-status-card critical" type="button" data-network-site-tier="critical">
+            <span class="site-card-top"><span class="site-card-label">Critical sites</span><span class="site-card-dot" aria-hidden="true"></span></span>
+            <strong id="networkSiteCriticalCount" class="site-card-count">--</strong>
+            <span class="site-card-note">Network availability below 75%</span>
           </button>
         </div>
+        <section class="site-list-card show" aria-live="polite" aria-labelledby="networkSiteListTitle">
+          <div class="site-list-heading">
+            <strong id="networkSiteListTitle">Healthy network sites</strong>
+            <span id="networkSiteListMeta">Waiting for network inventory</span>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Site</th><th>Availability</th><th>Up / total network nodes</th><th>Warning</th><th>Critical</th><th>Down</th><th>Health</th></tr></thead>
+              <tbody id="networkSiteListBody"><tr><td colspan="7"><div class="empty"><strong>Loading network site availability</strong>Classifying the SolarWinds node inventory.</div></td></tr></tbody>
+            </table>
+          </div>
+        </section>
+      </section>
 
-        <div class="overflow-x-auto min-h-[300px]">
-          <table class="w-full text-left border-collapse">
-            <thead>
-              <tr class="border-b border-slate-800 text-[11px] font-semibold text-slate-400 bg-slate-900/60 uppercase tracking-wider">
-                <th class="px-4 py-3">Device Name</th>
-                <th class="px-4 py-3 font-mono">Serial Number</th>
-                <th class="px-4 py-3">OS Version</th>
-                <th class="px-4 py-3">Manufacturer</th>
-                <th class="px-4 py-3">Model</th>
-                <th class="px-4 py-3">Compliance Status</th>
-                <th class="px-4 py-3">Last Sync</th>
-              </tr>
-            </thead>
-            <tbody id="intune-devices-tbody">
-              <!-- Populated dynamically via loadIntuneDevices() -->
-            </tbody>
+      <div class="section-heading">
+        <div>
+          <div class="eyebrow">Network box · SolarWinds</div>
+          <h2 id="networkHeading">Network-node condition and site impact</h2>
+          <p>This view excludes server nodes so the network team can focus on device availability, warnings, critical states, and outages.</p>
+        </div>
+        <span id="networkAsOf" class="as-of">Awaiting classified SolarWinds inventory</span>
+      </div>
+      <div class="kpi-grid">
+        <article class="kpi"><span class="kpi-label">Network nodes</span><strong id="nwTotal" class="kpi-value">--</strong><span id="nwMonitoredNote" class="kpi-note">Monitored network-device count</span></article>
+        <article class="kpi"><span class="kpi-label">Availability</span><strong id="nwAvailability" class="kpi-value tone-green">--</strong><span class="kpi-note">Up network nodes</span></article>
+        <article class="kpi"><span class="kpi-label">Unavailable</span><strong id="nwUnavailable" class="kpi-value tone-red">--</strong><span class="kpi-note">Not currently up</span></article>
+        <article class="kpi"><span class="kpi-label">High health</span><strong id="nwHighHealth" class="kpi-value tone-green">--</strong><span class="kpi-note">Healthy network tier</span></article>
+        <article class="kpi"><span class="kpi-label">Low / critical health</span><strong id="nwCritical" class="kpi-value tone-red">--</strong><span class="kpi-note">Needs network-team attention</span></article>
+      </div>
+      <div class="insight-grid">
+        <article class="card">
+          <h3>Network status distribution</h3>
+          <p class="card-subtitle">Up, warning, critical, down, and unmanaged remain separate.</p>
+          <div id="networkStatusBars" class="bar-list"><span class="skeleton">Loading network status…</span></div>
+        </article>
+        <article class="card">
+          <h3>Network health tiers</h3>
+          <p class="card-subtitle">Health classification for network devices only.</p>
+          <div id="networkHealth" class="health-stack">
+            <div class="health-stat"><b>--</b><span>High</span></div><div class="health-stat"><b>--</b><span>Medium</span></div><div class="health-stat"><b>--</b><span>Low</span></div>
+          </div>
+        </article>
+        <article class="card">
+          <h3>Current-page network review</h3>
+          <p class="card-subtitle">Highlights warning, critical, down, and unmanaged devices on the visible page.</p>
+          <div class="callout">
+            <b id="networkReviewTitle">Load a network page to inspect condition</b>
+            <span id="networkReviewText">Network status is read directly from each SolarWinds record.</span>
+          </div>
+        </article>
+      </div>
+      <section class="table-card" aria-labelledby="networksTableTitle">
+        <div class="table-toolbar">
+          <div class="toolbar-set">
+            <strong id="networksTableTitle" class="kpi-label">All SolarWinds network nodes</strong>
+            <input id="networkSearch" class="input search" type="search" placeholder="Search switch, router, firewall, IP, vendor, or site">
+            <button class="filter-btn active" type="button" data-network-status="">All</button>
+            <button class="filter-btn" type="button" data-network-status="Up">Up</button>
+            <button class="filter-btn" type="button" data-network-status="Warning">Warning</button>
+            <button class="filter-btn" type="button" data-network-status="Critical">Critical</button>
+            <button class="filter-btn" type="button" data-network-status="Down">Down</button>
+          </div>
+          <div class="toolbar-set">
+            <label class="kpi-label" for="networkPageSize">Rows</label>
+            <select id="networkPageSize" class="select"><option>10</option><option selected>25</option><option>50</option><option>100</option></select>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Network node</th><th>Type</th><th>IP address</th><th>Site</th><th>Vendor / model</th><th>Health</th><th>Status</th></tr></thead>
+            <tbody id="networksBody"><tr><td colspan="7"><div class="empty"><strong>Loading network inventory</strong>Classifying the SolarWinds nodes endpoint.</div></td></tr></tbody>
           </table>
         </div>
-
-        <div class="p-3.5 border-t border-slate-800 flex items-center justify-between text-xs bg-slate-950/40">
-          <span id="intune-devices-page-info" class="text-slate-400 font-mono">Showing -- of -- devices</span>
-          <div class="flex items-center space-x-2">
-            <button id="intune-devices-btn-prev" class="px-3 py-1 bg-slate-900 text-slate-300 border border-slate-800 rounded-md disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-800 transition">Prev</button>
-            <button id="intune-devices-btn-next" class="px-3 py-1 bg-slate-900 text-slate-300 border border-slate-800 rounded-md disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-800 transition">Next</button>
-          </div>
-        </div>
-      </div>
+        <div class="table-footer"><span id="networkPageInfo">No network page loaded</span><div class="pager"><button id="networkPrev" class="pager-btn" type="button" disabled>Prev</button><button id="networkNext" class="pager-btn" type="button" disabled>Next</button></div></div>
+      </section>
     </section>
-
-    <!-- =========================================================================
-         TAB PANE 3: LOCATION-WISE ANALYTICS
-         ========================================================================= -->
-    <section id="tab-pane-location" class="infra-tab-pane space-y-6 hidden">
-      
-      <!-- Executive Location KPIs -->
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div class="bg-[#0b121e]/90 border border-slate-800 rounded-xl p-4 flex flex-col justify-between">
-          <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Total Monitored Facilities</span>
-          <div class="my-2">
-            <div id="loc-stat-total-sites" class="text-2xl font-bold font-mono text-white"><span class="animate-pulse text-slate-600">--</span></div>
-            <div class="text-[10px] text-emerald-400 font-mono mt-0.5">India, Americas, APAC & EMEA</div>
-          </div>
-          <span class="text-[10px] text-slate-500">60 Global Campus Locations</span>
-        </div>
-
-        <div class="bg-[#0b121e]/90 border border-slate-800 rounded-xl p-4 flex flex-col justify-between">
-          <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Top Device Density Hub</span>
-          <div class="my-2">
-            <div id="loc-stat-top-site" class="text-lg font-bold font-mono text-orange-400 truncate"><span class="animate-pulse text-slate-600">--</span></div>
-            <div class="text-[10px] text-slate-400 font-mono mt-0.5">Highest node concentration</div>
-          </div>
-          <span class="text-[10px] text-slate-500">Greater Noida Campus DC</span>
-        </div>
-
-        <div class="bg-[#0b121e]/90 border border-slate-800 rounded-xl p-4 flex flex-col justify-between">
-          <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Global Campus Availability</span>
-          <div class="my-2">
-            <div id="loc-stat-avg-sla" class="text-2xl font-bold font-mono text-emerald-400"><span class="animate-pulse text-slate-600">--</span></div>
-            <div class="text-[10px] text-emerald-400 font-mono mt-0.5">Aggregate Facility SLA</div>
-          </div>
-          <span class="text-[10px] text-slate-500">Meets Enterprise Service Level</span>
-        </div>
-
-        <div class="bg-[#0b121e]/90 border border-slate-800 rounded-xl p-4 flex flex-col justify-between">
-          <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Facilities at Risk</span>
-          <div class="my-2">
-            <div id="loc-stat-crit-sites" class="text-2xl font-bold font-mono text-rose-400">-- Facilities</div>
-            <div class="text-[10px] text-rose-400 font-mono mt-0.5">Availability &lt;75% SLA</div>
-          </div>
-          <span class="text-[10px] text-slate-500">Requires Site Engineering Review</span>
-        </div>
-      </div>
-
-      <!-- Visualizations: Top 10 Campuses & Regional Breakdown -->
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div class="lg:col-span-2 bg-[#0b121e]/90 border border-slate-800 rounded-xl p-5">
-          <h2 class="text-xs font-semibold text-white mb-3">Top 10 Campus Facilities by Server Node Density</h2>
-          <div class="h-48 w-full">
-            <canvas id="chart-location-top-bar"></canvas>
-          </div>
-        </div>
-        <div class="bg-[#0b121e]/90 border border-slate-800 rounded-xl p-5">
-          <h2 class="text-xs font-semibold text-white mb-3">Regional Node Distribution</h2>
-          <div class="h-48 w-full flex items-center justify-center">
-            <canvas id="chart-location-region-doughnut"></canvas>
-          </div>
-        </div>
-      </div>
-
-      <!-- Interactive 24-Hour Campus Facility Telemetry Analyzer -->
-      <div class="bg-[#0b121e]/90 border border-slate-800 rounded-xl p-5" id="location-site-trend-container">
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-3 mb-3">
-          <div>
-            <h2 id="location-trend-site-name" class="text-xs font-bold text-white flex items-center gap-2">
-              <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
-              Selected Facility - 24h Availability & Performance
-            </h2>
-            <p class="text-[11px] text-slate-400 font-mono">Dynamic historical drilldown from SolarWinds API</p>
-          </div>
-          <div class="flex items-center space-x-2">
-            <span class="text-xs text-slate-400">Facility:</span>
-            <select id="select-trend-facility" class="bg-slate-900 text-slate-200 border border-slate-800 rounded-md px-2.5 py-1 text-xs focus:outline-none focus:border-slate-600 font-mono">
-              <!-- Populated dynamically via populateLocationDropdowns() -->
-            </select>
-          </div>
-        </div>
-        <div class="h-52 w-full">
-          <canvas id="chart-location-site-trend"></canvas>
-        </div>
-      </div>
-
-      <!-- Full 60-Campus Location Health Table -->
-      <div class="bg-[#0b121e]/90 border border-slate-800 rounded-xl overflow-hidden shadow-lg" id="location-sites-table-container">
-        <div class="p-4 border-b border-slate-800 flex flex-wrap items-center justify-between gap-3 bg-slate-950/40">
-          <div class="flex flex-wrap items-center gap-2">
-            <input id="loc-sites-search" type="text" placeholder="Search campus facility or city..." class="px-3 py-1.5 text-xs bg-slate-900 text-slate-200 placeholder-slate-500 rounded-lg border border-slate-800 focus:outline-none focus:border-slate-600 w-60">
-            
-            <!-- Regional Filter Chips -->
-            <div class="flex items-center space-x-1 pl-2">
-              <button class="loc-region-filter-btn px-2.5 py-1 text-[11px] font-medium rounded-md border bg-orange-500/20 text-orange-400 border-orange-500/40 transition" data-region="all">All (60)</button>
-              <button class="loc-region-filter-btn px-2.5 py-1 text-[11px] font-medium rounded-md border border-slate-800 text-slate-400 hover:text-white transition" data-region="INDIA">India (13)</button>
-              <button class="loc-region-filter-btn px-2.5 py-1 text-[11px] font-medium rounded-md border border-slate-800 text-slate-400 hover:text-white transition" data-region="AMERICAS">Americas (25)</button>
-              <button class="loc-region-filter-btn px-2.5 py-1 text-[11px] font-medium rounded-md border border-slate-800 text-slate-400 hover:text-white transition" data-region="APAC_EMEA">APAC & EMEA (22)</button>
-            </div>
-          </div>
-
-          <button id="btn-export-location-csv" class="px-3 py-1 text-xs font-medium bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700 rounded-md transition flex items-center space-x-1">
-            <span>📥</span>
-            <span>Export CSV</span>
-          </button>
-        </div>
-
-        <div class="overflow-x-auto min-h-[300px]">
-          <table class="w-full text-left border-collapse">
-            <thead>
-              <tr class="border-b border-slate-800 text-[11px] font-semibold text-slate-400 bg-slate-900/60 uppercase tracking-wider">
-                <th class="px-4 py-3">Campus Facility / City</th>
-                <th class="px-4 py-3 font-mono">Region</th>
-                <th class="px-4 py-3 font-mono">Nodes</th>
-                <th class="px-4 py-3 font-mono text-emerald-400">Up</th>
-                <th class="px-4 py-3 font-mono text-amber-400">Warning</th>
-                <th class="px-4 py-3 font-mono text-rose-400">Critical</th>
-                <th class="px-4 py-3 font-mono">SLA Avail (%)</th>
-                <th class="px-4 py-3">Health Status</th>
-                <th class="px-4 py-3">Action</th>
-              </tr>
-            </thead>
-            <tbody id="location-sites-tbody">
-              <!-- Populated dynamically via renderLocationSitesTable() -->
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </section>
-
   </main>
 
-  <!-- =========================================================================
-       3. APPLICATION SCRIPT LOADER
-       ========================================================================= -->
-  <script src="js/infrastructure_analytics.js"></script>
+  <script>
+    (() => {
+      "use strict";
+
+      const endpoints = {
+        freshness: "/system/freshness",
+        intuneSummary: "/intune/summary",
+        intuneDevices: "/intune/devices",
+        intuneComplianceDetails: (ciId) => `/intune/devices/${encodeURIComponent(ciId)}/compliance-details`,
+        intuneReasonCatalog: "/intune/noncompliance-reasons",
+        intuneReasonDevices: (reasonId) => `/intune/noncompliance-reasons/${encodeURIComponent(reasonId)}/devices`,
+        solarwindsSummary: "/solarwinds/summary",
+        solarwindsNodes: "/solarwinds/nodes"
+      };
+      const colors = ["#5cc8ff", "#35d09a", "#f9b84a", "#f97316", "#a78bfa", "#fb7185", "#94a3b8"];
+      const storedBase = localStorage.getItem("itom-api-base");
+      const isLocalHost = ["localhost", "127.0.0.1"].includes(window.location.hostname);
+      const isLocalStaticHost = isLocalHost && window.location.port !== "8000";
+      const defaultApiBase = isLocalStaticHost ? "http://127.0.0.1:8000/api/v1" : "/api/v1";
+      const state = {
+        // A local static server has no API proxy, so it connects directly to Uvicorn.
+        base: normalizeBase(isLocalStaticHost ? defaultApiBase : storedBase || defaultApiBase),
+        intuneSummary: null,
+        solarwindsSummary: null,
+        serverSummary: null,
+        networkSummary: null,
+        intuneVerified: false,
+        solarwindsVerified: false,
+        sites: [],
+        networkSites: [],
+        siteTier: "healthy",
+        networkSiteTier: "healthy",
+        siteNodes: [],
+        selectedSiteName: "",
+        selectedSiteEstate: "server",
+        nodeTier: "healthy",
+        nodeStatus: "",
+        solarwindsNodes: [],
+        serverNodes: [],
+        networkNodes: [],
+        reasonWorklist: { reasons: [], selectedReasonId: "", devices: [], search: "", cachedAt: null, source: null },
+        device: { page: 1, pageSize: 25, search: "", status: "", data: null },
+        server: { page: 1, pageSize: 25, search: "", status: "", data: null },
+        network: { page: 1, pageSize: 25, search: "", status: "", data: null }
+      };
+
+      const $ = (id) => document.getElementById(id);
+      const escapeHtml = (value) => String(value ?? "—").replace(/[&<>"']/g, (char) => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;"
+      }[char]));
+      const number = (value) => Number.isFinite(Number(value)) ? Number(value).toLocaleString() : "—";
+      const percentage = (value) => Number.isFinite(Number(value)) ? `${Number(value).toFixed(Number(value) % 1 ? 1 : 0)}%` : "—";
+      const metric = (data, key) => data?.metrics?.[key];
+      const formatDate = (value) => {
+        if (!value) return "No sync timestamp provided";
+        const date = new Date(value);
+        return Number.isNaN(date.getTime()) ? String(value) : `Reported ${date.toLocaleString()}`;
+      };
+      function normalizeBase(value) {
+        const base = String(value || "").trim().replace(/\/+$/, "");
+        if (base === "/api/v1") return base;
+        const parsed = new URL(base);
+        const path = parsed.pathname.replace(/\/+$/, "");
+        return path.endsWith("/api/v1") ? `${parsed.origin}${path}` : `${parsed.origin}${path}/api/v1`;
+      }
+      const endpointUrl = (path) => `${state.base}${path}`;
+      const isVerifiedTelemetry = (data, source) => {
+        const reportedSource = String(data?.source_system || "").toUpperCase();
+        const dataSource = String(data?.data_source || "").toUpperCase();
+        return Boolean(data?.metrics) &&
+          (!reportedSource || reportedSource === source) &&
+          dataSource !== "NONE";
+      };
+
+      function setStatus(type, message) {
+        const dot = $("statusDot");
+        dot.className = `status-dot ${type}`;
+        $("statusText").textContent = message;
+      }
+
+      function showBanner(message, isError = false) {
+        const banner = $("freshnessBanner");
+        banner.textContent = message;
+        banner.className = `freshness-banner show${isError ? " error" : ""}`;
+      }
+
+      function clearBanner() {
+        $("freshnessBanner").className = "freshness-banner";
+        $("freshnessBanner").textContent = "";
+      }
+
+      async function fetchJson(path) {
+        let response;
+        try {
+          response = await fetch(endpointUrl(path), { method: "GET", headers: { Accept: "application/json" } });
+        } catch (error) {
+          throw new Error(`Unable to reach ${endpointUrl(path)}. Check the ITOM API connection.`);
+        }
+        let body = null;
+        try { body = await response.json(); } catch (error) { /* The response error below remains actionable. */ }
+        if (!response.ok) {
+          const detail = body?.detail || body?.error || `HTTP ${response.status}`;
+          const failure = new Error(detail);
+          failure.status = response.status;
+          failure.body = body;
+          throw failure;
+        }
+        return body;
+      }
+
+      function renderBars(targetId, breakdown, emptyText) {
+        const target = $(targetId);
+        const entries = Object.entries(breakdown || {}).filter(([, value]) => Number(value) >= 0);
+        const total = entries.reduce((sum, [, value]) => sum + Number(value), 0);
+        if (!entries.length || !total) {
+          target.innerHTML = `<span class="skeleton">${escapeHtml(emptyText)}</span>`;
+          return;
+        }
+        target.innerHTML = entries.map(([label, value], index) => {
+          const width = Math.max(2, Math.min(100, (Number(value) / total) * 100));
+          return `<div class="bar-row"><span title="${escapeHtml(label)}">${escapeHtml(label)}</span><div class="bar-track"><div class="bar-fill" style="inline-size:${width}%;--bar-color:${colors[index % colors.length]}"></div></div><b>${number(value)}</b></div>`;
+        }).join("");
+      }
+
+      function renderHealth(targetId, breakdown) {
+        const values = { High: breakdown?.High ?? 0, Medium: breakdown?.Medium ?? 0, Low: breakdown?.Low ?? 0 };
+        const tones = { High: "tone-green", Medium: "tone-amber", Low: "tone-red" };
+        $(targetId).innerHTML = Object.entries(values).map(([label, value]) =>
+          `<div class="health-stat"><b class="${tones[label]}">${number(value)}</b><span>${label}</span></div>`
+        ).join("");
+      }
+
+      function badge(value, type) {
+        const text = String(value || "Unknown");
+        const normalized = text.toLowerCase();
+        let style = "neutral";
+        if (type === "compliance") style = normalized === "compliant" ? "good" : normalized.includes("non") ? "bad" : "warn";
+        if (type === "health") style = normalized === "high" ? "good" : normalized === "medium" ? "warn" : normalized === "low" ? "bad" : "neutral";
+        if (type === "status") style = normalized === "up" ? "good" : normalized === "warning" ? "warn" : (normalized === "critical" || normalized === "down") ? "bad" : "neutral";
+        return `<span class="badge ${style}">${escapeHtml(text)}</span>`;
+      }
+
+      function updateOverview() {
+        const intune = state.intuneSummary;
+        const servers = state.serverSummary;
+        const networks = state.networkSummary;
+        $("overviewDevices").textContent = number(metric(intune, "total_managed_devices"));
+        $("overviewCompliance").textContent = percentage(metric(intune, "compliance_rate_pct"));
+        $("overviewNoncompliant").textContent = number(metric(intune, "noncompliant_devices") ?? metric(intune, "non_compliant_devices"));
+        $("overviewServers").textContent = number(servers?.total);
+        $("overviewAvailability").textContent = percentage(servers?.availabilityPct);
+        $("overviewCritical").textContent = number(servers?.healthBreakdown?.Low);
+        $("overviewNetworks").textContent = number(networks?.total);
+        $("overviewNetworkAvailability").textContent = percentage(networks?.availabilityPct);
+        $("overviewNetworkCritical").textContent = number(networks?.healthBreakdown?.Low);
+      }
+
+      function renderIntuneSummary(data) {
+        state.intuneSummary = data;
+        const status = data?.status_breakdown || data?.compliance_breakdown || {};
+        const health = data?.health_breakdown || {};
+        $("epTotal").textContent = number(metric(data, "total_managed_devices"));
+        $("epCompliant").textContent = number(metric(data, "compliant_devices"));
+        $("epNoncompliant").textContent = number(metric(data, "noncompliant_devices") ?? metric(data, "non_compliant_devices"));
+        $("epStorage").textContent = percentage(metric(data, "median_device_storage_used_pct"));
+        $("epGrace").textContent = number(status.Ingraceperiod ?? status.InGracePeriod ?? 0);
+        $("epComplianceNote").textContent = `${percentage(metric(data, "compliance_rate_pct"))} compliance rate`;
+        $("epStorageNote").textContent = `${percentage(metric(data, "storage_coverage_pct"))} reporting coverage`;
+        $("endpointAsOf").textContent = formatDate(data?.last_sync_time || data?.generated_at);
+        renderBars("endpointComplianceBars", status, "No compliance breakdown returned");
+        renderBars("endpointOsBars", data?.os_distribution || data?.os_breakdown, "No operating-system breakdown returned");
+        renderHealth("endpointHealth", health);
+        updateOverview();
+      }
+
+      function getSiteTier(site) {
+        const reportedStatus = String(site?.health_status || site?.status || "").toLowerCase();
+        const availability = Number(site?.availability_pct);
+        if (reportedStatus === "critical" || Number.isFinite(availability) && availability < 75) return "critical";
+        if (reportedStatus === "warning" || Number.isFinite(availability) && availability < 90) return "warning";
+        return "healthy";
+      }
+
+      function siteTierLabel(tier) {
+        return ({ healthy: "Healthy", warning: "At-risk", critical: "Critical" })[tier] || "Unknown";
+      }
+
+      function renderSiteList() {
+        const tier = state.siteTier;
+        const sites = state.sites
+          .filter((site) => getSiteTier(site) === tier)
+          .sort((a, b) => Number(a.availability_pct ?? 0) - Number(b.availability_pct ?? 0));
+        document.querySelectorAll("[data-site-tier]").forEach((button) => button.classList.toggle("active", button.dataset.siteTier === tier));
+        $("siteListTitle").textContent = `${siteTierLabel(tier)} server sites`;
+        $("siteListMeta").textContent = `${number(sites.length)} site${sites.length === 1 ? "" : "s"} shown`;
+        if (!sites.length) {
+          $("siteListBody").innerHTML = `<tr><td colspan="6"><div class="empty"><strong>No ${escapeHtml(siteTierLabel(tier).toLowerCase())} server sites reported</strong>No server-only location matches this availability and health band.</div></td></tr>`;
+          return;
+        }
+        $("siteListBody").innerHTML = sites.map((site) => {
+          const total = Number(site.total_nodes ?? 0);
+          const up = Number(site.up_nodes ?? 0);
+          const warning = Number(site.warning_nodes ?? 0);
+          const critical = Number(site.critical_nodes ?? 0);
+          const down = Number(site.down_nodes ?? 0);
+          const status = site.health_status || siteTierLabel(tier);
+          const siteName = String(site.name || site.location || "");
+          return `<tr>
+            <td><button class="site-drilldown-btn" type="button" data-site-name="${escapeHtml(siteName)}">${escapeHtml(siteName)}</button></td>
+            <td>${escapeHtml(site.region || "—")}</td>
+            <td class="mono">${percentage(site.availability_pct)}</td>
+            <td class="mono">${number(up)} / ${number(total)}</td>
+            <td><button class="site-drilldown-btn alert" type="button" data-site-name="${escapeHtml(siteName)}" title="Show the nodes at this site">${number(warning)} / ${number(critical)} / ${number(down)}</button></td>
+            <td>${badge(status, "health")}</td>
+          </tr>`;
+        }).join("");
+      }
+
+      function renderSites(sites) {
+        state.sites = Array.isArray(sites) ? sites : [];
+        const counts = { healthy: 0, warning: 0, critical: 0 };
+        state.sites.forEach((site) => { counts[getSiteTier(site)] += 1; });
+        $("siteHealthyCount").textContent = number(counts.healthy);
+        $("siteWarningCount").textContent = number(counts.warning);
+        $("siteCriticalCount").textContent = number(counts.critical);
+        $("siteDataState").textContent = `${number(state.sites.length)} server site${state.sites.length === 1 ? "" : "s"} reported`;
+        renderSiteList();
+      }
+
+      function renderSiteUnavailable(message) {
+        state.sites = [];
+        ["siteHealthyCount", "siteWarningCount", "siteCriticalCount"].forEach((id) => { $(id).textContent = "—"; });
+        $("siteDataState").textContent = message;
+        $("siteListMeta").textContent = "No site data available";
+        $("siteListBody").innerHTML = `<tr><td colspan="6"><div class="empty error-text"><strong>Site telemetry unavailable</strong>${escapeHtml(message)}</div></td></tr>`;
+      }
+
+      function getNodeTier(node) {
+        const health = String(node?.health_tier || "").toLowerCase();
+        const status = String(node?.status || "").toLowerCase();
+        if (health === "low" || status === "critical" || status === "down") return "critical";
+        if (health === "medium" || status === "warning" || status === "unmanaged" || status === "unknown") return "warning";
+        return "healthy";
+      }
+
+      function nodeTierLabel(tier) {
+        return ({ healthy: "Healthy", warning: "At-risk", critical: "Critical" })[tier] || "Unknown";
+      }
+
+      function isNetworkNode(node) {
+        const type = String(node?.ci_type || "").toLowerCase();
+        const vendor = String(node?.vendor || node?.attributes?.vendor || "").toLowerCase();
+        if (/(server|virtual machine|hypervisor)/.test(type)) return false;
+        if (/(network|switch|router|firewall|wireless|access point|controller|load balancer|appliance)/.test(type)) return true;
+        const genericType = !type || /^(node|device|other|unknown)$/.test(type);
+        return genericType && ["cisco", "juniper", "fortinet", "palo alto", "aruba", "f5"].some((term) => vendor.includes(term));
+      }
+
+      function summarizeNodes(nodes) {
+        const statusBreakdown = {};
+        const healthBreakdown = { High: 0, Medium: 0, Low: 0 };
+        nodes.forEach((node) => {
+          const status = String(node.status || "Unknown");
+          const health = ["High", "Medium", "Low"].includes(node.health_tier) ? node.health_tier : "Medium";
+          statusBreakdown[status] = (statusBreakdown[status] || 0) + 1;
+          healthBreakdown[health] += 1;
+        });
+        const total = nodes.length;
+        const available = nodes.filter((node) => String(node.status || "").toLowerCase() === "up").length;
+        const unmonitored = nodes.filter((node) => ["unmanaged", "unknown"].includes(String(node.status || "").toLowerCase())).length;
+        return {
+          total,
+          available,
+          unavailable: total - available,
+          monitored: total - unmonitored,
+          availabilityPct: total ? (available / total) * 100 : 0,
+          statusBreakdown,
+          healthBreakdown
+        };
+      }
+
+      function buildSites(nodes) {
+        const sites = new Map();
+        nodes.forEach((node) => {
+          const location = String(node.location || node.attributes?.location || node.attributes?.site || "").trim();
+          if (!location) return;
+          if (!sites.has(location)) {
+            sites.set(location, {
+              name: location,
+              location,
+              region: node.attributes?.region || "—",
+              total_nodes: 0,
+              up_nodes: 0,
+              warning_nodes: 0,
+              critical_nodes: 0,
+              down_nodes: 0,
+              unmanaged_nodes: 0,
+              health_breakdown: { High: 0, Medium: 0, Low: 0 }
+            });
+          }
+          const site = sites.get(location);
+          const status = String(node.status || "Unknown").toLowerCase();
+          const health = ["High", "Medium", "Low"].includes(node.health_tier) ? node.health_tier : "Medium";
+          site.total_nodes += 1;
+          site.health_breakdown[health] += 1;
+          if (status === "up") site.up_nodes += 1;
+          else if (status === "warning") site.warning_nodes += 1;
+          else if (status === "critical") site.critical_nodes += 1;
+          else if (status === "down") site.down_nodes += 1;
+          else site.unmanaged_nodes += 1;
+        });
+        return Array.from(sites.values()).map((site) => {
+          site.availability_pct = site.total_nodes ? (site.up_nodes / site.total_nodes) * 100 : 0;
+          site.health_status = getSiteTier(site);
+          return site;
+        });
+      }
+
+      function filteredEstateNodes(nodes, pageState) {
+        const search = pageState.search.toLowerCase();
+        const status = pageState.status.toLowerCase();
+        return nodes.filter((node) => {
+          const attrs = node.attributes || {};
+          const searchable = [
+            node.name, node.ip_address, node.vendor, node.model, node.operating_system,
+            node.ci_type, node.location, attrs.site, attrs.location
+          ].some((value) => String(value || "").toLowerCase().includes(search));
+          const statusMatches = !status || String(node.status || "").toLowerCase() === status;
+          return (!search || searchable) && statusMatches;
+        });
+      }
+
+      function pageEnvelope(nodes, pageState) {
+        const filtered = filteredEstateNodes(nodes, pageState);
+        const totalPages = Math.max(1, Math.ceil(filtered.length / pageState.pageSize));
+        pageState.page = Math.min(pageState.page, totalPages);
+        const start = (pageState.page - 1) * pageState.pageSize;
+        return {
+          items: filtered.slice(start, start + pageState.pageSize),
+          total: filtered.length,
+          page: pageState.page,
+          page_size: pageState.pageSize,
+          total_pages: totalPages,
+          has_prev: pageState.page > 1,
+          has_next: pageState.page < totalPages
+        };
+      }
+
+      function renderSiteDiagnosis() {
+        const isNetwork = state.selectedSiteEstate === "network";
+        const siteCollection = isNetwork ? state.networkSites : state.sites;
+        const site = siteCollection.find((item) => String(item.name || item.location || "") === state.selectedSiteName);
+        const nodes = state.siteNodes;
+        const down = nodes.filter((node) => String(node.status || "").toLowerCase() === "down").length;
+        const critical = nodes.filter((node) => String(node.status || "").toLowerCase() === "critical" || String(node.health_tier || "").toLowerCase() === "low").length;
+        const warning = nodes.filter((node) => ["warning", "unmanaged", "unknown"].includes(String(node.status || "").toLowerCase()) || String(node.health_tier || "").toLowerCase() === "medium").length;
+        const impacted = nodes.filter((node) => getNodeTier(node) !== "healthy");
+        const availability = site?.availability_pct;
+        const siteBand = site ? getSiteTier(site) : "unknown";
+        $("siteAvailabilityDiagnosis").textContent = site
+          ? `${percentage(availability)} · ${siteTierLabel(siteBand)} band`
+          : "Availability not reported";
+        $("siteAvailabilityDetail").textContent = site
+          ? `${number(site.up_nodes)} of ${number(site.total_nodes)} reported nodes are up. Health bands use the reported status plus availability thresholds.`
+          : "Availability is calculated as up nodes divided by total nodes.";
+        $("siteNodeImpactDiagnosis").textContent = `${number(down)} down · ${number(critical)} critical · ${number(warning)} at risk`;
+        $("siteNodeImpactDetail").textContent = "A down or critical node is observed telemetry. It signals impact, not a confirmed root cause.";
+        const assetLabel = isNetwork ? "network device" : "server";
+        $("siteNetworkDiagnosis").textContent = impacted.length
+          ? `${number(impacted.length)} ${assetLabel}${impacted.length === 1 ? "" : "s"} need attention`
+          : `No impacted ${assetLabel}s identified`;
+        $("siteNetworkDetail").textContent = isNetwork
+          ? "Only network devices from this site are shown; server nodes remain in Server Analytics."
+          : "Only server nodes from this site are shown; network devices remain in Network Analytics.";
+      }
+
+      function renderSelectedSiteNodes() {
+        const tier = state.nodeTier;
+        const nodes = state.siteNodes
+          .filter((node) => getNodeTier(node) === tier)
+          .filter((node) => !state.nodeStatus || String(node.status || "").toLowerCase() === state.nodeStatus.toLowerCase())
+          .sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
+        document.querySelectorAll("[data-node-tier]").forEach((button) => button.classList.toggle("active", button.dataset.nodeTier === tier));
+        if (!nodes.length) {
+          $("siteNodeBody").innerHTML = `<tr><td colspan="8"><div class="empty"><strong>No ${escapeHtml(nodeTierLabel(tier).toLowerCase())} nodes at this site</strong>No matching SolarWinds node is reported in this health band.</div></td></tr>`;
+          return;
+        }
+        $("siteNodeBody").innerHTML = nodes.map((node) => {
+          const attrs = node.attributes || {};
+          const cpu = getAttributeNumber(node, ["cpu_load", "cpu_utilization", "cpu_used_pct"]);
+          const memory = getAttributeNumber(node, ["memory_used", "memory_utilization", "ram_used", "memory_used_pct"]);
+          const vendorModel = [node.vendor || attrs.vendor, node.model || attrs.model].filter(Boolean).join(" · ") || "—";
+          const platform = state.selectedSiteEstate === "network"
+            ? node.ci_type || "Network device"
+            : node.operating_system || attrs.operating_system;
+          return `<tr>
+            <td class="name-cell">${escapeHtml(node.name)}</td>
+            <td class="mono">${escapeHtml(node.ip_address)}</td>
+            <td>${escapeHtml(platform)}</td>
+            <td>${escapeHtml(vendorModel)}</td>
+            <td class="mono">${cpu === null ? "—" : `${cpu.toFixed(1)}%`}</td>
+            <td class="mono">${memory === null ? "—" : `${memory.toFixed(1)}%`}</td>
+            <td>${badge(node.health_tier, "health")}</td>
+            <td>${badge(node.status, "status")}</td>
+          </tr>`;
+        }).join("");
+      }
+
+      async function loadSelectedSiteNodes(siteName, estate = "server", requestedTier = "", requestedStatus = "") {
+        const name = String(siteName || "").trim();
+        if (!name) return;
+        const isNetwork = estate === "network";
+        const assetLabel = isNetwork ? "network device" : "server";
+        state.selectedSiteName = name;
+        state.selectedSiteEstate = estate;
+        if (requestedTier) state.nodeTier = requestedTier;
+        state.nodeStatus = requestedStatus;
+        state.siteNodes = [];
+        if ($("siteNodeDetail").parentElement !== document.body) {
+          document.body.appendChild($("siteNodeDetail"));
+        }
+        $("siteNodeDetail").classList.add("show");
+        $("siteNodeDetailTitle").textContent = `${isNetwork ? "Network devices" : "Servers"} at ${name}`;
+        $("siteNodeDetailSubtitle").textContent = `Loading SolarWinds ${assetLabel}s reported for this location.`;
+        $("siteNodeDetailMeta").textContent = `Loading ${assetLabel} inventory`;
+        $("siteNodeNameHeader").textContent = isNetwork ? "Network device" : "Server";
+        $("siteNodePlatformHeader").textContent = isNetwork ? "Device type" : "Operating system";
+        ["siteNodeHealthyCount", "siteNodeWarningCount", "siteNodeCriticalCount"].forEach((id) => { $(id).textContent = "—"; });
+        $("siteNodeBody").innerHTML = `<tr><td colspan="8"><div class="empty"><strong>Loading site node details</strong>Retrieving the SolarWinds node inventory for ${escapeHtml(name)}.</div></td></tr>`;
+        try {
+          const sourceNodes = isNetwork ? state.networkNodes : state.serverNodes;
+          const nodes = sourceNodes.filter((node) =>
+            String(node.location || node.attributes?.location || node.attributes?.site || "").trim() === name
+          );
+          state.siteNodes = nodes;
+          const counts = { healthy: 0, warning: 0, critical: 0 };
+          nodes.forEach((node) => { counts[getNodeTier(node)] += 1; });
+          $("siteNodeHealthyCount").textContent = number(counts.healthy);
+          $("siteNodeWarningCount").textContent = number(counts.warning);
+          $("siteNodeCriticalCount").textContent = number(counts.critical);
+          $("siteNodeDetailSubtitle").textContent = requestedStatus
+            ? `Showing ${requestedStatus.toLowerCase()} ${assetLabel}s. Select a health card to broaden the view.`
+            : `Select a health card to see matching ${assetLabel}s from the selected site.`;
+          $("siteNodeDetailMeta").textContent = `${number(nodes.length)} ${assetLabel}${nodes.length === 1 ? "" : "s"} loaded`;
+          renderSiteDiagnosis();
+          renderSelectedSiteNodes();
+        } catch (error) {
+          $("siteNodeDetailSubtitle").textContent = "The node drill-down could not be loaded.";
+          $("siteNodeDetailMeta").textContent = "Node inventory unavailable";
+          $("siteNodeBody").innerHTML = `<tr><td colspan="8"><div class="empty error-text"><strong>Site nodes unavailable</strong>${escapeHtml(error.message)}</div></td></tr>`;
+        }
+      }
+
+      function renderServerSummary(summary) {
+        state.serverSummary = summary;
+        $("svTotal").textContent = number(summary.total);
+        $("svAvailability").textContent = percentage(summary.availabilityPct);
+        $("svUnavailable").textContent = number(summary.unavailable);
+        $("svHighHealth").textContent = number(summary.healthBreakdown.High);
+        $("svCritical").textContent = number(summary.healthBreakdown.Low);
+        $("svMonitoredNote").textContent = `${number(summary.monitored)} actively monitored`;
+        $("serverAsOf").textContent = `${formatDate(state.solarwindsSummary?.last_sync_time || state.solarwindsSummary?.generated_at)} · server-only`;
+        renderBars("serverStatusBars", summary.statusBreakdown, "No server status distribution returned");
+        renderHealth("serverHealth", summary.healthBreakdown);
+        updateOverview();
+      }
+
+      function renderNetworkSummary(summary) {
+        state.networkSummary = summary;
+        $("nwTotal").textContent = number(summary.total);
+        $("nwAvailability").textContent = percentage(summary.availabilityPct);
+        $("nwUnavailable").textContent = number(summary.unavailable);
+        $("nwHighHealth").textContent = number(summary.healthBreakdown.High);
+        $("nwCritical").textContent = number(summary.healthBreakdown.Low);
+        $("nwMonitoredNote").textContent = `${number(summary.monitored)} actively monitored`;
+        $("networkAsOf").textContent = `${formatDate(state.solarwindsSummary?.last_sync_time || state.solarwindsSummary?.generated_at)} · network-only`;
+        renderBars("networkStatusBars", summary.statusBreakdown, "No network status distribution returned");
+        renderHealth("networkHealth", summary.healthBreakdown);
+        updateOverview();
+      }
+
+      function tableMessage(bodyId, columnCount, title, body, isError = false) {
+        $(bodyId).innerHTML = `<tr><td colspan="${columnCount}"><div class="empty${isError ? " error-text" : ""}"><strong>${escapeHtml(title)}</strong>${escapeHtml(body)}</div></td></tr>`;
+      }
+
+      function renderDevices(payload) {
+        state.device.data = payload;
+        const items = payload?.items || [];
+        if (!items.length) {
+          tableMessage("devicesBody", 7, "No matching devices", "No Intune records match the current search or filter.");
+        } else {
+          $("devicesBody").innerHTML = items.map((item) => {
+            const attrs = item.attributes || {};
+            const manufacturer = item.vendor || attrs.manufacturer || "—";
+            const model = item.model || attrs.model || "";
+            const deviceId = item.id ? String(item.id) : "";
+            const deviceName = String(item.name || "Unnamed device");
+            const inspectDevice = deviceId
+              ? `<button class="device-detail-btn" type="button" data-device-id="${escapeHtml(deviceId)}" data-device-name="${escapeHtml(deviceName)}" data-device-status="${escapeHtml(item.status || "")}" title="Inspect Intune compliance evidence">${escapeHtml(deviceName)}</button>`
+              : escapeHtml(deviceName);
+            const compliance = deviceId
+              ? `<button class="device-detail-btn" type="button" data-device-id="${escapeHtml(deviceId)}" data-device-name="${escapeHtml(deviceName)}" data-device-status="${escapeHtml(item.status || "")}" title="Inspect Intune compliance evidence">${badge(item.status, "compliance")}</button>`
+              : badge(item.status, "compliance");
+            return `<tr>
+              <td class="name-cell">${inspectDevice}</td>
+              <td class="mono">${escapeHtml(item.serial_number || attrs.serial_number)}</td>
+              <td>${escapeHtml(item.operating_system || attrs.operating_system)}</td>
+              <td>${escapeHtml(manufacturer)}${model ? `<span class="mono" style="color:var(--subtle)"> · ${escapeHtml(model)}</span>` : ""}</td>
+              <td>${compliance}</td>
+              <td>${badge(item.health_tier, "health")}</td>
+              <td class="mono">${escapeHtml(item.last_sync_time || "—")}</td>
+            </tr>`;
+          }).join("");
+        }
+        const start = items.length ? ((payload.page - 1) * payload.page_size) + 1 : 0;
+        const end = items.length ? start + items.length - 1 : 0;
+        $("devicePageInfo").textContent = `Showing ${start}–${end} of ${number(payload.total)} devices · Page ${payload.page} of ${payload.total_pages || 1}`;
+        $("devicePrev").disabled = !payload.has_prev;
+        $("deviceNext").disabled = !payload.has_next;
+      }
+
+      function renderDeviceComplianceEvidence(data) {
+        const device = data?.device || {};
+        const policies = Array.isArray(data?.policies) ? data.policies : [];
+        const rows = policies.flatMap((policy) => {
+          const settings = Array.isArray(policy.settings) ? policy.settings : [];
+          if (!settings.length) {
+            return [[policy, { setting_name: "No failing setting detail returned", state: "—" }]];
+          }
+          return settings.map((setting) => [policy, setting]);
+        });
+        $("deviceComplianceName").textContent = device.name || "Selected Intune device";
+        $("deviceComplianceState").textContent = `Current compliance state: ${device.compliance_state || "Unknown"}`;
+        $("deviceCompliancePolicyCount").textContent = number(data?.noncompliant_policy_count ?? 0);
+        $("deviceComplianceSettingCount").textContent = number(data?.failing_setting_count ?? 0);
+        $("deviceComplianceMeta").textContent = data?.graph_version ? `Microsoft Graph ${data.graph_version} · on-demand` : "No policy query needed";
+        $("deviceComplianceNote").innerHTML = `<strong>Evidence status:</strong> ${escapeHtml(data?.reason || "Policy evidence was retrieved from Intune.")}`;
+        if (!rows.length) {
+          $("deviceComplianceBody").innerHTML = `<tr><td colspan="5"><div class="empty"><strong>No policy evidence returned</strong>${escapeHtml(data?.reason || "Intune did not return policy details for this device.")}</div></td></tr>`;
+          return;
+        }
+        $("deviceComplianceBody").innerHTML = rows.map(([policy, setting]) => `<tr>
+          <td class="name-cell">${escapeHtml(policy.policy_name)}</td>
+          <td>${escapeHtml(policy.platform)}</td>
+          <td>${badge(policy.policy_state, "compliance")}</td>
+          <td>${escapeHtml(setting.setting_name)}</td>
+          <td>${setting.state === "—" ? "—" : badge(setting.state, "compliance")}</td>
+        </tr>`).join("");
+      }
+
+      async function openDeviceComplianceDetail(ciId, deviceName, complianceState) {
+        $("deviceComplianceDetail").classList.add("show");
+        $("deviceComplianceTitle").textContent = `Intune compliance evidence · ${deviceName}`;
+        $("deviceComplianceSubtitle").textContent = "Retrieving the selected device's policy and setting states from Intune.";
+        $("deviceComplianceName").textContent = deviceName;
+        $("deviceComplianceState").textContent = `Current compliance state: ${complianceState || "Unknown"}`;
+        $("deviceCompliancePolicyCount").textContent = "—";
+        $("deviceComplianceSettingCount").textContent = "—";
+        $("deviceComplianceMeta").textContent = "Loading policy evidence";
+        $("deviceComplianceNote").textContent = "Only setting-level evidence returned by Intune will be displayed.";
+        $("deviceComplianceBody").innerHTML = `<tr><td colspan="5"><div class="empty"><strong>Loading compliance evidence</strong>Checking the selected device's assigned policy states.</div></td></tr>`;
+        try {
+          const data = await fetchJson(endpoints.intuneComplianceDetails(ciId));
+          $("deviceComplianceSubtitle").textContent = "Policy and setting evidence returned for the selected Intune device.";
+          renderDeviceComplianceEvidence(data);
+        } catch (error) {
+          $("deviceComplianceSubtitle").textContent = "Policy evidence could not be retrieved.";
+          $("deviceComplianceMeta").textContent = "Evidence unavailable";
+          $("deviceComplianceNote").innerHTML = `<strong>Evidence status:</strong> ${escapeHtml(error.message)}`;
+          $("deviceComplianceBody").innerHTML = `<tr><td colspan="5"><div class="empty error-text"><strong>Compliance reason unavailable</strong>The dashboard will not infer a reason when Intune does not return policy evidence.</div></td></tr>`;
+        }
+      }
+
+      function selectedReason() {
+        return state.reasonWorklist.reasons.find((reason) => reason.id === state.reasonWorklist.selectedReasonId);
+      }
+
+      function filteredReasonDevices() {
+        const query = state.reasonWorklist.search.toLowerCase();
+        return state.reasonWorklist.devices.filter((device) =>
+          !query || [device.device_name, device.device_model, device.setting_name, device.state]
+            .some((value) => String(value || "").toLowerCase().includes(query))
+        );
+      }
+
+      function renderReasonWorklist() {
+        const reason = selectedReason();
+        const devices = filteredReasonDevices();
+        const body = $("reasonWorklistBody");
+        $("exportReasonWorklist").disabled = !devices.length;
+        if (!reason) {
+          $("reasonWorklistSummary").textContent = "Choose an exact Intune compliance setting to list affected devices.";
+          body.innerHTML = `<tr><td colspan="5"><div class="empty"><strong>No reason selected</strong>Choose an exact Intune compliance setting to list affected devices.</div></td></tr>`;
+          return;
+        }
+        const sourceCountNote = reason.worklist_cached && Number.isFinite(Number(reason.cached_device_count))
+          ? ` Intune's setting summary reports ${number(reason.affected_count)} affected state records; the detailed endpoint returned ${number(reason.cached_device_count)} unique device records for this worklist.`
+          : ` Intune's setting summary reports ${number(reason.affected_count)} affected state records.`;
+        const cacheNote = state.reasonWorklist.source === "DATABASE" && state.reasonWorklist.cachedAt
+          ? ` Cached worklist refreshed ${escapeHtml(formatDate(state.reasonWorklist.cachedAt))}.`
+          : "";
+        $("reasonWorklistSummary").innerHTML = reason.fallback
+          ? `<strong>Reported non-compliant device worklist:</strong> ${number(devices.length)} of ${number(state.reasonWorklist.devices.length)} devices shown. The current API does not expose policy-reason details, so no remediation reason is inferred.`
+          : `<strong>Selected Intune setting:</strong> ${escapeHtml(reason.setting_name)} · ${escapeHtml(reason.platform)} · ${number(devices.length)} of ${number(state.reasonWorklist.devices.length)} unique devices shown.${sourceCountNote}${cacheNote}`;
+        if (!devices.length) {
+          body.innerHTML = `<tr><td colspan="5"><div class="empty"><strong>No matching affected devices</strong>Change the search text or select another reported compliance setting.</div></td></tr>`;
+          return;
+        }
+        body.innerHTML = devices.map((device) => `<tr>
+          <td class="name-cell">${escapeHtml(device.device_name)}</td>
+          <td>${escapeHtml(device.device_model)}</td>
+          <td>${escapeHtml(device.setting_name)}</td>
+          <td>${badge(device.state, "compliance")}</td>
+          <td class="mono">${escapeHtml(device.grace_period_expires_at || "—")}</td>
+        </tr>`).join("");
+      }
+
+      async function loadReportedNoncompliantFallback() {
+        const devices = [];
+        let page = 1;
+        let hasNext = true;
+        while (hasNext) {
+          const params = new URLSearchParams({
+            page: String(page),
+            page_size: "100",
+            status: "Noncompliant",
+            sort_by: "name",
+            sort_order: "asc"
+          });
+          const payload = await fetchJson(`${endpoints.intuneDevices}?${params.toString()}`);
+          devices.push(...(payload?.items || []));
+          hasNext = Boolean(payload?.has_next);
+          page += 1;
+        }
+
+        const reason = {
+          id: "__reported_noncompliant__",
+          setting_name: "Reported non-compliant device status",
+          platform: "All endpoint platforms",
+          affected_count: devices.length,
+          cached_device_count: devices.length,
+          worklist_cached: false,
+          fallback: true
+        };
+        state.reasonWorklist.reasons = [reason];
+        state.reasonWorklist.selectedReasonId = reason.id;
+        state.reasonWorklist.source = "INTUNE_DEVICE_STATUS";
+        state.reasonWorklist.cachedAt = null;
+        state.reasonWorklist.devices = devices.map((device) => ({
+          device_name: device.name || "Unnamed device",
+          device_model: device.model || device.attributes?.model || "—",
+          setting_name: "Detailed policy reason not exposed by this API",
+          state: device.status || "Noncompliant",
+          grace_period_expires_at: device.attributes?.grace_period_expires_at || ""
+        }));
+
+        const select = $("complianceReasonSelect");
+        select.innerHTML = `<option value="${reason.id}" selected>${escapeHtml(reason.setting_name)} (${number(devices.length)} devices)</option>`;
+        select.disabled = false;
+        $("reasonDeviceSearch").disabled = false;
+        $("reasonWorklistSummary").textContent = "The policy-reason endpoint is unavailable, so this worklist uses devices whose source-reported Intune status is Noncompliant. No policy reason is inferred.";
+        renderReasonWorklist();
+      }
+
+      async function loadReasonCatalog() {
+        const button = $("loadReasonCatalog");
+        button.disabled = true;
+        button.textContent = "Loading reasons...";
+        $("reasonWorklistSummary").textContent = "Retrieving Intune compliance-setting summaries.";
+        try {
+          const data = await fetchJson(endpoints.intuneReasonCatalog);
+          const reasons = Array.isArray(data?.items) ? data.items.filter((reason) => reason.id) : [];
+          state.reasonWorklist.reasons = reasons;
+          const select = $("complianceReasonSelect");
+          select.innerHTML = `<option value="">Select an exact Intune setting (${number(reasons.length)} available)</option>` +
+            reasons.map((reason) => {
+              const countLabel = reason.worklist_cached && Number.isFinite(Number(reason.cached_device_count))
+                ? `${number(reason.cached_device_count)} cached devices`
+                : `${number(reason.affected_count)} summary states`;
+              return `<option value="${escapeHtml(reason.id)}">${escapeHtml(reason.setting_name)} · ${escapeHtml(reason.platform)} (${countLabel})</option>`;
+            }).join("");
+          select.disabled = !reasons.length;
+          $("reasonWorklistSummary").textContent = reasons.length
+            ? "Select a setting to open its cached affected-device worklist. Cached items refresh during Intune synchronization."
+            : "Intune returned no compliance settings with affected devices.";
+        } catch (error) {
+          try {
+            await loadReportedNoncompliantFallback();
+          } catch (fallbackError) {
+            $("reasonWorklistSummary").textContent = `Intune remediation worklist unavailable: ${fallbackError.message}`;
+            $("reasonWorklistBody").innerHTML = `<tr><td colspan="5"><div class="empty error-text"><strong>Remediation worklist unavailable</strong>The dashboard could not load either policy reasons or source-reported non-compliant devices.</div></td></tr>`;
+          }
+        } finally {
+          button.disabled = false;
+          button.textContent = "Load remediation worklist";
+        }
+      }
+
+      async function loadReasonDevices(reasonId) {
+        state.reasonWorklist.selectedReasonId = reasonId;
+        state.reasonWorklist.devices = [];
+        state.reasonWorklist.search = "";
+        state.reasonWorklist.cachedAt = null;
+        state.reasonWorklist.source = null;
+        $("reasonDeviceSearch").value = "";
+        $("reasonDeviceSearch").disabled = !reasonId;
+        $("exportReasonWorklist").disabled = true;
+        if (!reasonId) {
+          renderReasonWorklist();
+          return;
+        }
+        const reason = selectedReason();
+        if (reason?.fallback) {
+          await loadReportedNoncompliantFallback();
+          return;
+        }
+        $("reasonWorklistSummary").textContent = `Retrieving all affected devices for ${reason?.setting_name || "the selected setting"} from Intune.`;
+        $("reasonWorklistBody").innerHTML = `<tr><td colspan="5"><div class="empty"><strong>Loading remediation worklist</strong>Retrieving device states for the selected Intune setting.</div></td></tr>`;
+        try {
+          const data = await fetchJson(endpoints.intuneReasonDevices(reasonId));
+          state.reasonWorklist.devices = Array.isArray(data?.items) ? data.items : [];
+          state.reasonWorklist.cachedAt = data?.cached_at || null;
+          state.reasonWorklist.source = data?.source || null;
+          const selected = selectedReason();
+          if (selected) {
+            selected.worklist_cached = true;
+            selected.cached_device_count = state.reasonWorklist.devices.length;
+          }
+          renderReasonWorklist();
+        } catch (error) {
+          $("reasonWorklistSummary").textContent = `Remediation worklist unavailable: ${error.message}`;
+          $("reasonWorklistBody").innerHTML = `<tr><td colspan="5"><div class="empty error-text"><strong>Affected devices unavailable</strong>The dashboard could not retrieve device states for this Intune setting.</div></td></tr>`;
+        }
+      }
+
+      function exportReasonWorklist() {
+        const reason = selectedReason();
+        const devices = filteredReasonDevices();
+        if (!reason || !devices.length) return;
+        const quoteCsv = (value) => `"${String(value ?? "").replace(/"/g, "\"\"")}"`;
+        const rows = [
+          ["Device", "Model", "Reported setting", "Reported state", "Grace period expiry"],
+          ...devices.map((device) => [device.device_name, device.device_model, device.setting_name, device.state, device.grace_period_expires_at || ""])
+        ];
+        const csv = rows.map((row) => row.map(quoteCsv).join(",")).join("\r\n");
+        const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        const stem = String(reason.setting_name || "intune_reason").replace(/[^a-z0-9]+/gi, "_").replace(/^_|_$/g, "").toLowerCase();
+        link.href = url;
+        link.download = `intune_remediation_${stem || "worklist"}.csv`;
+        link.click();
+        URL.revokeObjectURL(url);
+      }
+
+      function getAttributeNumber(item, names) {
+        const attrs = item.attributes || {};
+        for (const name of names) {
+          const value = attrs[name] ?? item[name];
+          if (Number.isFinite(Number(value))) return Number(value);
+        }
+        return null;
+      }
+
+      function renderResourceReview(items) {
+        const cpuAlert = items.filter((item) => {
+          const value = getAttributeNumber(item, ["cpu_load", "cpu_utilization", "cpu_used_pct"]);
+          return value !== null && value >= 75;
+        }).length;
+        const memoryAlert = items.filter((item) => {
+          const value = getAttributeNumber(item, ["memory_used", "memory_utilization", "memory_used_pct"]);
+          return value !== null && value >= 80;
+        }).length;
+        const measuredCpu = items.filter((item) => getAttributeNumber(item, ["cpu_load", "cpu_utilization", "cpu_used_pct"]) !== null).length;
+        const measuredMemory = items.filter((item) => getAttributeNumber(item, ["memory_used", "memory_utilization", "memory_used_pct"]) !== null).length;
+        $("resourceReviewTitle").textContent = `${number(cpuAlert)} high CPU · ${number(memoryAlert)} high memory`;
+        $("resourceReviewText").textContent = `${number(measuredCpu)} CPU and ${number(measuredMemory)} memory values were available on the current page. Thresholds: CPU ≥75%, memory ≥80%.`;
+      }
+
+      function renderServers(payload) {
+        state.server.data = payload;
+        const items = payload?.items || [];
+        if (!items.length) {
+          tableMessage("serversBody", 8, "No matching server nodes", "No SolarWinds records match the current search or filter.");
+        } else {
+          $("serversBody").innerHTML = items.map((item) => {
+            const attrs = item.attributes || {};
+            const cpu = getAttributeNumber(item, ["cpu_load", "cpu_utilization", "cpu_used_pct"]);
+            const memory = getAttributeNumber(item, ["memory_used", "memory_utilization", "memory_used_pct"]);
+            const vendorModel = [item.vendor || attrs.vendor, item.model || attrs.model].filter(Boolean).join(" · ") || "—";
+            return `<tr>
+              <td class="name-cell">${escapeHtml(item.name)}</td>
+              <td class="mono">${escapeHtml(item.ip_address)}</td>
+              <td>${escapeHtml(vendorModel)}</td>
+              <td>${escapeHtml(item.operating_system || attrs.operating_system)}</td>
+              <td class="mono">${cpu === null ? "—" : `${cpu.toFixed(1)}%`}</td>
+              <td class="mono">${memory === null ? "—" : `${memory.toFixed(1)}%`}</td>
+              <td>${badge(item.health_tier, "health")}</td>
+              <td>${badge(item.status, "status")}</td>
+            </tr>`;
+          }).join("");
+        }
+        renderResourceReview(items);
+        const start = items.length ? ((payload.page - 1) * payload.page_size) + 1 : 0;
+        const end = items.length ? start + items.length - 1 : 0;
+        $("serverPageInfo").textContent = `Showing ${start}–${end} of ${number(payload.total)} servers · Page ${payload.page} of ${payload.total_pages || 1}`;
+        $("serverPrev").disabled = !payload.has_prev;
+        $("serverNext").disabled = !payload.has_next;
+      }
+
+      function renderNetworkReview(items) {
+        const conditionCounts = { warning: 0, critical: 0, down: 0, unmanaged: 0 };
+        items.forEach((item) => {
+          const status = String(item.status || "unknown").toLowerCase();
+          if (Object.prototype.hasOwnProperty.call(conditionCounts, status)) conditionCounts[status] += 1;
+          else if (status === "unknown") conditionCounts.unmanaged += 1;
+        });
+        const impacted = conditionCounts.warning + conditionCounts.critical + conditionCounts.down + conditionCounts.unmanaged;
+        $("networkReviewTitle").textContent = `${number(impacted)} device${impacted === 1 ? "" : "s"} need review`;
+        $("networkReviewText").textContent = `${number(conditionCounts.down)} down · ${number(conditionCounts.critical)} critical · ${number(conditionCounts.warning)} warning · ${number(conditionCounts.unmanaged)} unmanaged or unknown on this page.`;
+      }
+
+      function renderNetworks(payload) {
+        state.network.data = payload;
+        const items = payload?.items || [];
+        if (!items.length) {
+          tableMessage("networksBody", 7, "No matching network nodes", "No classified SolarWinds network records match the current search or filter.");
+        } else {
+          $("networksBody").innerHTML = items.map((item) => {
+            const attrs = item.attributes || {};
+            const vendorModel = [item.vendor || attrs.vendor, item.model || attrs.model].filter(Boolean).join(" · ") || "—";
+            const location = item.location || attrs.location || attrs.site || "—";
+            return `<tr>
+              <td class="name-cell">${escapeHtml(item.name)}</td>
+              <td>${escapeHtml(item.ci_type || "Network device")}</td>
+              <td class="mono">${escapeHtml(item.ip_address)}</td>
+              <td>${escapeHtml(location)}</td>
+              <td>${escapeHtml(vendorModel)}</td>
+              <td>${badge(item.health_tier, "health")}</td>
+              <td>${badge(item.status, "status")}</td>
+            </tr>`;
+          }).join("");
+        }
+        renderNetworkReview(items);
+        const start = items.length ? ((payload.page - 1) * payload.page_size) + 1 : 0;
+        const end = items.length ? start + items.length - 1 : 0;
+        $("networkPageInfo").textContent = `Showing ${start}–${end} of ${number(payload.total)} network nodes · Page ${payload.page} of ${payload.total_pages || 1}`;
+        $("networkPrev").disabled = !payload.has_prev;
+        $("networkNext").disabled = !payload.has_next;
+      }
+
+      function renderNetworkSiteList() {
+        const tier = state.networkSiteTier;
+        const sites = state.networkSites
+          .filter((site) => getSiteTier(site) === tier)
+          .sort((a, b) => Number(a.availability_pct ?? 0) - Number(b.availability_pct ?? 0));
+        document.querySelectorAll("[data-network-site-tier]").forEach((button) =>
+          button.classList.toggle("active", button.dataset.networkSiteTier === tier)
+        );
+        $("networkSiteListTitle").textContent = `${siteTierLabel(tier)} network sites`;
+        $("networkSiteListMeta").textContent = `${number(sites.length)} site${sites.length === 1 ? "" : "s"} shown`;
+        if (!sites.length) {
+          $("networkSiteListBody").innerHTML = `<tr><td colspan="7"><div class="empty"><strong>No ${escapeHtml(siteTierLabel(tier).toLowerCase())} network sites</strong>No classified network location matches this availability band.</div></td></tr>`;
+          return;
+        }
+        $("networkSiteListBody").innerHTML = sites.map((site) => `<tr>
+          <td><button class="site-drilldown-btn" type="button" data-network-site-name="${escapeHtml(site.name)}" data-network-tier="healthy" title="Show network devices at this site">${escapeHtml(site.name)}</button></td>
+          <td class="mono">${percentage(site.availability_pct)}</td>
+          <td class="mono">${number(site.up_nodes)} / ${number(site.total_nodes)}</td>
+          <td><button class="site-drilldown-btn alert" type="button" data-network-site-name="${escapeHtml(site.name)}" data-network-tier="warning" data-network-status="Warning" title="Show warning network devices">${number(site.warning_nodes)}</button></td>
+          <td><button class="site-drilldown-btn alert" type="button" data-network-site-name="${escapeHtml(site.name)}" data-network-tier="critical" data-network-status="Critical" title="Show critical network devices">${number(site.critical_nodes)}</button></td>
+          <td><button class="site-drilldown-btn alert" type="button" data-network-site-name="${escapeHtml(site.name)}" data-network-tier="critical" data-network-status="Down" title="Show down network devices">${number(site.down_nodes)}</button></td>
+          <td>${badge(getSiteTier(site) === "healthy" ? "High" : getSiteTier(site) === "warning" ? "Medium" : "Low", "health")}</td>
+        </tr>`).join("");
+      }
+
+      function renderNetworkSites(sites) {
+        state.networkSites = sites;
+        const counts = { healthy: 0, warning: 0, critical: 0 };
+        sites.forEach((site) => { counts[getSiteTier(site)] += 1; });
+        $("networkSiteHealthyCount").textContent = number(counts.healthy);
+        $("networkSiteWarningCount").textContent = number(counts.warning);
+        $("networkSiteCriticalCount").textContent = number(counts.critical);
+        $("networkSiteDataState").textContent = `${number(sites.length)} network site${sites.length === 1 ? "" : "s"} reported`;
+        renderNetworkSiteList();
+      }
+
+      function queryString(pageState) {
+        const params = new URLSearchParams({ page: pageState.page, page_size: pageState.pageSize, sort_by: "name", sort_order: "asc" });
+        if (pageState.search) params.set("search", pageState.search);
+        if (pageState.status) params.set("status", pageState.status);
+        return params.toString();
+      }
+
+      async function loadDevices() {
+        if (!state.intuneVerified) {
+          tableMessage("devicesBody", 7, "Intune inventory not verified", "Device records stay hidden until the API confirms persisted Intune telemetry.");
+          $("devicePageInfo").textContent = "No verified Intune device page loaded";
+          return;
+        }
+        tableMessage("devicesBody", 7, "Loading device inventory", "Retrieving the current Intune device page.");
+        try {
+          renderDevices(await fetchJson(`${endpoints.intuneDevices}?${queryString(state.device)}`));
+        } catch (error) {
+          tableMessage("devicesBody", 7, error.status === 503 ? "Intune data unavailable" : "Device inventory unavailable", error.message, true);
+          $("devicePageInfo").textContent = "No device page loaded";
+        }
+      }
+
+      async function loadServers() {
+        if (!state.solarwindsVerified) {
+          tableMessage("serversBody", 8, "Server inventory not verified", "Server records stay hidden until the API confirms persisted SolarWinds telemetry.");
+          $("serverPageInfo").textContent = "No verified SolarWinds server page loaded";
+          return;
+        }
+        renderServers(pageEnvelope(state.serverNodes, state.server));
+      }
+
+      async function loadNetworks() {
+        if (!state.solarwindsVerified) {
+          tableMessage("networksBody", 7, "Network inventory not verified", "Network records stay hidden until the API confirms persisted SolarWinds telemetry.");
+          $("networkPageInfo").textContent = "No verified SolarWinds network page loaded";
+          return;
+        }
+        renderNetworks(pageEnvelope(state.networkNodes, state.network));
+      }
+
+      async function loadSites() {
+        if (!state.solarwindsVerified) {
+          renderSiteUnavailable("SolarWinds server site data is unavailable.");
+          return;
+        }
+        renderSites(buildSites(state.serverNodes));
+        renderNetworkSites(buildSites(state.networkNodes));
+      }
+
+      async function loadSolarWindsEstates() {
+        if (!state.solarwindsVerified) {
+          await Promise.all([loadServers(), loadNetworks(), loadSites()]);
+          return;
+        }
+        tableMessage("serversBody", 8, "Loading server inventory", "Retrieving and classifying the SolarWinds node inventory.");
+        tableMessage("networksBody", 7, "Loading network inventory", "Retrieving and classifying the SolarWinds node inventory.");
+        try {
+          const nodes = [];
+          let page = 1;
+          let hasNext = true;
+          while (hasNext) {
+            const params = new URLSearchParams({ page: String(page), page_size: "100", sort_by: "name", sort_order: "asc" });
+            const payload = await fetchJson(`${endpoints.solarwindsNodes}?${params.toString()}`);
+            nodes.push(...(payload?.items || []));
+            hasNext = Boolean(payload?.has_next);
+            page += 1;
+          }
+          state.solarwindsNodes = nodes;
+          state.networkNodes = nodes.filter(isNetworkNode);
+          state.serverNodes = nodes.filter((node) => !isNetworkNode(node));
+          renderServerSummary(summarizeNodes(state.serverNodes));
+          renderNetworkSummary(summarizeNodes(state.networkNodes));
+          await Promise.all([loadServers(), loadNetworks(), loadSites()]);
+        } catch (error) {
+          tableMessage("serversBody", 8, "Server inventory unavailable", error.message, true);
+          tableMessage("networksBody", 7, "Network inventory unavailable", error.message, true);
+          $("serverPageInfo").textContent = "No server page loaded";
+          $("networkPageInfo").textContent = "No network page loaded";
+          renderSiteUnavailable(error.message);
+          $("networkSiteDataState").textContent = error.message;
+          $("networkSiteListBody").innerHTML = `<tr><td colspan="7"><div class="empty error-text"><strong>Network site telemetry unavailable</strong>${escapeHtml(error.message)}</div></td></tr>`;
+        }
+      }
+
+      async function loadFreshness() {
+        try {
+          const data = await fetchJson(endpoints.freshness);
+          const status = String(data?.overall_status || "UNKNOWN").toUpperCase();
+          const label = data?.oldest_age_seconds === null || data?.oldest_age_seconds === undefined
+            ? "No source has a reported sync time" : `Oldest data age: ${number(data.oldest_age_seconds)} seconds`;
+          setStatus(status === "FRESH" ? "fresh" : "stale", `Telemetry ${status.toLowerCase()} · ${label}`);
+          if (status === "FRESH") clearBanner();
+          else showBanner(`Telemetry is ${status}. ${label}. Review the timestamps before acting on these figures.`, status === "UNKNOWN");
+        } catch (error) {
+          if (error.status === 404) {
+            setStatus("stale", "Telemetry freshness is unverified");
+            showBanner("This backend does not expose the documented freshness endpoint. Endpoint and server data can still load, but their freshness cannot be verified.");
+            return;
+          }
+          setStatus("error", "Telemetry freshness unavailable");
+          const hostedElsewhere = !isLocalStaticHost && window.location.hostname !== "127.0.0.1" && window.location.hostname !== "localhost";
+          const guidance = hostedElsewhere
+            ? " This file is being viewed outside the ITOM web application. Open it through the ITOM frontend or set Connection settings to the deployed API URL."
+            : "";
+          showBanner(`The freshness check could not be completed. ${error.message}.${guidance}`, true);
+        }
+      }
+
+      async function loadSummaries() {
+        const [intune, solarwinds] = await Promise.allSettled([
+          fetchJson(endpoints.intuneSummary),
+          fetchJson(endpoints.solarwindsSummary)
+        ]);
+        state.intuneVerified = intune.status === "fulfilled" && isVerifiedTelemetry(intune.value, "INTUNE");
+        state.solarwindsVerified = solarwinds.status === "fulfilled" && isVerifiedTelemetry(solarwinds.value, "SOLARWINDS");
+        if (state.intuneVerified) renderIntuneSummary(intune.value);
+        else {
+          const message = intune.status === "fulfilled"
+            ? "The endpoint did not identify persisted Intune telemetry."
+            : intune.reason.status === 503 ? "Intune telemetry has not been ingested" : intune.reason.message;
+          $("endpointAsOf").textContent = message;
+          renderBars("endpointComplianceBars", null, message);
+          renderBars("endpointOsBars", null, message);
+        }
+        if (state.solarwindsVerified) {
+          state.solarwindsSummary = solarwinds.value;
+        } else {
+          const message = solarwinds.status === "fulfilled"
+            ? "The endpoint did not identify persisted SolarWinds telemetry."
+            : solarwinds.reason.status === 503 ? "SolarWinds telemetry has not been ingested" : solarwinds.reason.message;
+          $("serverAsOf").textContent = message;
+          $("networkAsOf").textContent = message;
+          renderBars("serverStatusBars", null, message);
+          renderBars("networkStatusBars", null, message);
+        }
+      }
+
+      async function loadAll() {
+        setStatus("", "Refreshing telemetry");
+        await loadFreshness();
+        await loadSummaries();
+        await Promise.all([loadDevices(), loadSolarWindsEstates()]);
+      }
+
+      function setPanel(id, updateHash = true) {
+        document.querySelectorAll(".panel").forEach((panel) => panel.classList.toggle("active", panel.id === id));
+        document.querySelectorAll(".tab").forEach((tab) => tab.classList.toggle("active", tab.dataset.panel === id));
+        if (updateHash) history.replaceState(null, "", `#${id}`);
+        if (id !== "overview") document.getElementById(id).scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+
+      function debounce(callback, delay = 300) {
+        let timer;
+        return (...args) => { clearTimeout(timer); timer = setTimeout(() => callback(...args), delay); };
+      }
+
+      function wireEvents() {
+        $("apiBase").value = state.base;
+        $("saveApiBase").addEventListener("click", () => {
+          const candidate = normalizeBase($("apiBase").value);
+          try {
+            state.base = candidate;
+            localStorage.setItem("itom-api-base", state.base);
+            state.device.page = 1;
+            state.server.page = 1;
+            state.network.page = 1;
+            loadAll();
+          } catch (error) {
+            showBanner("Enter /api/v1 for an ITOM deployment, or a valid HTTP or HTTPS API URL ending in /api/v1.", true);
+          }
+        });
+        $("refreshAll").addEventListener("click", loadAll);
+        document.querySelectorAll("[data-panel]").forEach((button) => button.addEventListener("click", () => setPanel(button.dataset.panel)));
+        document.querySelectorAll("[data-open-panel]").forEach((button) => button.addEventListener("click", () => setPanel(button.dataset.openPanel)));
+        document.querySelectorAll("[data-site-tier]").forEach((button) => button.addEventListener("click", () => {
+          state.siteTier = button.dataset.siteTier;
+          if (state.sites.length) renderSiteList();
+          else loadSites();
+        }));
+        document.querySelectorAll("[data-network-site-tier]").forEach((button) => button.addEventListener("click", () => {
+          state.networkSiteTier = button.dataset.networkSiteTier;
+          renderNetworkSiteList();
+        }));
+        $("siteListBody").addEventListener("click", (event) => {
+          const button = event.target.closest("[data-site-name]");
+          if (button) loadSelectedSiteNodes(button.dataset.siteName);
+        });
+        $("networkSiteListBody").addEventListener("click", (event) => {
+          const button = event.target.closest("[data-network-site-name]");
+          if (button) {
+            loadSelectedSiteNodes(
+              button.dataset.networkSiteName,
+              "network",
+              button.dataset.networkTier || "healthy",
+              button.dataset.networkStatus || ""
+            );
+          }
+        });
+        $("closeSiteNodeDetail").addEventListener("click", () => {
+          $("siteNodeDetail").classList.remove("show");
+        });
+        $("siteNodeDetail").addEventListener("click", (event) => {
+          if (event.target === $("siteNodeDetail")) $("siteNodeDetail").classList.remove("show");
+        });
+        $("closeDeviceComplianceDetail").addEventListener("click", () => {
+          $("deviceComplianceDetail").classList.remove("show");
+        });
+        $("deviceComplianceDetail").addEventListener("click", (event) => {
+          if (event.target === $("deviceComplianceDetail")) $("deviceComplianceDetail").classList.remove("show");
+        });
+        document.addEventListener("keydown", (event) => {
+          if (event.key === "Escape") {
+            $("siteNodeDetail").classList.remove("show");
+            $("deviceComplianceDetail").classList.remove("show");
+          }
+        });
+        document.querySelectorAll("[data-node-tier]").forEach((button) => button.addEventListener("click", () => {
+          state.nodeTier = button.dataset.nodeTier;
+          state.nodeStatus = "";
+          if (state.siteNodes.length) renderSelectedSiteNodes();
+        }));
+
+        $("deviceSearch").addEventListener("input", debounce((event) => {
+          state.device.search = event.target.value.trim(); state.device.page = 1; loadDevices();
+        }));
+        $("epNoncompliant").addEventListener("click", () => {
+          state.device.status = "Noncompliant";
+          state.device.page = 1;
+          document.querySelectorAll("[data-device-status]").forEach((item) => item.classList.toggle("active", item.dataset.deviceStatus === "Noncompliant"));
+          setPanel("endpoints");
+          loadDevices();
+          $("devicesTableTitle").scrollIntoView({ behavior: "smooth", block: "start" });
+        });
+        $("loadReasonCatalog").addEventListener("click", loadReasonCatalog);
+        $("complianceReasonSelect").addEventListener("change", (event) => loadReasonDevices(event.target.value));
+        $("reasonDeviceSearch").addEventListener("input", (event) => {
+          state.reasonWorklist.search = event.target.value.trim();
+          renderReasonWorklist();
+        });
+        $("exportReasonWorklist").addEventListener("click", exportReasonWorklist);
+        $("devicesBody").addEventListener("click", (event) => {
+          const button = event.target.closest("[data-device-id]");
+          if (button) openDeviceComplianceDetail(button.dataset.deviceId, button.dataset.deviceName, button.dataset.deviceStatus);
+        });
+        document.querySelectorAll("[data-device-status]").forEach((button) => button.addEventListener("click", () => {
+          state.device.status = button.dataset.deviceStatus; state.device.page = 1;
+          document.querySelectorAll("[data-device-status]").forEach((item) => item.classList.toggle("active", item === button));
+          loadDevices();
+        }));
+        $("devicePageSize").addEventListener("change", (event) => { state.device.pageSize = Number(event.target.value); state.device.page = 1; loadDevices(); });
+        $("devicePrev").addEventListener("click", () => { if (state.device.data?.has_prev) { state.device.page--; loadDevices(); } });
+        $("deviceNext").addEventListener("click", () => { if (state.device.data?.has_next) { state.device.page++; loadDevices(); } });
+
+        $("serverSearch").addEventListener("input", debounce((event) => {
+          state.server.search = event.target.value.trim(); state.server.page = 1; loadServers();
+        }));
+        document.querySelectorAll("[data-server-status]").forEach((button) => button.addEventListener("click", () => {
+          state.server.status = button.dataset.serverStatus; state.server.page = 1;
+          document.querySelectorAll("[data-server-status]").forEach((item) => item.classList.toggle("active", item === button));
+          loadServers();
+        }));
+        $("serverPageSize").addEventListener("change", (event) => { state.server.pageSize = Number(event.target.value); state.server.page = 1; loadServers(); });
+        $("serverPrev").addEventListener("click", () => { if (state.server.data?.has_prev) { state.server.page--; loadServers(); } });
+        $("serverNext").addEventListener("click", () => { if (state.server.data?.has_next) { state.server.page++; loadServers(); } });
+
+        $("networkSearch").addEventListener("input", debounce((event) => {
+          state.network.search = event.target.value.trim(); state.network.page = 1; loadNetworks();
+        }));
+        document.querySelectorAll("[data-network-status]").forEach((button) => button.addEventListener("click", () => {
+          state.network.status = button.dataset.networkStatus; state.network.page = 1;
+          document.querySelectorAll("[data-network-status]").forEach((item) => item.classList.toggle("active", item === button));
+          loadNetworks();
+        }));
+        $("networkPageSize").addEventListener("change", (event) => { state.network.pageSize = Number(event.target.value); state.network.page = 1; loadNetworks(); });
+        $("networkPrev").addEventListener("click", () => { if (state.network.data?.has_prev) { state.network.page--; loadNetworks(); } });
+        $("networkNext").addEventListener("click", () => { if (state.network.data?.has_next) { state.network.page++; loadNetworks(); } });
+      }
+
+      wireEvents();
+      const initialPanel = ["overview", "endpoints", "servers", "networks"].includes(location.hash.slice(1)) ? location.hash.slice(1) : "overview";
+      setPanel(initialPanel, false);
+      loadAll();
+    })();
+  </script>
 </body>
 </html>

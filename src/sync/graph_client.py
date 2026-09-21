@@ -11,6 +11,7 @@ import logging
 import os
 import time
 from typing import Any, Dict, List, Optional
+from urllib.parse import quote
 import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
@@ -284,3 +285,165 @@ class GraphClient:
 
         logger.info("Saved raw Intune telemetry (%d devices) to %s", len(devices), output_path)
         return raw_payload
+
+    def get_device_compliance_policy_states(self, managed_device_id: str) -> Dict[str, Any]:
+        """Retrieve on-demand policy and setting evidence for one Intune device.
+
+        This is deliberately not part of the full fleet sync. Policy settings are
+        retrieved only after an operator selects a device to investigate.
+        """
+        token = self.get_access_token()
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Accept": "application/json",
+        }
+        device_id = quote(str(managed_device_id), safe="")
+        graph_bases = [DEFAULT_GRAPH_BASE_URL, "https://graph.microsoft.com/beta"]
+        policies: Optional[List[Dict[str, Any]]] = None
+        active_base = DEFAULT_GRAPH_BASE_URL
+
+        for base_url in graph_bases:
+            endpoint = f"{base_url}/deviceManagement/managedDevices/{device_id}/deviceCompliancePolicyStates"
+            response = self._session.get(endpoint, headers=headers, timeout=self.timeout)
+            if response.status_code == 404:
+                continue
+            if response.status_code != 200:
+                raise GraphApiError(
+                    f"Compliance policy state request failed ({response.status_code}): {response.text}"
+                )
+            payload = response.json()
+            policies = list(payload.get("value", []))
+            active_base = base_url
+            break
+
+        if policies is None:
+            raise GraphApiError("Intune did not expose compliance policy states for this device.")
+
+        normalized_policies: List[Dict[str, Any]] = []
+        failed_setting_count = 0
+        noncompliant_policy_count = 0
+        for policy in policies:
+            policy_id = str(policy.get("id") or "")
+            policy_state = str(policy.get("state") or "unknown")
+            setting_states = list(policy.get("settingStates") or [])
+
+            # Some Graph responses omit nested setting states. Retrieve the
+            # relationship separately so the dashboard retains actual evidence.
+            if policy_id and not setting_states:
+                setting_url = (
+                    f"{active_base}/deviceManagement/managedDevices/{device_id}/"
+                    f"deviceCompliancePolicyStates/{quote(policy_id, safe='')}/settingStates"
+                )
+                settings_response = self._session.get(setting_url, headers=headers, timeout=self.timeout)
+                if settings_response.status_code == 200:
+                    setting_states = list(settings_response.json().get("value", []))
+                elif settings_response.status_code not in (404, 405):
+                    raise GraphApiError(
+                        f"Compliance setting state request failed ({settings_response.status_code}): "
+                        f"{settings_response.text}"
+                    )
+
+            evidence = []
+            for setting in setting_states:
+                setting_state = str(setting.get("state") or "unknown")
+                if setting_state.lower() not in ("compliant", "notapplicable"):
+                    failed_setting_count += 1
+                    evidence.append({
+                        "setting_name": setting.get("settingName") or setting.get("setting") or "Unnamed setting",
+                        "state": setting_state,
+                    })
+
+            if policy_state.lower() != "compliant":
+                noncompliant_policy_count += 1
+            normalized_policies.append({
+                "policy_name": policy.get("displayName") or "Unnamed compliance policy",
+                "policy_state": policy_state,
+                "platform": policy.get("platformType") or "unknown",
+                "settings": evidence,
+            })
+
+        return {
+            "policies": normalized_policies,
+            "noncompliant_policy_count": noncompliant_policy_count,
+            "failing_setting_count": failed_setting_count,
+            "graph_version": "beta" if active_base.endswith("/beta") else "v1.0",
+        }
+
+    def _get_graph_collection(self, endpoint: str) -> List[Dict[str, Any]]:
+        """Retrieve every page of a Microsoft Graph collection for an on-demand view."""
+        token = self.get_access_token()
+        headers = {"Authorization": f"Bearer {token}", "Accept": "application/json"}
+        items: List[Dict[str, Any]] = []
+        next_url: Optional[str] = endpoint
+
+        while next_url:
+            try:
+                response = self._session.get(next_url, headers=headers, timeout=self.timeout)
+            except requests.RequestException as exc:
+                raise GraphApiError(f"Microsoft Graph collection request failed: {exc}") from exc
+            if response.status_code != 200:
+                raise GraphApiError(
+                    f"Microsoft Graph collection request failed ({response.status_code}): {response.text}"
+                )
+            payload = response.json()
+            items.extend(payload.get("value", []))
+            next_url = payload.get("@odata.nextLink")
+
+        return items
+
+    def get_noncompliance_reason_summaries(self) -> List[Dict[str, Any]]:
+        """Return the exact Intune compliance settings with reported device impact."""
+        endpoint = (
+            f"{DEFAULT_GRAPH_BASE_URL}/deviceManagement/"
+            "deviceCompliancePolicySettingStateSummaries"
+        )
+        summaries = self._get_graph_collection(endpoint)
+        reasons: List[Dict[str, Any]] = []
+
+        for summary in summaries:
+            noncompliant = int(summary.get("nonCompliantDeviceCount") or 0)
+            errors = int(summary.get("errorDeviceCount") or 0)
+            conflicts = int(summary.get("conflictDeviceCount") or 0)
+            affected = noncompliant + errors + conflicts
+            if not affected:
+                continue
+            reasons.append({
+                "id": str(summary.get("id") or ""),
+                "setting_name": summary.get("settingName") or summary.get("setting") or "Unnamed setting",
+                "platform": summary.get("platformType") or "unknown",
+                "noncompliant_count": noncompliant,
+                "error_count": errors,
+                "conflict_count": conflicts,
+                "affected_count": affected,
+            })
+
+        return sorted(reasons, key=lambda item: (item["setting_name"].lower(), item["platform"].lower()))
+
+    def get_noncompliant_devices_for_reason(self, summary_id: str) -> List[Dict[str, Any]]:
+        """Return all non-compliant/error/conflict device states for one Intune setting."""
+        endpoint = (
+            f"{DEFAULT_GRAPH_BASE_URL}/deviceManagement/"
+            f"deviceCompliancePolicySettingStateSummaries/{quote(str(summary_id), safe='')}/"
+            "deviceComplianceSettingStates"
+        )
+        states = self._get_graph_collection(endpoint)
+        affected_states = {"noncompliant", "error", "conflict"}
+        devices: Dict[str, Dict[str, Any]] = {}
+
+        for item in states:
+            state = str(item.get("state") or "unknown")
+            if state.lower() not in affected_states:
+                continue
+            device_id = str(item.get("deviceId") or item.get("id") or "")
+            if not device_id:
+                continue
+            devices[device_id] = {
+                "device_id": device_id,
+                "device_name": item.get("deviceName") or "Unnamed device",
+                "device_model": item.get("deviceModel") or "—",
+                "setting_name": item.get("settingName") or item.get("setting") or "Unnamed setting",
+                "state": state,
+                "grace_period_expires_at": item.get("complianceGracePeriodExpirationDateTime"),
+            }
+
+        return sorted(devices.values(), key=lambda item: item["device_name"].lower())

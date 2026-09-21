@@ -45,15 +45,17 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
-from sqlalchemy import text
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.models.ci import ConfigurationItem
+from app.models.compliance_cache import IntuneComplianceReasonCache
 from app.models.history import CIStatusHistory
 from app.models.sync import SyncErrorLog, SyncRun
 from app.repositories.ci_repository import CIRepository
 from app.repositories.sync_repository import SyncRepository
+from app.services.remediation_cache import remediation_cache_write_lock
 from app.services.telemetry_sources import (
     SourceUnavailableError,
     TelemetrySource,
@@ -121,6 +123,88 @@ class SyncService:
         """
         payload = f"{ci_data.get('status')}:{ci_data.get('health_tier')}"
         return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+    async def _refresh_cached_intune_remediation_worklists(
+        self, graph_client: Any
+    ) -> None:
+        """Refresh reason summaries and previously opened worklists from Intune."""
+        now = datetime.now(timezone.utc)
+        reasons = await asyncio.to_thread(
+            graph_client.get_noncompliance_reason_summaries
+        )
+        existing = list(
+            (
+                await self.session.execute(select(IntuneComplianceReasonCache))
+            ).scalars().all()
+        )
+        cached_worklist_ids = [
+            record.summary_id
+            for record in existing
+            if record.is_active and record.worklist_refreshed_at is not None
+        ]
+        await self.session.rollback()
+
+        refreshed_worklists: Dict[str, List[Dict[str, Any]]] = {}
+        for summary_id in cached_worklist_ids:
+            try:
+                refreshed_worklists[summary_id] = await asyncio.to_thread(
+                    graph_client.get_noncompliant_devices_for_reason,
+                    summary_id,
+                )
+            except Exception as exc:
+                logger.warning(
+                    "Intune remediation cache refresh skipped for %s: %s",
+                    summary_id,
+                    exc,
+                )
+
+        async with remediation_cache_write_lock:
+            existing = list(
+                (
+                    await self.session.execute(select(IntuneComplianceReasonCache))
+                ).scalars().all()
+            )
+            by_id = {record.summary_id: record for record in existing}
+            cached_worklists = [
+                record
+                for record in existing
+                if record.is_active and record.worklist_refreshed_at is not None
+            ]
+            for record in existing:
+                record.is_active = False
+
+            for reason in reasons:
+                summary_id = str(reason.get("id") or "")
+                if not summary_id:
+                    continue
+                record = by_id.get(summary_id)
+                if record is None:
+                    record = IntuneComplianceReasonCache(
+                        summary_id=summary_id,
+                        setting_name=str(reason.get("setting_name") or "Unnamed setting"),
+                        platform=str(reason.get("platform") or "unknown"),
+                        devices=[],
+                        catalog_refreshed_at=now,
+                        is_active=True,
+                    )
+                    self.session.add(record)
+                record.setting_name = str(reason.get("setting_name") or "Unnamed setting")
+                record.platform = str(reason.get("platform") or "unknown")
+                record.noncompliant_count = int(reason.get("noncompliant_count") or 0)
+                record.error_count = int(reason.get("error_count") or 0)
+                record.conflict_count = int(reason.get("conflict_count") or 0)
+                record.affected_count = int(reason.get("affected_count") or 0)
+                record.catalog_refreshed_at = now
+                record.is_active = True
+
+            active_ids = {str(reason.get("id") or "") for reason in reasons}
+            for record in cached_worklists:
+                if record.summary_id not in active_ids or record.summary_id not in refreshed_worklists:
+                    continue
+                record.devices = refreshed_worklists[record.summary_id]
+                record.worklist_refreshed_at = now
+
+            await self.session.flush()
 
     # ------------------------------------------------------------------ #
     # Locking
@@ -461,12 +545,36 @@ class SyncService:
             sources = build_sources(source_system, offline=offline)
 
             results: List[Dict[str, Any]] = []
+            intune_graph_client = None
             for source in sources:
                 # Explicit test injection applies only to a single-source run.
                 injected = telemetry_items if (telemetry_items is not None and len(sources) == 1) else None
-                results.append(await self.sync_single_source(source, telemetry_items=injected))
+                result = await self.sync_single_source(source, telemetry_items=injected)
+                results.append(result)
+                if (
+                    source.name.upper() == "INTUNE"
+                    and result["status"] == "SUCCESS"
+                    and not offline
+                    and telemetry_items is None
+                ):
+                    resolver = getattr(source, "_resolve_client", None)
+                    if callable(resolver):
+                        intune_graph_client = resolver()
 
             await self.session.commit()  # releases pg_advisory_xact_lock
+
+            if intune_graph_client is not None:
+                try:
+                    await self._refresh_cached_intune_remediation_worklists(
+                        intune_graph_client
+                    )
+                    await self.session.commit()
+                except Exception as exc:
+                    await self.session.rollback()
+                    logger.warning(
+                        "Intune remediation cache refresh skipped: %s",
+                        exc,
+                    )
 
             successes = [r for r in results if r["status"] == "SUCCESS"]
             if len(successes) == len(results):

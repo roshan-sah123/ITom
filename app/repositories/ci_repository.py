@@ -164,18 +164,7 @@ class CIRepository(BaseRepository[ConfigurationItem]):
     ) -> Tuple[List[Any], int]:
         """Execute sub-20ms paginated query with multi-column filtering and indexing."""
         if self.session is None:
-            return self._filter_offline(
-                page=page,
-                page_size=page_size,
-                search=search,
-                source_system=source_system,
-                ci_type=ci_type,
-                vendor=vendor,
-                health_tier=health_tier,
-                status=status,
-                sort_by=sort_by,
-                sort_order=sort_order,
-            )
+            return [], 0
 
         try:
             stmt = select(ConfigurationItem)
@@ -230,36 +219,13 @@ class CIRepository(BaseRepository[ConfigurationItem]):
             items = list(result.scalars().all())
 
             if not items and total == 0:
-                # If database table is empty, fall back to sample records
-                return self._filter_offline(
-                    page=page,
-                    page_size=page_size,
-                    search=search,
-                    source_system=source_system,
-                    ci_type=ci_type,
-                    vendor=vendor,
-                    health_tier=health_tier,
-                    status=status,
-                    sort_by=sort_by,
-                    sort_order=sort_order,
-                )
+                return [], 0
 
             return items, total
 
         except Exception as exc:
-            logger.debug("Database query fallback triggered in get_cis_paginated: %s", exc)
-            return self._filter_offline(
-                page=page,
-                page_size=page_size,
-                search=search,
-                source_system=source_system,
-                ci_type=ci_type,
-                vendor=vendor,
-                health_tier=health_tier,
-                status=status,
-                sort_by=sort_by,
-                sort_order=sort_order,
-            )
+            logger.warning("Database query failed in get_cis_paginated: %s", exc)
+            return [], 0
 
     async def get_cmdb_summary(self) -> Dict[str, Any]:
         """Aggregate fleet metrics, vendor distributions, and health tier breakdown."""
@@ -280,6 +246,13 @@ class CIRepository(BaseRepository[ConfigurationItem]):
                 "status_breakdown": {"ACTIVE": 100, "WARNING": 50, "CRITICAL": 50},
                 "ci_type_distribution": {"SERVER": 100, "WORKSTATION": 100},
                 "vendor_distribution": {"Cisco": 34, "Dell Inc.": 34, "Apple": 33},
+                "source_distribution": {"INTUNE": 100, "SOLARWINDS": 100},
+                "metadata_completeness": {
+                    "serial_number": {"populated": 200, "missing": 0, "coverage_pct": 100.0},
+                    "ip_address": {"populated": 200, "missing": 0, "coverage_pct": 100.0},
+                    "model": {"populated": 200, "missing": 0, "coverage_pct": 100.0},
+                    "location": {"populated": 0, "missing": 200, "coverage_pct": 0.0},
+                },
                 "compliance_rate_pct": 83.08,
             }
 
@@ -334,22 +307,38 @@ class CIRepository(BaseRepository[ConfigurationItem]):
             vendor_res = await self.session.execute(vendor_stmt)
             vendor_distribution = {row[0]: row[1] for row in vendor_res.all()}
 
-            # Role categorization
-            servers = sum(
-                count
-                for t, count in ci_type_distribution.items()
-                if "server" in t.lower() or "linux" in t.lower()
+            source_stmt = select(
+                ConfigurationItem.source_system, func.count(ConfigurationItem.id)
+            ).group_by(ConfigurationItem.source_system)
+            source_res = await self.session.execute(source_stmt)
+            source_distribution = {row[0]: row[1] for row in source_res.all()}
+
+            completeness_stmt = select(
+                func.sum(case((ConfigurationItem.serial_number.is_not(None) & (ConfigurationItem.serial_number != ""), 1), else_=0)),
+                func.sum(case((ConfigurationItem.ip_address.is_not(None) & (ConfigurationItem.ip_address != ""), 1), else_=0)),
+                func.sum(case((ConfigurationItem.model.is_not(None) & (ConfigurationItem.model != ""), 1), else_=0)),
+                func.sum(case((ConfigurationItem.location.is_not(None) & (ConfigurationItem.location != ""), 1), else_=0)),
             )
+            serial_count, ip_count, model_count, location_count = (
+                await self.session.execute(completeness_stmt)
+            ).one()
+
+            def completeness(count: Any) -> Dict[str, Any]:
+                populated = int(count or 0)
+                return {
+                    "populated": populated,
+                    "missing": max(0, total - populated),
+                    "coverage_pct": round((populated / total) * 100.0, 2) if total else 0.0,
+                }
+
+            # Role categorization
             network_devices = sum(
                 count
                 for t, count in ci_type_distribution.items()
                 if any(k in t.lower() for k in ["switch", "router", "firewall", "controller", "appliance"])
             )
-            endpoints = sum(
-                count
-                for t, count in ci_type_distribution.items()
-                if any(k in t.lower() for k in ["windows", "ios", "android", "macos", "endpoint", "workstation"])
-            )
+            endpoints = source_distribution.get("INTUNE", 0)
+            servers = max(0, source_distribution.get("SOLARWINDS", 0) - network_devices)
 
             high_health = health_breakdown.get("High", 0)
             med_health = health_breakdown.get("Medium", 0)
@@ -375,6 +364,13 @@ class CIRepository(BaseRepository[ConfigurationItem]):
                 "status_breakdown": status_breakdown,
                 "ci_type_distribution": ci_type_distribution,
                 "vendor_distribution": vendor_distribution,
+                "source_distribution": source_distribution,
+                "metadata_completeness": {
+                    "serial_number": completeness(serial_count),
+                    "ip_address": completeness(ip_count),
+                    "model": completeness(model_count),
+                    "location": completeness(location_count),
+                },
                 "compliance_rate_pct": comp_rate,
             }
 
@@ -396,6 +392,13 @@ class CIRepository(BaseRepository[ConfigurationItem]):
                 "status_breakdown": {"ACTIVE": 100, "WARNING": 50, "CRITICAL": 50},
                 "ci_type_distribution": {"SERVER": 100, "WORKSTATION": 100},
                 "vendor_distribution": {"Cisco": 34, "Dell Inc.": 34, "Apple": 33},
+                "source_distribution": {"INTUNE": 100, "SOLARWINDS": 100},
+                "metadata_completeness": {
+                    "serial_number": {"populated": 200, "missing": 0, "coverage_pct": 100.0},
+                    "ip_address": {"populated": 200, "missing": 0, "coverage_pct": 100.0},
+                    "model": {"populated": 200, "missing": 0, "coverage_pct": 100.0},
+                    "location": {"populated": 0, "missing": 200, "coverage_pct": 0.0},
+                },
                 "compliance_rate_pct": 83.08,
             }
 
@@ -878,4 +881,3 @@ class CIRepository(BaseRepository[ConfigurationItem]):
             "current_availability_pct": base_avail,
             "data_points": points,
         }
-

@@ -17,7 +17,47 @@ let activeEpStatus = '';
 let activeEpFilterLabel = '';
 
 let allFetchedDevices = [];
-let cachedTotalRecords = 27412;
+let cachedTotalRecords = 0;
+
+function asNumber(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
+function metricText(value, suffix = '') {
+  const number = asNumber(value);
+  return number === null ? '—' : `${formatNumber(number)}${suffix}`;
+}
+
+function percentageText(value) {
+  const number = asNumber(value);
+  return number === null ? '—' : `${number.toFixed(1)}%`;
+}
+
+function renderStorageMetrics(metrics) {
+  const coverage = document.getElementById('epAging7Val');
+  const median = document.getElementById('epAging30Val');
+  const average = document.getElementById('epAgingStaleVal');
+
+  if (coverage) coverage.textContent = percentageText(metrics.storage_coverage_pct);
+  if (median) median.textContent = percentageText(metrics.median_device_storage_used_pct);
+  if (average) average.textContent = percentageText(metrics.avg_storage_used_pct);
+}
+
+function renderEndpointsUnavailable() {
+  const values = ['epTotalVal', 'epCompRateVal', 'epOsDiversityVal', 'epZeroTrustVal', 'epAging7Val', 'epAging30Val', 'epAgingStaleVal'];
+  values.forEach((id) => {
+    const element = document.getElementById(id);
+    if (element) element.textContent = '—';
+  });
+
+  const totalSub = document.getElementById('epTotalSub');
+  const compSub = document.getElementById('epCompRateSub');
+  const recordCount = document.getElementById('epRecordCount');
+  if (totalSub) totalSub.textContent = 'Intune data unavailable';
+  if (compSub) compSub.textContent = 'No verified compliance result';
+  if (recordCount) recordCount.textContent = 'Intune data unavailable';
+}
 
 export async function renderEndpoints() {
   await loadEndpointsKpisAndCharts();
@@ -29,11 +69,11 @@ async function loadEndpointsKpisAndCharts() {
   try {
     const summary = await itomApi.getIntuneSummary();
     const metrics = summary.metrics || {};
-    const total = metrics.total_managed_devices || 27412;
-    const compliant = metrics.compliant_devices || 22735;
-    const compRate = metrics.compliance_rate_pct !== undefined ? metrics.compliance_rate_pct : 82.9;
+    const total = asNumber(metrics.total_managed_devices);
+    const compliant = asNumber(metrics.compliant_devices);
+    const compRate = asNumber(metrics.compliance_rate_pct);
 
-    cachedTotalRecords = total;
+    cachedTotalRecords = total ?? 0;
 
     const totalEl = document.getElementById('epTotalVal');
     const totalSub = document.getElementById('epTotalSub');
@@ -42,27 +82,28 @@ async function loadEndpointsKpisAndCharts() {
     const osDivEl = document.getElementById('epOsDiversityVal');
     const zeroTrustEl = document.getElementById('epZeroTrustVal');
 
-    if (totalEl) totalEl.textContent = formatNumber(total);
-    if (totalSub) totalSub.textContent = `${formatNumber(compliant)} Compliant Fleet`;
-    if (compEl) compEl.textContent = `${compRate.toFixed(1)}%`;
-    if (compSub) compSub.textContent = `Target: 95.0% SLA`;
-    if (osDivEl) osDivEl.textContent = `Windows / macOS / Linux`;
-    if (zeroTrustEl) zeroTrustEl.textContent = `94.2% BitLocker`;
+    if (totalEl) totalEl.textContent = metricText(total);
+    if (totalSub) totalSub.textContent = compliant === null ? 'Compliant count not reported' : `${formatNumber(compliant)} compliant devices`;
+    if (compEl) compEl.textContent = percentageText(compRate);
+    if (compSub) compSub.textContent = 'Authoritative Intune telemetry';
+    if (osDivEl) osDivEl.textContent = Object.keys(summary.os_distribution || summary.os_breakdown || {}).join(' / ') || 'Not reported';
+    if (zeroTrustEl) zeroTrustEl.textContent = percentageText(metrics.median_device_storage_used_pct);
 
     // 1. OS Distribution (with click filtering)
-    renderOsChart(summary.os_distribution || summary.os_breakdown || { Windows: 26357, macOS: 891, 'Linux (ubuntu)': 123, Endpoint: 36, Other: 5 });
+    renderOsChart(summary.os_distribution || summary.os_breakdown || {});
 
     // 2. Compliance Chart (with click filtering)
-    renderComplianceChart(summary.compliance_breakdown || { Compliant: 22735, Noncompliant: 3774, ConfigManager: 903 });
+    renderComplianceChart(summary.compliance_breakdown || summary.status_breakdown || {});
 
     // 3. Manufacturer Chart (with click filtering)
-    renderMfgChart(summary.vendor_distribution || summary.manufacturer_breakdown || { 'Dell': 16383, 'HP': 8938, 'Lenovo': 1061, 'Apple': 893, 'Microsoft': 48, 'Other': 89 });
+    renderMfgChart(summary.vendor_distribution || summary.manufacturer_breakdown || {});
 
-    // 4. Inactivity & Modernization Widgets
-    renderAgingAndModernizationWidgets(total);
+    // 4. Device storage analytics. The API does not supply device-aging buckets.
+    renderStorageMetrics(metrics);
 
   } catch (err) {
     console.error('Failed to load endpoints summary:', err);
+    renderEndpointsUnavailable();
   }
 }
 
@@ -235,16 +276,6 @@ function renderMfgChart(mfgData) {
   });
 }
 
-function renderAgingAndModernizationWidgets(total) {
-  const aging7 = document.getElementById('epAging7Val');
-  const aging30 = document.getElementById('epAging30Val');
-  const agingStale = document.getElementById('epAgingStaleVal');
-
-  if (aging7) aging7.textContent = formatNumber(Math.round(total * 0.88));
-  if (aging30) aging30.textContent = formatNumber(Math.round(total * 0.09));
-  if (agingStale) agingStale.textContent = formatNumber(Math.round(total * 0.03));
-}
-
 async function loadEndpointsGrid() {
   const tbody = document.getElementById('epDeviceTableBody');
   const recordCountEl = document.getElementById('epRecordCount');
@@ -265,7 +296,7 @@ async function loadEndpointsGrid() {
     allFetchedDevices = data.items || [];
 
     // Correctly resolve total records from backend response
-    const totalRecords = data.total !== undefined ? data.total : (data.pagination?.total_records || cachedTotalRecords);
+    const totalRecords = asNumber(data.total) ?? asNumber(data.pagination?.total_records) ?? cachedTotalRecords;
     const totalPages = Math.max(1, Math.ceil(totalRecords / currentEpPageSize));
 
     currentEpPage = Math.min(currentEpPage, totalPages);
@@ -289,11 +320,11 @@ async function loadEndpointsGrid() {
       return `
         <tr>
           <td><strong>${escapeHtml(dev.name)}</strong></td>
-          <td>${escapeHtml(dev.attributes?.user_principal_name || dev.attributes?.primary_user || 'Enterprise User')}</td>
-          <td>${escapeHtml(dev.operating_system || dev.ci_type || 'Windows')}</td>
-          <td>${escapeHtml(dev.vendor || 'Generic')}</td>
-          <td><span class="status-pill status-${statusClass}">${escapeHtml(dev.status || 'Compliant')}</span></td>
-          <td class="font-mono">${escapeHtml(dev.serial_number || 'N/A')}</td>
+          <td>${escapeHtml(dev.attributes?.user_principal_name || dev.attributes?.primary_user || '—')}</td>
+          <td>${escapeHtml(dev.operating_system || dev.ci_type || '—')}</td>
+          <td>${escapeHtml(dev.vendor || '—')}</td>
+          <td><span class="status-pill status-${statusClass}">${escapeHtml(dev.status || 'Unknown')}</span></td>
+          <td class="font-mono">${escapeHtml(dev.serial_number || '—')}</td>
           <td>
             <button class="btn-action btn-inspect-ep" data-id="${escapeHtml(dev.id || '')}" style="height: 28px; padding: 0 10px; font-size: 11px;">
               Inspect
@@ -397,11 +428,11 @@ function initEndpointsFilters() {
       ];
       const rows = allFetchedDevices.map(d => ({
         name: d.name,
-        user: d.attributes?.user_principal_name || d.attributes?.primary_user || 'Enterprise User',
-        os: d.operating_system || d.ci_type || 'Windows',
-        vendor: d.vendor || 'Generic',
-        status: d.status || 'Compliant',
-        serial_number: d.serial_number || 'N/A'
+        user: d.attributes?.user_principal_name || d.attributes?.primary_user || '—',
+        os: d.operating_system || d.ci_type || '—',
+        vendor: d.vendor || '—',
+        status: d.status || 'Unknown',
+        serial_number: d.serial_number || '—'
       }));
       exportToCsv(`Intune_Endpoints_Page_${currentEpPage}`, headers, rows);
     });

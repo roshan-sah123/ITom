@@ -140,17 +140,29 @@ class Settings(BaseSettings):
                 values["CORS_ORIGINS"] = origins
             elif backend_cors is not None:
                 parsed_backend = cls._parse_origin_input(backend_cors)
-                origins = parsed_backend if parsed_backend else ["http://localhost:8080"]
+                origins = parsed_backend if parsed_backend else [
+                    "http://localhost:8080",
+                    "http://127.0.0.1:8080",
+                ]
                 values["BACKEND_CORS_ORIGINS"] = origins
                 values["CORS_ORIGINS"] = origins
             elif cors_raw is not None:
                 parsed_cors = cls._parse_origin_input(cors_raw)
-                origins = parsed_cors if parsed_cors else ["http://localhost:8080"]
+                origins = parsed_cors if parsed_cors else [
+                    "http://localhost:8080",
+                    "http://127.0.0.1:8080",
+                ]
                 values["BACKEND_CORS_ORIGINS"] = origins
                 values["CORS_ORIGINS"] = origins
             else:
-                values["BACKEND_CORS_ORIGINS"] = ["http://localhost:8080"]
-                values["CORS_ORIGINS"] = ["http://localhost:8080"]
+                origins = [
+                    "http://localhost:8080",
+                    "http://127.0.0.1:8080",
+                    "http://localhost:8000",
+                    "http://127.0.0.1:8000",
+                ]
+                values["BACKEND_CORS_ORIGINS"] = origins
+                values["CORS_ORIGINS"] = origins
 
         return values
 

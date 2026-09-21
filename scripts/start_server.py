@@ -172,7 +172,10 @@ class CustomHTTPHandler(SimpleHTTPRequestHandler):
             try:
                 req = urllib.request.Request(fastapi_url, headers={"User-Agent": "ITOM-Proxy/1.0"})
                 try:
-                    with urllib.request.urlopen(req, timeout=10) as resp:
+                    # On-demand Intune remediation worklists can contain hundreds
+                    # of setting states. Allow the API enough time to retrieve
+                    # that evidence rather than falling through to a static 404.
+                    with urllib.request.urlopen(req, timeout=60) as resp:
                         payload = resp.read()
                         self.send_response(resp.status)
                         self.send_header("Content-Type", resp.headers.get("Content-Type", "application/json"))
@@ -191,7 +194,15 @@ class CustomHTTPHandler(SimpleHTTPRequestHandler):
                     self.wfile.write(payload)
                     return
             except Exception as e:
-                logger.debug("Proxy forward to FastAPI (%s) notice: %s", fastapi_url, e)
+                logger.warning("Proxy request to FastAPI failed for %s: %s", path, e)
+                self._send_json_response(
+                    {
+                        "error": "ITOM API proxy unavailable",
+                        "detail": "The local API did not complete this request. Keep the port 8000 service running and retry.",
+                    },
+                    status_code=502,
+                )
+                return
 
         # 1. GET /api/cmdb/summary
         if path == "/api/cmdb/summary":

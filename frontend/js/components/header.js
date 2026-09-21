@@ -14,17 +14,17 @@ export function initHeader({ onSyncTriggered }) {
   async function updateSyncStatus() {
     try {
       const status = await itomApi.getSyncStatus();
-      const lastSync = status.last_sync ? new Date(status.last_sync) : new Date();
-      const ageSeconds = status.age_seconds !== null ? status.age_seconds : Math.floor((Date.now() - lastSync) / 1000);
-      syncCountdown = Math.max(0, 600 - (ageSeconds % 600));
+      const ageSeconds = Number.isFinite(Number(status.age_seconds)) ? Number(status.age_seconds) : null;
+      syncCountdown = ageSeconds === null ? 0 : Math.max(0, 600 - (ageSeconds % 600));
 
       if (syncText) {
-        const stateBadge = status.sync_state === 'HEALTHY' ? 'FRESH' : 'STALE';
-        syncText.textContent = `Sync: ${formatRelativeTime(status.last_sync)} (${stateBadge}) | Next in: ${syncCountdown}s`;
+        const stateBadge = status.sync_state || 'UNKNOWN';
+        const lastSyncLabel = status.last_sync ? formatRelativeTime(status.last_sync) : 'not reported';
+        syncText.textContent = `Data status: ${stateBadge} | Last sync: ${lastSyncLabel}`;
       }
     } catch {
       if (syncText) {
-        syncText.textContent = `Sync: Live Mirror (Connecting...)`;
+        syncText.textContent = 'Data status: unavailable';
       }
     }
   }
@@ -41,18 +41,13 @@ export function initHeader({ onSyncTriggered }) {
   if (syncBtn) {
     syncBtn.addEventListener('click', async () => {
       syncBtn.disabled = true;
-      syncBtn.innerHTML = `<span>⏳</span> Syncing...`;
+      syncBtn.innerHTML = `<span>⏳</span> Refreshing...`;
       try {
-        await itomApi.triggerManualSync('ALL');
-        setTimeout(async () => {
-          await updateSyncStatus();
-          syncBtn.disabled = false;
-          syncBtn.innerHTML = `<span>⚡</span> Sync Now`;
-          if (typeof onSyncTriggered === 'function') onSyncTriggered();
-        }, 1500);
-      } catch {
+        await updateSyncStatus();
+        if (typeof onSyncTriggered === 'function') onSyncTriggered();
+      } finally {
         syncBtn.disabled = false;
-        syncBtn.innerHTML = `<span>⚡</span> Sync Now`;
+        syncBtn.innerHTML = `<span>↻</span> Refresh data`;
       }
     });
   }

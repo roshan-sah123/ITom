@@ -4,26 +4,63 @@
  * Enforces Zero-Hallucination telemetry contracts with graceful degradation
  */
 
-const API_BASE = 'http://localhost:8000/api/v1';
+// Use the local API when the static frontend runs on another localhost port.
+// Deployed environments continue to use the same-origin reverse proxy.
+const isLocalStaticHost =
+  ['localhost', '127.0.0.1'].includes(window.location.hostname) &&
+  window.location.port !== '8000';
+const defaultApiBase = isLocalStaticHost
+  ? 'http://127.0.0.1:8000/api/v1'
+  : '/api/v1';
+const API_BASE = (window.ITOM_API_BASE || defaultApiBase).replace(/\/$/, '');
 
-async function fetchJson(endpoint, options = {}) {
-  const url = endpoint.startsWith('http') ? endpoint : `${API_BASE}${endpoint}`;
-  try {
-    const res = await fetch(url, {
-      ...options,
-      headers: {
-        'Accept': 'application/json',
-        ...(options.headers || {})
-      }
-    });
-    if (!res.ok) {
-      throw new Error(`API error ${res.status}: ${res.statusText} (${url})`);
-    }
-    return await res.json();
-  } catch (err) {
-    console.error(`[API Fetch Failure] ${url}:`, err);
-    throw err;
+export class TelemetryApiError extends Error {
+  constructor(message, { status, payload, url } = {}) {
+    super(message);
+    this.name = 'TelemetryApiError';
+    this.status = status;
+    this.payload = payload;
+    this.url = url;
   }
+}
+
+export class TelemetryDataUnavailableError extends TelemetryApiError {
+  constructor(payload, url) {
+    super(payload?.detail || 'Telemetry data has not been ingested for this domain.', {
+      status: 503,
+      payload,
+      url,
+    });
+    this.name = 'TelemetryDataUnavailableError';
+  }
+}
+
+export async function fetchJson(endpoint, options = {}) {
+  const url = endpoint.startsWith('http') ? endpoint : `${API_BASE}${endpoint}`;
+  const res = await fetch(url, {
+    ...options,
+    headers: {
+      Accept: 'application/json',
+      ...(options.headers || {}),
+    },
+  });
+
+  let payload = null;
+  try {
+    payload = await res.json();
+  } catch {
+    // The backend normally sends JSON. Preserve a useful status error if a proxy does not.
+  }
+
+  if (res.status === 503) throw new TelemetryDataUnavailableError(payload, url);
+  if (!res.ok) {
+    throw new TelemetryApiError(`Telemetry API returned ${res.status}.`, {
+      status: res.status,
+      payload,
+      url,
+    });
+  }
+  return payload;
 }
 
 export const itomApi = {
@@ -55,5 +92,4 @@ export const itomApi = {
   // Telemetry Sync Engine
   getSyncStatus: () => fetchJson('/sync/status'),
   getSyncRuns: (page = 1, pageSize = 25) => fetchJson(`/sync/runs?page=${page}&page_size=${pageSize}`),
-  triggerManualSync: (source = 'ALL') => fetchJson(`/sync/trigger?source_system=${encodeURIComponent(source)}`, { method: 'POST' }),
 };

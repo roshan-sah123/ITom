@@ -38,6 +38,7 @@ class CIService:
         search: Optional[str] = None,
         source_system: Optional[str] = None,
         ci_type: Optional[str] = None,
+        location: Optional[str] = None,
         vendor: Optional[str] = None,
         health_tier: Optional[str] = None,
         status: Optional[str] = None,
@@ -45,7 +46,7 @@ class CIService:
         sort_order: Optional[str] = "asc",
     ) -> Dict[str, Any]:
         """Fetch paginated CIs wrapped in the standard response envelope."""
-        items, total = await self.ci_repo.get_cis_paginated(
+        query_args = dict(
             page=page,
             page_size=page_size,
             search=search,
@@ -57,6 +58,11 @@ class CIService:
             sort_by=sort_by,
             sort_order=sort_order,
         )
+        # Existing list endpoints do not need a location filter. Omit it
+        # entirely unless a site drill-down specifically supplies one.
+        if location is not None:
+            query_args["location"] = location
+        items, total = await self.ci_repo.get_cis_paginated(**query_args)
 
         total_pages = max(1, (total + page_size - 1) // page_size)
 
@@ -129,5 +135,3 @@ class CIService:
     async def get_solarwinds_site_trend(self, site_id: str, hours: int = 24) -> Dict[str, Any]:
         """Retrieve 24h historical availability and performance trends for a specific campus facility."""
         return await self.ci_repo.get_solarwinds_site_trend(site_id, hours=hours)
-
-

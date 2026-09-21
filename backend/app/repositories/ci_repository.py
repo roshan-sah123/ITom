@@ -14,7 +14,8 @@ from app.repositories.base import BaseRepository
 
 logger = logging.getLogger("itom.ci_repo")
 
-# Static in-memory mock repository for decoupled / offline execution
+# Legacy in-memory records are retained for isolated tests only. Public telemetry
+# endpoints must never expose them as if they were live Intune or SolarWinds data.
 _OFFLINE_CIS_CACHE: Optional[List[Dict[str, Any]]] = None
 
 
@@ -74,6 +75,7 @@ class CIRepository(BaseRepository[ConfigurationItem]):
         search: Optional[str] = None,
         source_system: Optional[str] = None,
         ci_type: Optional[str] = None,
+        location: Optional[str] = None,
         vendor: Optional[str] = None,
         health_tier: Optional[str] = None,
         status: Optional[str] = None,
@@ -85,6 +87,8 @@ class CIRepository(BaseRepository[ConfigurationItem]):
             records = [r for r in records if r["source_system"] == source_system.upper()]
         if ci_type:
             records = [r for r in records if ci_type.lower() in (r.get("ci_type") or "").lower()]
+        if location:
+            records = [r for r in records if (r.get("location") or "") == location]
         if vendor:
             records = [r for r in records if vendor.lower() in (r.get("vendor") or r.get("manufacturer") or "").lower()]
         if health_tier:
@@ -156,6 +160,7 @@ class CIRepository(BaseRepository[ConfigurationItem]):
         search: Optional[str] = None,
         source_system: Optional[str] = None,
         ci_type: Optional[str] = None,
+        location: Optional[str] = None,
         vendor: Optional[str] = None,
         health_tier: Optional[str] = None,
         status: Optional[str] = None,
@@ -164,18 +169,7 @@ class CIRepository(BaseRepository[ConfigurationItem]):
     ) -> Tuple[List[Any], int]:
         """Execute sub-20ms paginated query with multi-column filtering and indexing."""
         if self.session is None:
-            return self._filter_offline(
-                page=page,
-                page_size=page_size,
-                search=search,
-                source_system=source_system,
-                ci_type=ci_type,
-                vendor=vendor,
-                health_tier=health_tier,
-                status=status,
-                sort_by=sort_by,
-                sort_order=sort_order,
-            )
+            return [], 0
 
         try:
             stmt = select(ConfigurationItem)
@@ -187,6 +181,8 @@ class CIRepository(BaseRepository[ConfigurationItem]):
                 filters.append(ConfigurationItem.source_system == source_system.upper())
             if ci_type:
                 filters.append(ConfigurationItem.ci_type.ilike(f"%{ci_type}%"))
+            if location:
+                filters.append(ConfigurationItem.location == location)
             if vendor:
                 filters.append(ConfigurationItem.vendor.ilike(f"%{vendor}%"))
             if health_tier:
@@ -230,36 +226,13 @@ class CIRepository(BaseRepository[ConfigurationItem]):
             items = list(result.scalars().all())
 
             if not items and total == 0:
-                # If database table is empty, fall back to sample records
-                return self._filter_offline(
-                    page=page,
-                    page_size=page_size,
-                    search=search,
-                    source_system=source_system,
-                    ci_type=ci_type,
-                    vendor=vendor,
-                    health_tier=health_tier,
-                    status=status,
-                    sort_by=sort_by,
-                    sort_order=sort_order,
-                )
+                return [], 0
 
             return items, total
 
         except Exception as exc:
-            logger.debug("Database query fallback triggered in get_cis_paginated: %s", exc)
-            return self._filter_offline(
-                page=page,
-                page_size=page_size,
-                search=search,
-                source_system=source_system,
-                ci_type=ci_type,
-                vendor=vendor,
-                health_tier=health_tier,
-                status=status,
-                sort_by=sort_by,
-                sort_order=sort_order,
-            )
+            logger.warning("Database query failed in get_cis_paginated: %s", exc)
+            return [], 0
 
     async def get_cmdb_summary(self) -> Dict[str, Any]:
         """Aggregate fleet metrics, vendor distributions, and health tier breakdown."""
@@ -401,30 +374,27 @@ class CIRepository(BaseRepository[ConfigurationItem]):
 
     async def get_intune_summary(self) -> Dict[str, Any]:
         """Aggregate live Microsoft Intune compliance and OS distribution metrics from persisted CIs."""
-        fallback = {
-            "metrics": {
-                "total_managed_devices": 25987,
-                "compliant_devices": 21589,
-                "non_compliant_devices": 4398,
-                "noncompliant_devices": 4398,
-                "compliance_rate_pct": 83.08,
-                "avg_storage_used_pct": 37.4,
-            },
-            "os_distribution": {"Windows": 14210, "iOS": 6120, "Android": 3450, "macOS": 1890, "Linux": 317},
-            "os_breakdown": {"Windows": 14210, "iOS": 6120, "Android": 3450, "macOS": 1890, "Linux": 317},
-            "vendor_distribution": {"Dell": 15716, "HP": 8610, "Lenovo": 959, "Apple": 604, "Other": 98},
-            "manufacturer_breakdown": {"Dell": 15716, "HP": 8610, "Lenovo": 959, "Apple": 604, "Other": 98},
-            "compliance_breakdown": {"compliant": 21589, "noncompliant": 3422, "configManager": 935, "unknown": 31, "inGracePeriod": 10},
+        unavailable = {
+            "source_system": "INTUNE",
+            "data_source": "NONE",
+            "metrics": {},
+            "status_breakdown": {},
+            "compliance_breakdown": {},
+            "health_breakdown": {},
+            "os_distribution": {},
+            "os_breakdown": {},
+            "vendor_distribution": {},
+            "manufacturer_breakdown": {},
         }
         if self.session is None:
-            return fallback
+            return unavailable
 
         try:
             total = await self.session.scalar(
                 select(func.count(ConfigurationItem.id)).where(ConfigurationItem.source_system == "INTUNE")
             )
             if not total:
-                return fallback
+                return unavailable
 
             status_stmt = (
                 select(ConfigurationItem.status, func.count(ConfigurationItem.id))
@@ -474,53 +444,48 @@ class CIRepository(BaseRepository[ConfigurationItem]):
             }
 
             return {
+                "source_system": "INTUNE",
+                "data_source": "DATABASE",
                 "metrics": {
                     "total_managed_devices": total,
                     "compliant_devices": compliant,
                     "non_compliant_devices": non_compliant,
                     "noncompliant_devices": non_compliant,
                     "compliance_rate_pct": compliance_rate,
-                    "avg_storage_used_pct": round(float(avg_storage), 1) if avg_storage is not None else fallback["metrics"]["avg_storage_used_pct"],
+                    "avg_storage_used_pct": round(float(avg_storage), 1) if avg_storage is not None else None,
                 },
-                "os_distribution": os_distribution or fallback["os_distribution"],
-                "os_breakdown": os_distribution or fallback["os_breakdown"],
-                "vendor_distribution": vendor_distribution or fallback["vendor_distribution"],
-                "manufacturer_breakdown": vendor_distribution or fallback["manufacturer_breakdown"],
+                "status_breakdown": status_breakdown,
+                "os_distribution": os_distribution,
+                "os_breakdown": os_distribution,
+                "vendor_distribution": vendor_distribution,
+                "manufacturer_breakdown": vendor_distribution,
                 "compliance_breakdown": compliance_breakdown,
             }
         except Exception as exc:
-            logger.debug("Database query fallback triggered in get_intune_summary: %s", exc)
-            return fallback
+            logger.warning("Database query failed in get_intune_summary: %s", exc)
+            return unavailable
 
     async def get_solarwinds_summary(self) -> Dict[str, Any]:
         """Aggregate live SolarWinds Orion node health and performance metrics from persisted CIs."""
-        fallback = {
-            "metrics": {
-                "total_server_nodes": 1548,
-                "active_monitored_nodes": 1543,
-                "high_health_nodes": 1357,
-                "medium_health_nodes": 150,
-                "low_critical_nodes": 41,
-                "high_health_pct": 87.66,
-                "avg_fleet_cpu_load_pct": 16.2,
-                "avg_fleet_ram_used_pct": 22.6,
-                "avg_fleet_latency_ms": 42.5,
-                "status_counts": {"up": 1370, "warning": 25, "critical": 35, "down": 6, "unmanaged_unknown": 112},
-            },
-            "health_breakdown": {"High": 1357, "Medium": 150, "Low": 41},
-            "vendor_distribution": {"Cisco": 612, "Windows": 340, "Linux": 210, "Other": 386},
-            "vendor_breakdown": {"Cisco": 612, "Windows": 340, "Linux": 210, "Other": 386},
+        unavailable = {
+            "source_system": "SOLARWINDS",
+            "data_source": "NONE",
+            "metrics": {},
+            "status_breakdown": {},
+            "health_breakdown": {},
+            "vendor_distribution": {},
+            "vendor_breakdown": {},
             "top_saturated_servers": [],
         }
         if self.session is None:
-            return fallback
+            return unavailable
 
         try:
             total = await self.session.scalar(
                 select(func.count(ConfigurationItem.id)).where(ConfigurationItem.source_system == "SOLARWINDS")
             )
             if not total:
-                return fallback
+                return unavailable
 
             health_stmt = (
                 select(ConfigurationItem.health_tier, func.count(ConfigurationItem.id))
@@ -590,6 +555,8 @@ class CIRepository(BaseRepository[ConfigurationItem]):
             ]
 
             return {
+                "source_system": "SOLARWINDS",
+                "data_source": "DATABASE",
                 "metrics": {
                     "total_server_nodes": total,
                     "active_monitored_nodes": total - unmanaged,
@@ -597,9 +564,9 @@ class CIRepository(BaseRepository[ConfigurationItem]):
                     "medium_health_nodes": health_breakdown.get("Medium", 0),
                     "low_critical_nodes": health_breakdown.get("Low", 0),
                     "high_health_pct": high_pct,
-                    "avg_fleet_cpu_load_pct": round(float(avg_cpu), 1) if avg_cpu is not None else fallback["metrics"]["avg_fleet_cpu_load_pct"],
-                    "avg_fleet_ram_used_pct": round(float(avg_ram), 1) if avg_ram is not None else fallback["metrics"]["avg_fleet_ram_used_pct"],
-                    "avg_fleet_latency_ms": round(float(avg_latency), 1) if avg_latency is not None else fallback["metrics"]["avg_fleet_latency_ms"],
+                    "avg_fleet_cpu_load_pct": round(float(avg_cpu), 1) if avg_cpu is not None else None,
+                    "avg_fleet_ram_used_pct": round(float(avg_ram), 1) if avg_ram is not None else None,
+                    "avg_fleet_latency_ms": round(float(avg_latency), 1) if avg_latency is not None else None,
                     "status_counts": {
                         "up": status_breakdown.get("Up", 0),
                         "warning": status_breakdown.get("Warning", 0),
@@ -613,13 +580,14 @@ class CIRepository(BaseRepository[ConfigurationItem]):
                     "Medium": health_breakdown.get("Medium", 0),
                     "Low": health_breakdown.get("Low", 0),
                 },
-                "vendor_distribution": vendor_distribution or fallback["vendor_distribution"],
-                "vendor_breakdown": vendor_distribution or fallback["vendor_breakdown"],
+                "status_breakdown": status_breakdown,
+                "vendor_distribution": vendor_distribution,
+                "vendor_breakdown": vendor_distribution,
                 "top_saturated_servers": top_saturated_servers,
             }
         except Exception as exc:
-            logger.debug("Database query fallback triggered in get_solarwinds_summary: %s", exc)
-            return fallback
+            logger.warning("Database query failed in get_solarwinds_summary: %s", exc)
+            return unavailable
 
     async def get_history_by_ci_id(
         self, ci_id: uuid.UUID | str, limit: int = 50
@@ -728,10 +696,10 @@ class CIRepository(BaseRepository[ConfigurationItem]):
                         })
                     return sites
             except Exception as exc:
-                logger.debug("Database aggregation fallback in get_solarwinds_sites: %s", exc)
+                logger.warning("Database aggregation failed in get_solarwinds_sites: %s", exc)
 
-        # High-scale verified fallback covering all 60 enterprise facilities
-        return self._get_default_solarwinds_sites()
+        # Do not expose generated site catalogues as SolarWinds telemetry.
+        return []
 
     def _get_default_solarwinds_sites(self) -> List[Dict[str, Any]]:
         """Authoritative 60-site catalog with exact SolarWinds node reconciliation."""
@@ -854,4 +822,3 @@ class CIRepository(BaseRepository[ConfigurationItem]):
             "current_availability_pct": base_avail,
             "data_points": points,
         }
-

@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Coforge ITOM live CMDB explorer for asset governance, source provenance, health risk, and configuration-item investigation.">
+  <title>CMDB Explorer | Coforge ITOM Portal</title>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --bg-base: #0B0B0C;
+      --card-bg: #131316;
+      --card-hover: #18181D;
+      --border-subtle: #222228;
+      --border-hover: #33333E;
+      --border-highlight: rgba(255, 255, 255, 0.12);
+      --text-primary: #FFFFFF;
+      --text-secondary: #9494A0;
+      --text-muted: #5E5E6C;
+      --accent-orange: #F97316;
+      --accent-green: #10B981;
+      --accent-cyan: #06B6D4;
+      --accent-purple: #8B5CF6;
+      --accent-red: #EF4444;
+      --accent-amber: #F59E0B;
+      --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: var(--bg-base);
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    .top-nav {
+      height: 64px;
+      border-bottom: 1px solid var(--border-subtle);
+      background: rgba(11, 11, 12, 0.88);
+      backdrop-filter: blur(16px);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 32px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .nav-left { display: flex; align-items: center; gap: 24px; }
+    .brand-group { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+    .brand-logo { font-size: 22px; font-weight: 800; }
+    .brand-logo .orange { color: var(--accent-orange); }
+    .brand-logo .white { color: #FFFFFF; }
+    .brand-badge {
+      font-size: 11px; font-weight: 700; text-transform: uppercase; padding: 3px 8px; border-radius: 6px;
+      background: rgba(249, 115, 22, 0.12); color: var(--accent-orange); border: 1px solid rgba(249, 115, 22, 0.25);
+    }
+    .nav-breadcrumb { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-muted); }
+    .nav-breadcrumb a { color: var(--text-secondary); text-decoration: none; }
+    .nav-breadcrumb a:hover { color: #FFFFFF; }
+    .nav-breadcrumb span.current {
+      color: var(--text-primary); font-weight: 600; background: rgba(255, 255, 255, 0.05);
+      padding: 4px 10px; border-radius: 6px; border: 1px solid var(--border-subtle);
+    }
+    .nav-center-tabs {
+      display: flex; align-items: center; background: #141418; border: 1px solid var(--border-subtle);
+      border-radius: 10px; padding: 4px; gap: 4px;
+    }
+    .view-tab-btn {
+      background: transparent; border: none; color: var(--text-secondary); font-size: 12px; font-weight: 600;
+      padding: 6px 14px; border-radius: 6px; cursor: pointer; text-decoration: none; display: flex; align-items: center; gap: 6px;
+    }
+    .view-tab-btn:hover { color: #FFFFFF; background: rgba(255, 255, 255, 0.04); }
+    .view-tab-btn.active {
+      background: #22222A; color: #FFFFFF; box-shadow: 0 1px 4px rgba(0,0,0,0.4); border: 1px solid var(--border-hover);
+    }
+    .nav-right { display: flex; align-items: center; gap: 16px; }
+    .search-pill {
+      display: flex; align-items: center; gap: 10px; background: #151518; border: 1px solid var(--border-subtle);
+      border-radius: 8px; padding: 7px 14px; color: var(--text-muted); font-size: 13px; width: 240px;
+    }
+    .search-pill kbd {
+      margin-left: auto; font-size: 11px; background: #202026; padding: 2px 6px; border-radius: 4px;
+      color: var(--text-secondary); border: 1px solid #2B2B33; font-family: var(--font-mono);
+    }
+    .user-profile {
+      display: flex; align-items: center; gap: 10px; background: #151518; border: 1px solid var(--border-subtle);
+      padding: 5px 12px 5px 6px; border-radius: 20px;
+    }
+    .avatar-img { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; border: 1.5px solid var(--accent-orange); }
+    .user-name { font-size: 13px; font-weight: 600; color: #E2E2E8; }
+    .status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent-green); box-shadow: 0 0 6px var(--accent-green); }
+
+    .main-content { flex: 1; max-width: 1780px; width: 100%; margin: 0 auto; padding: 24px 32px 60px 32px; }
+
+    .global-filter-bar {
+      background: #141418; border: 1px solid var(--border-subtle); border-radius: 12px;
+      padding: 12px 20px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px;
+    }
+    .filter-left { display: flex; align-items: center; gap: 16px; }
+    .cmdb-title-lockup { display: flex; align-items: center; gap: 16px; }
+    .cmdb-mark {
+      display: grid; place-items: center; min-width: 72px; height: 48px;
+      border: 1px solid rgba(249, 115, 22, .45); border-radius: 10px;
+      color: var(--accent-orange); background: rgba(249, 115, 22, .09);
+      font: 800 17px var(--font-mono); letter-spacing: .08em;
+    }
+    .cmdb-title-copy h1 { margin: 0; color: var(--accent-orange); font-size: 24px; font-weight: 800; letter-spacing: -.5px; }
+    .cmdb-title-copy p { margin-top: 4px; color: var(--text-secondary); font-size: 12px; }
+    .location-scope-pill {
+      background: #1C1C22; border: 1px solid #2E2E38; border-radius: 8px; color: #FFFFFF;
+      font-size: 13px; font-weight: 600; padding: 6px 14px;
+    }
+    .live-indicator {
+      display: flex; align-items: center; gap: 6px; color: var(--accent-green); font-weight: 600;
+      background: rgba(16, 185, 129, 0.1); padding: 5px 12px; border-radius: 20px; border: 1px solid rgba(16, 185, 129, 0.2);
+    }
+    .live-pulse { width: 6px; height: 6px; border-radius: 50%; background: var(--accent-green); box-shadow: 0 0 6px var(--accent-green); }
+
+    .kpi-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 14px; margin-bottom: 24px; }
+    .kpi-card {
+      background: var(--card-bg); border: 1px solid var(--border-subtle); border-radius: 12px;
+      padding: 20px; display: flex; flex-direction: column; justify-content: space-between;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .kpi-card:hover { background: var(--card-hover); border-color: var(--border-hover); transform: translateY(-2px); }
+    .kpi-card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+    .kpi-title { font-size: 13px; font-weight: 600; color: var(--text-secondary); }
+    .kpi-tag { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 8px; }
+    .kpi-tag.cyan { background: rgba(6, 182, 212, 0.12); color: var(--accent-cyan); border: 1px solid rgba(6, 182, 212, 0.25); }
+    .kpi-tag.green { background: rgba(16, 185, 129, 0.12); color: var(--accent-green); border: 1px solid rgba(16, 185, 129, 0.25); }
+    .kpi-tag.orange { background: rgba(249, 115, 22, 0.12); color: var(--accent-orange); border: 1px solid rgba(249, 115, 22, 0.25); }
+    .kpi-number { font-size: 32px; font-weight: 800; color: #FFFFFF; font-family: var(--font-mono); font-feature-settings: 'tnum' on; margin-bottom: 8px; }
+    .kpi-subtext { font-size: 12px; color: var(--text-muted); }
+    .progress-bar-sm { width: 100%; height: 6px; background: #202026; border-radius: 3px; overflow: hidden; display: flex; margin-top: 10px; }
+    .progress-fill { height: 100%; }
+
+    .analytics-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-bottom: 24px; }
+    .chart-box { background: var(--card-bg); border: 1px solid var(--border-subtle); border-radius: 12px; padding: 22px; }
+    .chart-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+    .chart-title-group h3 { font-size: 15px; font-weight: 700; color: #FFFFFF; }
+    .chart-title-group p { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+    .site-section-header { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 16px; }
+    .site-title-group h2 { font-size: 20px; font-weight: 700; color: #FFFFFF; margin-bottom: 4px; }
+    .site-title-group p { font-size: 13px; color: var(--text-secondary); }
+    .site-controls { display: flex; align-items: center; gap: 12px; }
+    .table-search-input {
+      background: #151518; border: 1px solid var(--border-subtle); border-radius: 8px;
+      padding: 6px 12px; font-size: 12px; color: #FFFFFF; width: 240px; outline: none; transition: border-color 0.2s ease;
+    }
+    .table-search-input:focus { border-color: var(--accent-orange); }
+    .page-size-select {
+      background: #1C1C22; border: 1px solid var(--border-subtle); color: #FFFFFF;
+      padding: 5px 10px; border-radius: 6px; font-size: 12px; outline: none;
+    }
+    .btn-export-csv {
+      display: flex; align-items: center; gap: 6px; background: #1C1C22; border: 1px solid var(--border-subtle);
+      color: #FFFFFF; font-size: 12px; font-weight: 600; padding: 6px 12px; border-radius: 8px; cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .btn-export-csv:hover { border-color: var(--accent-orange); color: var(--accent-orange); }
+
+    .table-card { background: var(--card-bg); border: 1px solid var(--border-subtle); border-radius: 12px; overflow: hidden; }
+    table { width: 100%; table-layout: fixed; border-collapse: collapse; text-align: left; font-size: 13px; }
+    th {
+      padding: 12px 18px; font-size: 11px; font-weight: 600; text-transform: uppercase;
+      color: var(--text-muted); background: #151518; border-bottom: 1px solid var(--border-subtle);
+      letter-spacing: 0.5px;
+    }
+    td { padding: 12px 18px; border-bottom: 1px solid #1C1C22; color: #E2E2E8; vertical-align: middle; }
+    tbody tr:hover td { background: #181820; cursor: pointer; }
+    tbody tr:last-child td { border-bottom: none; }
+
+    #cmdbTable th:nth-child(1), #cmdbTable td:nth-child(1) { width: 18%; }
+    #cmdbTable th:nth-child(2), #cmdbTable td:nth-child(2) { width: 12%; }
+    #cmdbTable th:nth-child(3), #cmdbTable td:nth-child(3) { width: 11%; }
+    #cmdbTable th:nth-child(4), #cmdbTable td:nth-child(4) { width: 16%; }
+    #cmdbTable th:nth-child(5), #cmdbTable td:nth-child(5) { width: 13%; }
+    #cmdbTable th:nth-child(6), #cmdbTable td:nth-child(6) { width: 10%; }
+    #cmdbTable th:nth-child(7), #cmdbTable td:nth-child(7) { width: 10%; }
+    #cmdbTable th:nth-child(8), #cmdbTable td:nth-child(8) { width: 10%; }
+
+    .health-pill {
+      display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 600;
+      padding: 3px 9px; border-radius: 12px; white-space: nowrap;
+    }
+    .health-pill.green { background: rgba(16, 185, 129, 0.1); color: var(--accent-green); border: 1px solid rgba(16, 185, 129, 0.25); }
+    .health-pill.amber { background: rgba(245, 158, 11, 0.1); color: var(--accent-amber); border: 1px solid rgba(245, 158, 11, 0.25); }
+    .health-pill.red { background: rgba(239, 68, 68, 0.1); color: var(--accent-red); border: 1px solid rgba(239, 68, 68, 0.25); }
+
+    .source-badge {
+      display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 600;
+      padding: 3px 8px; border-radius: 6px; font-family: var(--font-mono);
+    }
+    .source-badge.intune { background: rgba(6, 182, 212, 0.12); color: var(--accent-cyan); border: 1px solid rgba(6, 182, 212, 0.25); }
+    .source-badge.solarwinds { background: rgba(16, 185, 129, 0.12); color: var(--accent-green); border: 1px solid rgba(16, 185, 129, 0.25); }
+
+    .table-footer {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 20px; background: #151518; border-top: 1px solid var(--border-subtle);
+      font-size: 12px; color: var(--text-muted);
+    }
+    .footer-left { display: flex; align-items: center; gap: 8px; font-feature-settings: 'tnum' on; }
+    .footer-center { display: flex; align-items: center; gap: 8px; }
+    .footer-right { display: flex; align-items: center; gap: 4px; }
+    .page-btn {
+      background: #1C1C22; border: 1px solid var(--border-subtle); color: var(--text-secondary);
+      font-size: 12px; min-width: 28px; height: 28px; border-radius: 6px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; transition: all 0.15s ease;
+    }
+    .page-btn:hover:not(:disabled) { background: #25252E; color: #FFFFFF; border-color: var(--border-hover); }
+    .page-btn.active { background: var(--accent-orange); color: #FFFFFF; border-color: var(--accent-orange); font-weight: 700; }
+    .page-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+    .toast-container { position: fixed; bottom: 24px; right: 24px; z-index: 1000; }
+    .toast {
+      background: #1C1C22; border: 1px solid var(--border-highlight); border-radius: 8px;
+      padding: 10px 16px; font-size: 13px; color: #FFFFFF; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+      display: flex; align-items: center; gap: 10px;
+    }
+    .analytics-list { display: grid; gap: 12px; }
+    .analytics-row { display: grid; grid-template-columns: minmax(120px, 1fr) 2fr auto; gap: 10px; align-items: center; }
+    .analytics-row span { color: var(--text-secondary); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .analytics-row b { color: #fff; font: 11px var(--font-mono); }
+    .analytics-track { height: 7px; overflow: hidden; border-radius: 999px; background: #202735; }
+    .analytics-fill { height: 100%; border-radius: inherit; background: var(--bar-color, var(--accent-cyan)); }
+    .ci-detail-modal { display: none; position: fixed; inset: 0; z-index: 1200; overflow: auto; padding: 36px; background: rgba(3, 6, 12, .82); backdrop-filter: blur(8px); }
+    .ci-detail-modal.show { display: block; }
+    .ci-detail-panel { max-width: 1180px; margin: 0 auto; overflow: hidden; border: 1px solid var(--border-hover); border-radius: 14px; background: var(--card-bg); }
+    .ci-detail-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 20px; border-bottom: 1px solid var(--border-subtle); }
+    .ci-detail-header h2 { font-size: 18px; margin-bottom: 5px; }
+    .ci-detail-header p { color: var(--text-muted); font: 11px var(--font-mono); }
+    .ci-detail-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; padding: 18px; border-bottom: 1px solid var(--border-subtle); }
+    .ci-detail-field { min-height: 78px; padding: 12px; border: 1px solid var(--border-subtle); border-radius: 9px; background: #181820; }
+    .ci-detail-field span { display: block; margin-bottom: 8px; color: var(--text-muted); font-size: 10px; text-transform: uppercase; }
+    .ci-detail-field b { color: #fff; font-size: 12px; overflow-wrap: anywhere; }
+    .detail-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 0; }
+    .detail-section { min-height: 280px; padding: 18px; }
+    .detail-section + .detail-section { border-left: 1px solid var(--border-subtle); }
+    .detail-section h3 { margin-bottom: 12px; font-size: 14px; }
+    .detail-empty { padding: 28px 10px; color: var(--text-muted); font-size: 12px; text-align: center; }
+    .btn-close { border: 1px solid var(--border-hover); border-radius: 8px; padding: 8px 12px; color: #fff; background: #1c1c22; cursor: pointer; }
+    .ci-link { border: 0; border-bottom: 1px dashed currentColor; padding: 0; color: #fff; background: transparent; font: inherit; font-weight: 700; cursor: pointer; }
+    .ci-link:hover { color: var(--accent-orange); }
+    @media (max-width: 1100px) {
+      .kpi-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .analytics-grid { grid-template-columns: 1fr 1fr; }
+      .analytics-grid .chart-box:last-child { grid-column: span 2; }
+    }
+    @media (max-width: 760px) {
+      .top-nav, .global-filter-bar, .site-section-header { align-items: flex-start; flex-direction: column; height: auto; gap: 12px; }
+      .nav-center-tabs, .nav-right { display: none; }
+      .main-content { padding-inline: 16px; }
+      .kpi-grid, .analytics-grid, .ci-detail-grid, .detail-columns { grid-template-columns: 1fr; }
+      .analytics-grid .chart-box:last-child { grid-column: auto; }
+      .detail-section + .detail-section { border-left: 0; border-top: 1px solid var(--border-subtle); }
+      .ci-detail-modal { padding: 12px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="main-content">
+    <div class="global-filter-bar">
+      <div class="filter-left">
+        <div class="cmdb-title-lockup">
+          <div class="cmdb-mark">CMDB</div>
+          <div class="cmdb-title-copy">
+            <h1>Configuration Management Database</h1>
+            <p>Authoritative configuration identity, ownership, metadata quality and topology.</p>
+          </div>
+        </div>
+      </div>
+      <div class="filter-right">
+        <div class="live-indicator">
+          <div class="live-pulse"></div>
+          <span>Live CMDB Catalog</span>
+        </div>
+        <span id="cmdbFreshnessText" style="color: var(--text-muted); font-size: 12px;">Reconciled 1m ago (HEALTHY)</span>
+      </div>
+    </div>
+
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-card-header">
+          <span class="kpi-title">Configuration Items (CIs)</span>
+          <span class="kpi-tag orange">Universal Catalog</span>
+        </div>
+        <div class="kpi-number" id="kpiTotalCis">--</div>
+        <div class="kpi-subtext">Authoritative multi-domain configuration records</div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-card-header">
+          <span class="kpi-title">Serial Number Coverage</span>
+          <span class="kpi-tag cyan">Identity Quality</span>
+        </div>
+        <div class="kpi-number" id="kpiSerialCoverage">--</div>
+        <div class="kpi-subtext" id="kpiSerialNote">CIs with a usable serial or asset identifier</div>
+        <div class="progress-bar-sm">
+          <div id="serialProgress" class="progress-fill" style="width: 0%; background: var(--accent-cyan);"></div>
+        </div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-card-header">
+          <span class="kpi-title">IP Address Coverage</span>
+          <span class="kpi-tag green">Addressability</span>
+        </div>
+        <div class="kpi-number" id="kpiIpCoverage">--</div>
+        <div class="kpi-subtext" id="kpiIpNote">CIs with a recorded management address</div>
+        <div class="progress-bar-sm">
+          <div id="ipProgress" class="progress-fill" style="width: 0%; background: var(--accent-green);"></div>
+        </div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-card-header">
+          <span class="kpi-title">Location Coverage</span>
+          <span class="kpi-tag orange">Ownership Context</span>
+        </div>
+        <div class="kpi-number" id="kpiLocationCoverage">--</div>
+        <div class="kpi-subtext" id="kpiLocationNote">CIs mapped to a site or operational location</div>
+        <div class="progress-bar-sm">
+          <div id="locationProgress" class="progress-fill" style="width: 0%; background: var(--accent-orange);"></div>
+        </div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-card-header">
+          <span class="kpi-title">Model Coverage</span>
+          <span class="kpi-tag green">Hardware Baseline</span>
+        </div>
+        <div class="kpi-number" id="kpiModelCoverage">--</div>
+        <div class="kpi-subtext" id="kpiModelNote">CIs with a known hardware or platform model</div>
+        <div class="progress-bar-sm">
+          <div id="modelProgress" class="progress-fill" style="width: 0%; background: var(--accent-purple);"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="analytics-grid">
+      <div class="chart-box">
+        <div class="chart-header">
+          <div class="chart-title-group">
+            <h3>CI Type Distribution</h3>
+            <p>How the asset register is classified</p>
+          </div>
+          <span style="font-size: 11px; color: var(--accent-orange); font-weight: 600;">Catalog Taxonomy</span>
+        </div>
+        <div id="typeAnalytics" class="analytics-list"><span style="color: var(--text-muted); font-size: 12px;">Loading CI types...</span></div>
+      </div>
+
+      <div class="chart-box">
+        <div class="chart-header">
+          <div class="chart-title-group">
+            <h3>Vendor Distribution</h3>
+            <p>Manufacturer and platform ownership across the register</p>
+          </div>
+          <span style="font-size: 11px; color: var(--accent-green); font-weight: 600; background: rgba(16, 185, 129, 0.1); padding: 4px 8px; border-radius: 6px;">Live CMDB</span>
+        </div>
+        <div id="vendorAnalytics" class="analytics-list"><span style="color: var(--text-muted); font-size: 12px;">Loading vendors...</span></div>
+      </div>
+
+      <div class="chart-box">
+        <div class="chart-header">
+          <div class="chart-title-group">
+            <h3>Metadata Completeness Gaps</h3>
+            <p>Missing fields that reduce CMDB usability</p>
+          </div>
+          <span style="font-size: 11px; color: var(--accent-amber); font-weight: 600;">Data Quality</span>
+        </div>
+        <div id="completenessAnalytics" class="analytics-list"><span style="color: var(--text-muted); font-size: 12px;">Loading completeness...</span></div>
+      </div>
+    </div>
+
+    <div class="site-section-header">
+      <div class="site-title-group">
+        <h2>Universal Configuration Item Catalog</h2>
+        <p>Complete enterprise hardware, virtual infrastructure, and endpoint configuration records</p>
+      </div>
+      <div class="site-controls">
+        <input type="text" class="table-search-input" id="cmdbSearchInput" placeholder="Search CI name, serial, vendor..." oninput="handleCmdbSearch(this.value)">
+        <select class="page-size-select" id="cmdbSourceSelect" onchange="handleCmdbSourceFilter(this.value)" style="height: 30px;">
+          <option value="">All Sources</option>
+          <option value="INTUNE">Microsoft Intune</option>
+          <option value="SOLARWINDS">SolarWinds</option>
+        </select>
+        <select class="page-size-select" id="cmdbTypeSelect" onchange="handleCmdbTypeFilter(this.value)" style="height: 30px;">
+          <option value="">All CI Types</option>
+        </select>
+        <select class="page-size-select" id="cmdbVendorSelect" onchange="handleCmdbVendorFilter(this.value)" style="height: 30px;">
+          <option value="">All Vendors</option>
+        </select>
+        <button class="btn-export-csv" onclick="exportCmdbCsv()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+          Export CMDB CSV
+        </button>
+      </div>
+    </div>
+
+    <div class="table-card">
+      <table id="cmdbTable">
+        <thead>
+          <tr>
+            <th>Configuration Item</th>
+            <th>CI Type</th>
+            <th>Discovery Source</th>
+            <th>Vendor / Model</th>
+            <th>Serial Number / ID</th>
+            <th>IP Address</th>
+            <th>Location</th>
+            <th>Last Reconciled</th>
+          </tr>
+        </thead>
+        <tbody id="cmdbTableBody">
+          <!-- Dynamically Populated -->
+        </tbody>
+      </table>
+
+      <div class="table-footer">
+        <div class="footer-left" id="cmdbFooterText">Loading configuration items...</div>
+        <div class="footer-center">
+          <span>Rows per page:</span>
+          <select class="page-size-select" id="cmdbPageSizeSelect" onchange="changeCmdbPageSize(this.value)">
+            <option value="10">10</option>
+            <option value="25" selected>25</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+          </select>
+        </div>
+        <div class="footer-right" id="cmdbPaginationControls"></div>
+      </div>
+    </div>
+  </main>
+
+  <section id="ciDetailModal" class="ci-detail-modal" aria-live="polite" aria-labelledby="ciDetailTitle">
+    <div class="ci-detail-panel">
+      <div class="ci-detail-header">
+        <div>
+          <h2 id="ciDetailTitle">Configuration Item</h2>
+          <p id="ciDetailSubtitle">Select a CI to inspect its current record, history, and relationships.</p>
+        </div>
+        <button id="closeCiDetail" class="btn-close" type="button">Close</button>
+      </div>
+      <div class="ci-detail-grid">
+        <div class="ci-detail-field"><span>Source</span><b id="detailSource">--</b></div>
+        <div class="ci-detail-field"><span>CI type</span><b id="detailType">--</b></div>
+        <div class="ci-detail-field"><span>Source ID</span><b id="detailSourceId">--</b></div>
+        <div class="ci-detail-field"><span>Last reconciled</span><b id="detailReconciled">--</b></div>
+        <div class="ci-detail-field"><span>IP address</span><b id="detailIp">--</b></div>
+        <div class="ci-detail-field"><span>Serial / source ID</span><b id="detailSerial">--</b></div>
+        <div class="ci-detail-field"><span>Vendor / model</span><b id="detailVendor">--</b></div>
+        <div class="ci-detail-field"><span>Location</span><b id="detailLocation">--</b></div>
+      </div>
+      <div class="detail-columns">
+        <div class="detail-section">
+          <h3>Configuration attributes</h3>
+          <div id="detailAttributes" class="detail-empty">No attributes loaded.</div>
+        </div>
+        <div class="detail-section">
+          <h3>Topology relationships</h3>
+          <div id="detailRelationships" class="detail-empty">No relationships loaded.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script>
+    (() => {
+      "use strict";
+
+      const isLocalStatic = ["localhost", "127.0.0.1"].includes(location.hostname) && location.port !== "8000";
+      const API_BASE = isLocalStatic ? "http://127.0.0.1:8000/api/v1" : "/api/v1";
+      const state = { page: 1, pageSize: 25, search: "", source: "", vendor: "", ciType: "", total: 0, currentItems: [] };
+      const $ = (id) => document.getElementById(id);
+      const number = (value) => Number.isFinite(Number(value)) ? Number(value).toLocaleString() : "--";
+      const pct = (part, whole) => whole > 0 ? (Number(part || 0) / whole) * 100 : 0;
+      const escapeHtml = (value) => String(value ?? "--").replace(/[&<>"']/g, (char) => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;"
+      }[char]));
+
+      async function fetchJson(path) {
+        const response = await fetch(`${API_BASE}${path}`, { headers: { Accept: "application/json" } });
+        let body = null;
+        try { body = await response.json(); } catch { /* Status error below remains actionable. */ }
+        if (!response.ok) throw new Error(body?.detail || body?.error || `HTTP ${response.status}`);
+        return body;
+      }
+
+      function showToast(message) {
+        const toast = document.createElement("div");
+        toast.className = "toast";
+        toast.textContent = message;
+        $("toastContainer").appendChild(toast);
+        setTimeout(() => toast.remove(), 3000);
+      }
+
+      function renderAnalytics(targetId, values, palette) {
+        const entries = Object.entries(values || {}).filter(([, value]) => Number(value) >= 0);
+        const total = entries.reduce((sum, [, value]) => sum + Number(value), 0);
+        $(targetId).innerHTML = entries.length && total
+          ? entries.map(([label, value], index) => `
+              <div class="analytics-row">
+                <span title="${escapeHtml(label)}">${escapeHtml(label)}</span>
+                <div class="analytics-track"><div class="analytics-fill" style="width:${Math.max(2, pct(value, total))}%;--bar-color:${palette[index % palette.length]}"></div></div>
+                <b>${number(value)}</b>
+              </div>`).join("")
+          : `<div class="detail-empty">No analytics returned.</div>`;
+      }
+
+      function renderSummary(summary) {
+        const total = Number(summary.total_cis || 0);
+        const completeness = summary.metadata_completeness || {};
+        const serial = completeness.serial_number || {};
+        const ip = completeness.ip_address || {};
+        const location = completeness.location || {};
+        const model = completeness.model || {};
+
+        $("kpiTotalCis").textContent = number(total);
+        [
+          ["Serial", "kpiSerialCoverage", "kpiSerialNote", "serialProgress", serial],
+          ["IP address", "kpiIpCoverage", "kpiIpNote", "ipProgress", ip],
+          ["Location", "kpiLocationCoverage", "kpiLocationNote", "locationProgress", location],
+          ["Model", "kpiModelCoverage", "kpiModelNote", "modelProgress", model]
+        ].forEach(([label, valueId, noteId, progressId, metric]) => {
+          const coverage = Number(metric.coverage_pct || 0);
+          $(valueId).textContent = `${coverage.toFixed(1)}%`;
+          $(noteId).textContent = `${number(metric.populated || 0)} populated · ${number(metric.missing || 0)} missing`;
+          $(progressId).style.width = `${coverage}%`;
+        });
+
+        renderAnalytics("typeAnalytics", summary.ci_type_distribution, ["#F97316", "#06B6D4", "#10B981", "#8B5CF6", "#F59E0B"]);
+        renderAnalytics("vendorAnalytics", summary.vendor_distribution, ["#8B5CF6", "#06B6D4", "#10B981", "#F97316", "#F59E0B"]);
+        renderAnalytics("completenessAnalytics", {
+          "Missing serial": serial.missing || 0,
+          "Missing IP address": ip.missing || 0,
+          "Missing location": location.missing || 0,
+          "Missing model": model.missing || 0
+        }, ["#F59E0B", "#EF4444", "#F97316", "#8B5CF6"]);
+
+        const typeSelect = $("cmdbTypeSelect");
+        typeSelect.innerHTML = `<option value="">All CI Types</option>` +
+          Object.keys(summary.ci_type_distribution || {}).sort().map((type) =>
+            `<option value="${escapeHtml(type)}">${escapeHtml(type)}</option>`
+          ).join("");
+        const vendorSelect = $("cmdbVendorSelect");
+        vendorSelect.innerHTML = `<option value="">All Vendors</option>` +
+          Object.keys(summary.vendor_distribution || {}).sort().map((vendor) =>
+            `<option value="${escapeHtml(vendor)}">${escapeHtml(vendor)}</option>`
+          ).join("");
+      }
+
+      async function loadSummary() {
+        try {
+          renderSummary(await fetchJson("/cmdb/summary"));
+          const freshness = await fetchJson("/system/freshness");
+          const status = String(freshness.overall_status || "UNKNOWN");
+          const age = freshness.oldest_age_seconds;
+          $("cmdbFreshnessText").textContent = age === null || age === undefined
+            ? `Freshness ${status}`
+            : `Oldest source age ${number(age)}s (${status})`;
+        } catch (error) {
+          $("cmdbFreshnessText").textContent = `CMDB analytics unavailable: ${error.message}`;
+        }
+      }
+
+      function queryString(page = state.page, pageSize = state.pageSize) {
+        const params = new URLSearchParams({ page, page_size: pageSize, sort_by: "name", sort_order: "asc" });
+        if (state.search) params.set("search", state.search);
+        if (state.source) params.set("source_system", state.source);
+        if (state.vendor) params.set("vendor", state.vendor);
+        if (state.ciType) params.set("ci_type", state.ciType);
+        return params.toString();
+      }
+
+      function renderTable(payload) {
+        const items = payload.items || [];
+        state.currentItems = items;
+        state.total = Number(payload.total || 0);
+        if (!items.length) {
+          $("cmdbTableBody").innerHTML = `<tr><td colspan="8"><div class="detail-empty">No Configuration Items match the current filters.</div></td></tr>`;
+        } else {
+          $("cmdbTableBody").innerHTML = items.map((ci) => {
+            const source = String(ci.source_system || "Unknown").toUpperCase();
+            const sourceClass = source === "SOLARWINDS" ? "solarwinds" : "intune";
+            const reconciled = ci.last_sync_time || ci.updated_at || "--";
+            return `<tr>
+              <td><button class="ci-link" type="button" data-ci-id="${escapeHtml(ci.id)}">${escapeHtml(ci.name || "Unnamed CI")}</button></td>
+              <td style="color:var(--text-secondary)">${escapeHtml(ci.ci_type)}</td>
+              <td><span class="source-badge ${sourceClass}">● ${escapeHtml(source)}</span></td>
+              <td>${escapeHtml([ci.vendor, ci.model].filter(Boolean).join(" / ") || "--")}</td>
+              <td style="font-family:var(--font-mono);color:var(--text-muted)">${escapeHtml(ci.serial_number || ci.source_id || ci.id)}</td>
+              <td style="font-family:var(--font-mono);color:var(--text-muted)">${escapeHtml(ci.ip_address)}</td>
+              <td>${escapeHtml(ci.location)}</td>
+              <td style="font-size:11px;color:var(--text-muted)">${escapeHtml(reconciled)}</td>
+            </tr>`;
+          }).join("");
+        }
+        const start = items.length ? ((payload.page - 1) * payload.page_size) + 1 : 0;
+        const end = items.length ? start + items.length - 1 : 0;
+        $("cmdbFooterText").textContent = `Showing ${number(start)}-${number(end)} of ${number(payload.total)} CIs`;
+        renderPagination(Number(payload.total_pages || 1));
+      }
+
+      function renderPagination(totalPages) {
+        const pages = new Set([1, totalPages, state.page - 1, state.page, state.page + 1]);
+        const validPages = Array.from(pages).filter((page) => page >= 1 && page <= totalPages).sort((a, b) => a - b);
+        let previous = 0;
+        let html = `<button class="page-btn" data-page="${state.page - 1}" ${state.page <= 1 ? "disabled" : ""}>‹</button>`;
+        validPages.forEach((page) => {
+          if (previous && page - previous > 1) html += `<span style="color:var(--text-muted)">...</span>`;
+          html += `<button class="page-btn ${page === state.page ? "active" : ""}" data-page="${page}">${page}</button>`;
+          previous = page;
+        });
+        html += `<button class="page-btn" data-page="${state.page + 1}" ${state.page >= totalPages ? "disabled" : ""}>›</button>`;
+        $("cmdbPaginationControls").innerHTML = html;
+      }
+
+      async function loadCis() {
+        $("cmdbTableBody").innerHTML = `<tr><td colspan="8"><div class="detail-empty">Loading Configuration Items...</div></td></tr>`;
+        try {
+          renderTable(await fetchJson(`/cmdb/cis?${queryString()}`));
+        } catch (error) {
+          $("cmdbTableBody").innerHTML = `<tr><td colspan="8"><div class="detail-empty" style="color:var(--accent-red)">CMDB inventory unavailable: ${escapeHtml(error.message)}</div></td></tr>`;
+        }
+      }
+
+      function renderAttributes(attributes) {
+        const blocked = /(password|secret|token|credential|key)/i;
+        const entries = Object.entries(attributes || {})
+          .filter(([key, value]) => !blocked.test(key) && value !== null && value !== "" && typeof value !== "object")
+          .slice(0, 24);
+        $("detailAttributes").innerHTML = entries.length
+          ? `<table><thead><tr><th>Attribute</th><th>Value</th></tr></thead><tbody>${entries.map(([key, value]) =>
+              `<tr><td>${escapeHtml(key)}</td><td>${escapeHtml(value)}</td></tr>`
+            ).join("")}</tbody></table>`
+          : `<div class="detail-empty">No additional configuration attributes are recorded for this CI.</div>`;
+      }
+
+      function renderRelationships(relationships) {
+        $("detailRelationships").innerHTML = relationships.length
+          ? `<table><thead><tr><th>Relationship</th><th>Source</th><th>Target</th></tr></thead><tbody>${relationships.map((row) =>
+              `<tr><td>${escapeHtml(row.relationship_type)}</td><td>${escapeHtml(row.source_ci_id)}</td><td>${escapeHtml(row.target_ci_id)}</td></tr>`
+            ).join("")}</tbody></table>`
+          : `<div class="detail-empty">No topology relationships are recorded for this CI.</div>`;
+      }
+
+      async function openCiDetail(ciId) {
+        $("ciDetailModal").classList.add("show");
+        $("ciDetailTitle").textContent = "Loading Configuration Item...";
+        $("detailAttributes").textContent = "Loading configuration attributes...";
+        $("detailRelationships").textContent = "Loading relationships...";
+        try {
+          const [ci, relationships] = await Promise.all([
+            fetchJson(`/cmdb/cis/${encodeURIComponent(ciId)}`),
+            fetchJson(`/cmdb/cis/${encodeURIComponent(ciId)}/relationships`)
+          ]);
+          const attributes = ci.attributes || {};
+          $("ciDetailTitle").textContent = ci.name || "Configuration Item";
+          $("ciDetailSubtitle").textContent = `Last reconciled ${ci.last_sync_time || ci.updated_at || "--"}`;
+          $("detailSource").textContent = ci.source_system || "--";
+          $("detailType").textContent = ci.ci_type || "--";
+          $("detailSourceId").textContent = ci.source_id || "--";
+          $("detailReconciled").textContent = ci.last_sync_time || ci.updated_at || "--";
+          $("detailIp").textContent = ci.ip_address || "--";
+          $("detailSerial").textContent = ci.serial_number || ci.source_id || "--";
+          $("detailVendor").textContent = [ci.vendor || attributes.vendor, ci.model || attributes.model].filter(Boolean).join(" / ") || "--";
+          $("detailLocation").textContent = ci.location || attributes.location || attributes.site || "--";
+          renderAttributes(attributes);
+          renderRelationships(Array.isArray(relationships) ? relationships : []);
+        } catch (error) {
+          $("ciDetailTitle").textContent = "CI details unavailable";
+          $("ciDetailSubtitle").textContent = error.message;
+        }
+      }
+
+      function debounce(callback, delay = 300) {
+        let timer;
+        return (...args) => { clearTimeout(timer); timer = setTimeout(() => callback(...args), delay); };
+      }
+
+      window.handleCmdbSearch = debounce((value) => { state.search = value.trim(); state.page = 1; loadCis(); });
+      window.handleCmdbSourceFilter = (value) => { state.source = value; state.page = 1; loadCis(); };
+      window.handleCmdbTypeFilter = (value) => { state.ciType = value; state.page = 1; loadCis(); };
+      window.handleCmdbVendorFilter = (value) => { state.vendor = value; state.page = 1; loadCis(); };
+      window.changeCmdbPageSize = (value) => { state.pageSize = Number(value); state.page = 1; loadCis(); };
+      window.exportCmdbCsv = async () => {
+        try {
+          const rows = [];
+          let page = 1;
+          let hasNext = true;
+          while (hasNext) {
+            const payload = await fetchJson(`/cmdb/cis?${queryString(page, 100)}`);
+            rows.push(...(payload.items || []));
+            hasNext = Boolean(payload.has_next);
+            page += 1;
+          }
+          const quote = (value) => `"${String(value ?? "").replace(/"/g, '""')}"`;
+          const data = [
+            ["CI Name", "CI Type", "Source System", "Vendor", "Model", "Serial Number", "IP Address", "Location", "Last Reconciled"],
+            ...rows.map((ci) => [ci.name, ci.ci_type, ci.source_system, ci.vendor, ci.model, ci.serial_number, ci.ip_address, ci.location, ci.last_sync_time || ci.updated_at])
+          ];
+          const blob = new Blob([data.map((row) => row.map(quote).join(",")).join("\r\n")], { type: "text/csv;charset=utf-8" });
+          const link = document.createElement("a");
+          link.href = URL.createObjectURL(blob);
+          link.download = `cmdb_catalog_${new Date().toISOString().slice(0, 10)}.csv`;
+          link.click();
+          URL.revokeObjectURL(link.href);
+          showToast(`Exported ${number(rows.length)} filtered CIs`);
+        } catch (error) {
+          showToast(`Export failed: ${error.message}`);
+        }
+      };
+
+      $("cmdbPaginationControls").addEventListener("click", (event) => {
+        const button = event.target.closest("[data-page]");
+        if (!button || button.disabled) return;
+        state.page = Number(button.dataset.page);
+        loadCis();
+      });
+      $("cmdbTableBody").addEventListener("click", (event) => {
+        const button = event.target.closest("[data-ci-id]");
+        if (button) openCiDetail(button.dataset.ciId);
+      });
+      $("closeCiDetail").addEventListener("click", () => $("ciDetailModal").classList.remove("show"));
+      $("ciDetailModal").addEventListener("click", (event) => {
+        if (event.target === $("ciDetailModal")) $("ciDetailModal").classList.remove("show");
+      });
+      document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") $("ciDetailModal").classList.remove("show");
+      });
+
+      Promise.all([loadSummary(), loadCis()]);
+    })();
+  </script>
+</body>
+</html>

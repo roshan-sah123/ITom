@@ -35,10 +35,10 @@
       <div class="header-telemetry">
         <div class="heartbeat-pill" id="headerSyncPill">
           <div class="heartbeat-dot"></div>
-          <span id="headerSyncText" class="font-mono">Sync: Connecting...</span>
+          <span id="headerSyncText" class="font-mono">Data status: loading...</span>
         </div>
         <button class="btn-sync" id="btnTriggerSync">
-          <span>⚡</span> Sync Now
+          <span>↻</span> Refresh data
         </button>
       </div>
     </header>
@@ -82,19 +82,19 @@
           </div>
           <div class="home-banner-stats">
             <div class="banner-stat-item">
-              <div class="banner-stat-val" id="homeStatEndpoints" style="color: var(--accent-intune);">27,412</div>
+              <div class="banner-stat-val" id="homeStatEndpoints" style="color: var(--accent-intune);">—</div>
               <div class="banner-stat-label">Workplace Devices</div>
             </div>
             <div class="banner-stat-item">
-              <div class="banner-stat-val" id="homeStatServers" style="color: var(--accent-ops);">1,572</div>
+              <div class="banner-stat-val" id="homeStatServers" style="color: var(--accent-ops);">—</div>
               <div class="banner-stat-label">Server Nodes</div>
             </div>
             <div class="banner-stat-item">
-              <div class="banner-stat-val" id="homeStatSites" style="color: var(--status-healthy);">71</div>
+              <div class="banner-stat-val" id="homeStatSites" style="color: var(--status-healthy);">—</div>
               <div class="banner-stat-label">Campus Sites</div>
             </div>
             <div class="banner-stat-item">
-              <div class="banner-stat-val" id="homeStatCis" style="color: var(--accent-cmdb);">28,984</div>
+              <div class="banner-stat-val" id="homeStatCis" style="color: var(--accent-cmdb);">—</div>
               <div class="banner-stat-label">Reconciled CIs</div>
             </div>
           </div>
@@ -117,8 +117,8 @@
             </div>
             <div>
               <div class="card-telemetry-row" id="homeCardInfraStat">
-                <span style="color: var(--text-muted);">Fleet SLA: <strong style="color: var(--status-healthy);">88.8%</strong></span>
-                <span style="color: var(--text-muted);">Alerts: <strong style="color: var(--status-warning);">176</strong></span>
+                <span style="color: var(--text-muted);">Availability: <strong style="color: var(--status-healthy);">Loading...</strong></span>
+                <span style="color: var(--text-muted);">Unavailable: <strong style="color: var(--status-warning);">Loading...</strong></span>
               </div>
               <button class="btn-card-launch" data-target-view="infrastructure">
                 Launch Workspace →
@@ -140,8 +140,8 @@
             </div>
             <div>
               <div class="card-telemetry-row" id="homeCardDexStat">
-                <span style="color: var(--text-muted);">Compliance: <strong style="color: var(--status-healthy);">82.9%</strong></span>
-                <span style="color: var(--text-muted);">Enforced: <strong style="color: var(--accent-intune);">94.2% TPM</strong></span>
+                <span style="color: var(--text-muted);">Compliance: <strong style="color: var(--status-healthy);">Loading...</strong></span>
+                <span style="color: var(--text-muted);">Median storage: <strong style="color: var(--accent-intune);">Loading...</strong></span>
               </div>
               <button class="btn-card-launch" data-target-view="endpoints">
                 Launch Workspace →
@@ -303,8 +303,8 @@
                 <span>TOTAL SERVER NODES</span>
                 <div class="kpi-icon">🖥️</div>
               </div>
-              <div class="kpi-value" id="swTotalNodesVal">1,572</div>
-              <div class="kpi-footer" id="swTotalNodesSub">1,515 Monitored</div>
+              <div class="kpi-value" id="swTotalNodesVal">—</div>
+              <div class="kpi-footer" id="swTotalNodesSub">Loading authoritative telemetry...</div>
             </div>
 
             <div class="kpi-card">
@@ -318,20 +318,20 @@
 
             <div class="kpi-card">
               <div class="kpi-header">
-                <span>ACTIVE ANOMALY ALERTS</span>
+                <span>UNAVAILABLE NODES</span>
                 <div class="kpi-icon">⚠️</div>
               </div>
-              <div class="kpi-value text-warning" id="swAlertsVal">176</div>
-              <div class="kpi-footer">150 Warning · 41 Critical</div>
+              <div class="kpi-value text-warning" id="swAlertsVal">—</div>
+              <div class="kpi-footer">SolarWinds current status breakdown</div>
             </div>
 
             <div class="kpi-card">
               <div class="kpi-header">
-                <span>CORE OS FOOTPRINT</span>
+                <span>NODE PLATFORM DETAILS</span>
                 <div class="kpi-icon">🕹️</div>
               </div>
-              <div class="kpi-value" style="font-size: 16px; margin-top: 6px;" id="swOsVal">Cisco / Windows / Linux</div>
-              <div class="kpi-footer">Enterprise DC Infrastructure</div>
+              <div class="kpi-value" style="font-size: 16px; margin-top: 6px;" id="swOsVal">—</div>
+              <div class="kpi-footer">Not returned by the node summary</div>
             </div>
           </div>
 
@@ -571,8 +571,8 @@
           <!-- 24-Hour Continuous Fleet SLA & Latency Dual-Axis Trend -->
           <div class="chart-card" style="height: 280px; margin-bottom: var(--space-6);">
             <div class="chart-header">
-              <span class="chart-title">24-Hour Continuous Fleet SLA & Latency Trend</span>
-              <span class="chart-subtitle text-healthy">99.2% 24h Average SLA</span>
+              <span class="chart-title">Current Fleet Status Profile</span>
+              <span class="chart-subtitle text-healthy">Live SolarWinds summary</span>
             </div>
             <div class="chart-canvas-wrap" style="height: 220px;">
               <canvas id="ovFleetSlaChart"></canvas>
@@ -678,8 +678,8 @@
               <span>TOTAL MANAGED ENDPOINTS</span>
               <div class="kpi-icon">💻</div>
             </div>
-            <div class="kpi-value" id="epTotalVal">27,412</div>
-            <div class="kpi-footer" id="epTotalSub">22,735 Compliant Fleet</div>
+            <div class="kpi-value" id="epTotalVal">—</div>
+            <div class="kpi-footer" id="epTotalSub">Loading authoritative telemetry...</div>
           </div>
 
           <div class="kpi-card">
@@ -687,8 +687,8 @@
               <span>COMPLIANCE POSTURE RATE</span>
               <div class="kpi-icon">🛡️</div>
             </div>
-            <div class="kpi-value text-healthy" id="epCompRateVal">82.9%</div>
-            <div class="kpi-footer" id="epCompRateSub">Target: 95.0% SLA</div>
+            <div class="kpi-value text-healthy" id="epCompRateVal">—</div>
+            <div class="kpi-footer" id="epCompRateSub">Loading authoritative telemetry...</div>
           </div>
 
           <div class="kpi-card">
@@ -696,17 +696,17 @@
               <span>OS DISTRIBUTION</span>
               <div class="kpi-icon">🖥️</div>
             </div>
-            <div class="kpi-value" style="font-size: 16px; margin-top: 6px;" id="epOsDiversityVal">Windows / macOS / Linux</div>
+            <div class="kpi-value" style="font-size: 16px; margin-top: 6px;" id="epOsDiversityVal">—</div>
             <div class="kpi-footer">Cross-Platform Fleet</div>
           </div>
 
           <div class="kpi-card">
             <div class="kpi-header">
-              <span>ZERO-TRUST ENCRYPTION</span>
+              <span>MEDIAN STORAGE USED</span>
               <div class="kpi-icon">🔒</div>
             </div>
-            <div class="kpi-value" style="color: #3B82F6;" id="epZeroTrustVal">94.2% BitLocker</div>
-            <div class="kpi-footer">Hardware TPM 2.0 Enforced</div>
+            <div class="kpi-value" style="color: #3B82F6;" id="epZeroTrustVal">—</div>
+            <div class="kpi-footer">Storage risk metric from reporting devices</div>
           </div>
         </div>
 
@@ -745,21 +745,21 @@
 
           <div class="chart-card">
             <div class="chart-header">
-              <span class="chart-title">Sync Aging & Lifecycle</span>
-              <span class="chart-subtitle text-healthy">Live Mirror</span>
+              <span class="chart-title">Storage Telemetry</span>
+              <span class="chart-subtitle text-healthy">Intune summary</span>
             </div>
             <div class="aging-widget">
               <div class="aging-row">
-                <span class="aging-label text-healthy">Active (≤ 7 Days):</span>
-                <span class="aging-val font-mono" id="epAging7Val">24,123</span>
+                <span class="aging-label text-healthy">Coverage:</span>
+                <span class="aging-val font-mono" id="epAging7Val">—</span>
               </div>
               <div class="aging-row">
-                <span class="aging-label text-warning">Idle (7–30 Days):</span>
-                <span class="aging-val font-mono" id="epAging30Val">2,467</span>
+                <span class="aging-label text-warning">Median used:</span>
+                <span class="aging-val font-mono" id="epAging30Val">—</span>
               </div>
               <div class="aging-row">
-                <span class="aging-label text-critical">Stale (> 30 Days):</span>
-                <span class="aging-val font-mono" id="epAgingStaleVal">822</span>
+                <span class="aging-label text-critical">Average used:</span>
+                <span class="aging-val font-mono" id="epAgingStaleVal">—</span>
               </div>
             </div>
           </div>
@@ -819,7 +819,7 @@
 
           <!-- Zone 3: 3-Part Footer Controller -->
           <div class="grid-footer">
-            <div class="footer-count" id="epRecordCount">Showing 1–25 of 27,412 Managed Devices</div>
+            <div class="footer-count" id="epRecordCount">Loading Intune devices...</div>
             <div class="footer-page-size">
               <label for="epPageSizeSelect">Rows per page:</label>
               <select class="select-page-size" id="epPageSizeSelect">

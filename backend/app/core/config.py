@@ -1,16 +1,23 @@
 """Configuration management using Pydantic Settings and environment variables."""
 
 import os
+from pathlib import Path
 from typing import Any, List, Optional, Union
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+# Resolve configuration from the ITOM project root, independent of the
+# directory used to launch Uvicorn (for example, ITOM/backend).
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
+ENV_FILE = PROJECT_ROOT / ".env"
 
 
 class Settings(BaseSettings):
     """Authoritative enterprise application settings."""
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=str(ENV_FILE),
         env_file_encoding="utf-8",
         case_sensitive=True,
         extra="ignore",

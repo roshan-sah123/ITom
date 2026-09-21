@@ -5,6 +5,7 @@ import os
 from collections.abc import AsyncGenerator
 from typing import Optional
 
+from sqlalchemy import event
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -57,11 +58,21 @@ def create_engine_for_url(db_url: Optional[str] = None) -> AsyncEngine:
         if "./data/itom.db" in url or "data/itom.db" in url:
             url = SQLITE_FALLBACK_URL
         try:
-            return create_async_engine(
+            sqlite_engine = create_async_engine(
                 url,
                 echo=settings.DB_ECHO,
-                connect_args={"check_same_thread": False},
+                connect_args={"check_same_thread": False, "timeout": 30},
             )
+            # WAL lets dashboard reads continue while a remediation worklist is
+            # saved; busy_timeout lets one writer wait for another writer.
+            @event.listens_for(sqlite_engine.sync_engine, "connect")
+            def configure_sqlite(connection, _connection_record):
+                cursor = connection.cursor()
+                cursor.execute("PRAGMA journal_mode=WAL")
+                cursor.execute("PRAGMA busy_timeout=30000")
+                cursor.close()
+
+            return sqlite_engine
         except (ModuleNotFoundError, Exception) as exc:
             logger.warning("SQLite async driver error (%s); initializing fallback mock async engine", exc)
 
@@ -137,6 +148,9 @@ async def create_db_and_tables(target_engine: Optional[AsyncEngine] = None) -> N
     eng = target_engine or engine
     if eng is None:
         return
+    # Import cache models before creating metadata so existing deployments gain
+    # the remediation-cache table on the next service startup.
+    from app.models.compliance_cache import IntuneComplianceReasonCache  # noqa: F401
     from app.models.base import Base
 
     async with eng.begin() as conn:

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Coforge ITOM - Universal Enterprise CMDB Explorer with live multi-source discovery reconciliation across 28,984 Configuration Items.">
+  <meta name="description" content="Coforge ITOM live CMDB explorer for asset governance, source provenance, health risk, and configuration-item investigation.">
   <title>CMDB Explorer | Coforge ITOM Portal</title>
   
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -104,6 +104,15 @@
       padding: 12px 20px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px;
     }
     .filter-left { display: flex; align-items: center; gap: 16px; }
+    .cmdb-title-lockup { display: flex; align-items: center; gap: 16px; }
+    .cmdb-mark {
+      display: grid; place-items: center; min-width: 72px; height: 48px;
+      border: 1px solid rgba(249, 115, 22, .45); border-radius: 10px;
+      color: var(--accent-orange); background: rgba(249, 115, 22, .09);
+      font: 800 17px var(--font-mono); letter-spacing: .08em;
+    }
+    .cmdb-title-copy h1 { margin: 0; color: var(--accent-orange); font-size: 24px; font-weight: 800; letter-spacing: -.5px; }
+    .cmdb-title-copy p { margin-top: 4px; color: var(--text-secondary); font-size: 12px; }
     .location-scope-pill {
       background: #1C1C22; border: 1px solid #2E2E38; border-radius: 8px; color: #FFFFFF;
       font-size: 13px; font-weight: 600; padding: 6px 14px;
@@ -114,7 +123,7 @@
     }
     .live-pulse { width: 6px; height: 6px; border-radius: 50%; background: var(--accent-green); box-shadow: 0 0 6px var(--accent-green); }
 
-    .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; margin-bottom: 24px; }
+    .kpi-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 14px; margin-bottom: 24px; }
     .kpi-card {
       background: var(--card-bg); border: 1px solid var(--border-subtle); border-radius: 12px;
       padding: 20px; display: flex; flex-direction: column; justify-content: space-between;
@@ -132,7 +141,7 @@
     .progress-bar-sm { width: 100%; height: 6px; background: #202026; border-radius: 3px; overflow: hidden; display: flex; margin-top: 10px; }
     .progress-fill { height: 100%; }
 
-    .analytics-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 24px; }
+    .analytics-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-bottom: 24px; }
     .chart-box { background: var(--card-bg); border: 1px solid var(--border-subtle); border-radius: 12px; padding: 22px; }
     .chart-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
     .chart-title-group h3 { font-size: 15px; font-weight: 700; color: #FFFFFF; }
@@ -169,13 +178,14 @@
     tbody tr:hover td { background: #181820; cursor: pointer; }
     tbody tr:last-child td { border-bottom: none; }
 
-    #cmdbTable th:nth-child(1), #cmdbTable td:nth-child(1) { width: 22%; }
-    #cmdbTable th:nth-child(2), #cmdbTable td:nth-child(2) { width: 14%; }
-    #cmdbTable th:nth-child(3), #cmdbTable td:nth-child(3) { width: 12%; }
-    #cmdbTable th:nth-child(4), #cmdbTable td:nth-child(4) { width: 12%; }
-    #cmdbTable th:nth-child(5), #cmdbTable td:nth-child(5) { width: 12%; }
-    #cmdbTable th:nth-child(6), #cmdbTable td:nth-child(6) { width: 14%; }
-    #cmdbTable th:nth-child(7), #cmdbTable td:nth-child(7) { width: 14%; }
+    #cmdbTable th:nth-child(1), #cmdbTable td:nth-child(1) { width: 18%; }
+    #cmdbTable th:nth-child(2), #cmdbTable td:nth-child(2) { width: 12%; }
+    #cmdbTable th:nth-child(3), #cmdbTable td:nth-child(3) { width: 11%; }
+    #cmdbTable th:nth-child(4), #cmdbTable td:nth-child(4) { width: 16%; }
+    #cmdbTable th:nth-child(5), #cmdbTable td:nth-child(5) { width: 13%; }
+    #cmdbTable th:nth-child(6), #cmdbTable td:nth-child(6) { width: 10%; }
+    #cmdbTable th:nth-child(7), #cmdbTable td:nth-child(7) { width: 10%; }
+    #cmdbTable th:nth-child(8), #cmdbTable td:nth-child(8) { width: 10%; }
 
     .health-pill {
       display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 600;
@@ -215,58 +225,62 @@
       padding: 10px 16px; font-size: 13px; color: #FFFFFF; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
       display: flex; align-items: center; gap: 10px;
     }
+    .analytics-list { display: grid; gap: 12px; }
+    .analytics-row { display: grid; grid-template-columns: minmax(120px, 1fr) 2fr auto; gap: 10px; align-items: center; }
+    .analytics-row span { color: var(--text-secondary); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .analytics-row b { color: #fff; font: 11px var(--font-mono); }
+    .analytics-track { height: 7px; overflow: hidden; border-radius: 999px; background: #202735; }
+    .analytics-fill { height: 100%; border-radius: inherit; background: var(--bar-color, var(--accent-cyan)); }
+    .ci-detail-modal { display: none; position: fixed; inset: 0; z-index: 1200; overflow: auto; padding: 36px; background: rgba(3, 6, 12, .82); backdrop-filter: blur(8px); }
+    .ci-detail-modal.show { display: block; }
+    .ci-detail-panel { max-width: 1180px; margin: 0 auto; overflow: hidden; border: 1px solid var(--border-hover); border-radius: 14px; background: var(--card-bg); }
+    .ci-detail-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 20px; border-bottom: 1px solid var(--border-subtle); }
+    .ci-detail-header h2 { font-size: 18px; margin-bottom: 5px; }
+    .ci-detail-header p { color: var(--text-muted); font: 11px var(--font-mono); }
+    .ci-detail-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; padding: 18px; border-bottom: 1px solid var(--border-subtle); }
+    .ci-detail-field { min-height: 78px; padding: 12px; border: 1px solid var(--border-subtle); border-radius: 9px; background: #181820; }
+    .ci-detail-field span { display: block; margin-bottom: 8px; color: var(--text-muted); font-size: 10px; text-transform: uppercase; }
+    .ci-detail-field b { color: #fff; font-size: 12px; overflow-wrap: anywhere; }
+    .detail-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 0; }
+    .detail-section { min-height: 280px; padding: 18px; }
+    .detail-section + .detail-section { border-left: 1px solid var(--border-subtle); }
+    .detail-section h3 { margin-bottom: 12px; font-size: 14px; }
+    .detail-empty { padding: 28px 10px; color: var(--text-muted); font-size: 12px; text-align: center; }
+    .btn-close { border: 1px solid var(--border-hover); border-radius: 8px; padding: 8px 12px; color: #fff; background: #1c1c22; cursor: pointer; }
+    .ci-link { border: 0; border-bottom: 1px dashed currentColor; padding: 0; color: #fff; background: transparent; font: inherit; font-weight: 700; cursor: pointer; }
+    .ci-link:hover { color: var(--accent-orange); }
+    @media (max-width: 1100px) {
+      .kpi-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .analytics-grid { grid-template-columns: 1fr 1fr; }
+      .analytics-grid .chart-box:last-child { grid-column: span 2; }
+    }
+    @media (max-width: 760px) {
+      .top-nav, .global-filter-bar, .site-section-header { align-items: flex-start; flex-direction: column; height: auto; gap: 12px; }
+      .nav-center-tabs, .nav-right { display: none; }
+      .main-content { padding-inline: 16px; }
+      .kpi-grid, .analytics-grid, .ci-detail-grid, .detail-columns { grid-template-columns: 1fr; }
+      .analytics-grid .chart-box:last-child { grid-column: auto; }
+      .detail-section + .detail-section { border-left: 0; border-top: 1px solid var(--border-subtle); }
+      .ci-detail-modal { padding: 12px; }
+    }
   </style>
 </head>
 <body>
-  <header class="top-nav">
-    <div class="nav-left">
-      <a href="index.html" class="brand-group">
-        <div class="brand-logo"><span class="orange">Co</span><span class="white">forge</span></div>
-        <span class="brand-badge">ITOM</span>
-      </a>
-      <div class="nav-breadcrumb">
-        <a href="index.html">Dashboard</a>
-        <span>/</span>
-        <span class="current">CMDB Explorer</span>
-        <span style="color: var(--text-muted);">&bull;</span>
-        <a href="infrastructure_analytics.html" style="color: var(--accent-orange); text-decoration: none; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;">Infrastructure Analytics ↗</a>
-      </div>
-    </div>
-    <nav class="nav-center-tabs">
-      <a href="infrastructure_analytics.html" class="view-tab-btn">
-        <span>Infrastructure Analytics</span>
-      </a>
-      <a href="cmdb_explorer.html" class="view-tab-btn active">
-        <span>Universal CMDB Catalog</span>
-      </a>
-    </nav>
-    <div class="nav-right">
-      <div class="search-pill">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="11" cy="11" r="8"></circle>
-          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-        </svg>
-        <span>Search CI catalog...</span>
-        <kbd>⌘K</kbd>
-      </div>
-      <div class="user-profile">
-        <img src="avatar.jpg" alt="User Avatar" class="avatar-img" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'28\' height=\'28\' fill=\'%23F97316\' viewBox=\'0 0 24 24\'><circle cx=\'12\' cy=\'12\' r=\'10\'/></svg>'">
-        <span class="user-name">Roshan Sah</span>
-        <div class="status-dot"></div>
-      </div>
-    </div>
-  </header>
-
   <main class="main-content">
     <div class="global-filter-bar">
       <div class="filter-left">
-        <span class="filter-label">Enterprise CMDB Reconciliation:</span>
-        <div class="location-scope-pill"><span>Universal Fleet — SolarWinds & Intune</span></div>
+        <div class="cmdb-title-lockup">
+          <div class="cmdb-mark">CMDB</div>
+          <div class="cmdb-title-copy">
+            <h1>Configuration Management Database</h1>
+            <p>Authoritative configuration identity, ownership, metadata quality and topology.</p>
+          </div>
+        </div>
       </div>
       <div class="filter-right">
         <div class="live-indicator">
           <div class="live-pulse"></div>
-          <span>Live SWIS & Graph Reconciliation</span>
+          <span>Live CMDB Catalog</span>
         </div>
         <span id="cmdbFreshnessText" style="color: var(--text-muted); font-size: 12px;">Reconciled 1m ago (HEALTHY)</span>
       </div>
@@ -278,43 +292,55 @@
           <span class="kpi-title">Configuration Items (CIs)</span>
           <span class="kpi-tag orange">Universal Catalog</span>
         </div>
-        <div class="kpi-number" id="kpiTotalCis">28,984</div>
-        <div class="kpi-subtext">Total Verified Multi-Domain Infrastructure CIs</div>
+        <div class="kpi-number" id="kpiTotalCis">--</div>
+        <div class="kpi-subtext">Authoritative multi-domain configuration records</div>
       </div>
 
       <div class="kpi-card">
         <div class="kpi-card-header">
-          <span class="kpi-title">Digital Workplace Endpoints</span>
-          <span class="kpi-tag cyan">Microsoft Graph</span>
+          <span class="kpi-title">Serial Number Coverage</span>
+          <span class="kpi-tag cyan">Identity Quality</span>
         </div>
-        <div class="kpi-number" id="kpiEndpointsCount">27,412</div>
-        <div class="kpi-subtext">Corporate Laptops, Tablets & Mobile CIs (94.6%)</div>
+        <div class="kpi-number" id="kpiSerialCoverage">--</div>
+        <div class="kpi-subtext" id="kpiSerialNote">CIs with a usable serial or asset identifier</div>
         <div class="progress-bar-sm">
-          <div class="progress-fill" style="width: 94.6%; background: var(--accent-cyan);"></div>
-        </div>
-      </div>
-
-      <div class="kpi-card">
-        <div class="kpi-card-header">
-          <span class="kpi-title">Hybrid Server Infrastructure</span>
-          <span class="kpi-tag green">SolarWinds SWIS</span>
-        </div>
-        <div class="kpi-number" id="kpiServersCount">1,572</div>
-        <div class="kpi-subtext">Bare-Metal, VMs & Hypervisors (5.4%)</div>
-        <div class="progress-bar-sm">
-          <div class="progress-fill" style="width: 5.4%; background: var(--accent-green);"></div>
+          <div id="serialProgress" class="progress-fill" style="width: 0%; background: var(--accent-cyan);"></div>
         </div>
       </div>
 
       <div class="kpi-card">
         <div class="kpi-card-header">
-          <span class="kpi-title">Fleet Health Compliance</span>
-          <span class="kpi-tag green">96.8% High</span>
+          <span class="kpi-title">IP Address Coverage</span>
+          <span class="kpi-tag green">Addressability</span>
         </div>
-        <div class="kpi-number" style="color: var(--accent-green);" id="kpiPassedControls">28,056</div>
-        <div class="kpi-subtext"><span style="color: var(--accent-amber); font-weight: 600;" id="kpiAlertCount">928</span> Warning or Critical CIs</div>
+        <div class="kpi-number" id="kpiIpCoverage">--</div>
+        <div class="kpi-subtext" id="kpiIpNote">CIs with a recorded management address</div>
         <div class="progress-bar-sm">
-          <div class="progress-fill" style="width: 96.8%; background: var(--accent-green);"></div>
+          <div id="ipProgress" class="progress-fill" style="width: 0%; background: var(--accent-green);"></div>
+        </div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-card-header">
+          <span class="kpi-title">Location Coverage</span>
+          <span class="kpi-tag orange">Ownership Context</span>
+        </div>
+        <div class="kpi-number" id="kpiLocationCoverage">--</div>
+        <div class="kpi-subtext" id="kpiLocationNote">CIs mapped to a site or operational location</div>
+        <div class="progress-bar-sm">
+          <div id="locationProgress" class="progress-fill" style="width: 0%; background: var(--accent-orange);"></div>
+        </div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-card-header">
+          <span class="kpi-title">Model Coverage</span>
+          <span class="kpi-tag green">Hardware Baseline</span>
+        </div>
+        <div class="kpi-number" id="kpiModelCoverage">--</div>
+        <div class="kpi-subtext" id="kpiModelNote">CIs with a known hardware or platform model</div>
+        <div class="progress-bar-sm">
+          <div id="modelProgress" class="progress-fill" style="width: 0%; background: var(--accent-purple);"></div>
         </div>
       </div>
     </div>
@@ -323,53 +349,34 @@
       <div class="chart-box">
         <div class="chart-header">
           <div class="chart-title-group">
-            <h3>Discovery Source Architecture</h3>
-            <p>Authoritative external CMDB extraction pipelines</p>
+            <h3>CI Type Distribution</h3>
+            <p>How the asset register is classified</p>
           </div>
-          <span style="font-size: 11px; color: var(--accent-orange); font-weight: 600;">Zero-Hallucination</span>
+          <span style="font-size: 11px; color: var(--accent-orange); font-weight: 600;">Catalog Taxonomy</span>
         </div>
-        <div style="display: flex; flex-direction: column; gap: 14px; margin-top: 8px;">
-          <div>
-            <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px;">
-              <span style="color: var(--accent-cyan); font-weight: 600;">● Microsoft Graph Intune API</span>
-              <span style="font-family: var(--font-mono); font-weight: 700;" id="chartIntuneCount">27,412 CIs (94.6%)</span>
-            </div>
-            <div class="progress-bar-sm" style="margin-top: 0; height: 8px;">
-              <div class="progress-fill" style="width: 94.6%; background: var(--accent-cyan);"></div>
-            </div>
-          </div>
-          <div>
-            <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px;">
-              <span style="color: var(--accent-green); font-weight: 600;">● SolarWinds Orion SWIS API</span>
-              <span style="font-family: var(--font-mono); font-weight: 700;" id="chartSwCount">1,572 CIs (5.4%)</span>
-            </div>
-            <div class="progress-bar-sm" style="margin-top: 0; height: 8px;">
-              <div class="progress-fill" style="width: 5.4%; background: var(--accent-green);"></div>
-            </div>
-          </div>
-        </div>
+        <div id="typeAnalytics" class="analytics-list"><span style="color: var(--text-muted); font-size: 12px;">Loading CI types...</span></div>
       </div>
 
       <div class="chart-box">
         <div class="chart-header">
           <div class="chart-title-group">
-            <h3>CMDB Ingestion & Change Detection Engine</h3>
-            <p>Automated 10-minute cadence with SHA-256 fingerprinting</p>
+            <h3>Vendor Distribution</h3>
+            <p>Manufacturer and platform ownership across the register</p>
           </div>
-          <span style="font-size: 11px; color: var(--accent-green); font-weight: 600; background: rgba(16, 185, 129, 0.1); padding: 4px 8px; border-radius: 6px;">600s Cadence</span>
+          <span style="font-size: 11px; color: var(--accent-green); font-weight: 600; background: rgba(16, 185, 129, 0.1); padding: 4px 8px; border-radius: 6px;">Live CMDB</span>
         </div>
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 4px;">
-          <div style="background: #181820; border: 1px solid var(--border-subtle); padding: 14px; border-radius: 8px;">
-            <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; margin-bottom: 4px;">Deduplication Invariant</div>
-            <div style="font-size: 20px; font-weight: 800; color: #FFFFFF; font-family: var(--font-mono);">0% Duplicates</div>
-            <div style="font-size: 11px; color: var(--accent-green); margin-top: 4px;">Zero Redundant History</div>
+        <div id="vendorAnalytics" class="analytics-list"><span style="color: var(--text-muted); font-size: 12px;">Loading vendors...</span></div>
+      </div>
+
+      <div class="chart-box">
+        <div class="chart-header">
+          <div class="chart-title-group">
+            <h3>Metadata Completeness Gaps</h3>
+            <p>Missing fields that reduce CMDB usability</p>
           </div>
-          <div style="background: #181820; border: 1px solid var(--border-subtle); padding: 14px; border-radius: 8px;">
-            <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; margin-bottom: 4px;">Persistence Layer</div>
-            <div style="font-size: 20px; font-weight: 800; color: #FFFFFF; font-family: var(--font-mono);">PostgreSQL 16</div>
-            <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">Relational Ingestion Verified</div>
-          </div>
+          <span style="font-size: 11px; color: var(--accent-amber); font-weight: 600;">Data Quality</span>
         </div>
+        <div id="completenessAnalytics" class="analytics-list"><span style="color: var(--text-muted); font-size: 12px;">Loading completeness...</span></div>
       </div>
     </div>
 
@@ -385,11 +392,11 @@
           <option value="INTUNE">Microsoft Intune</option>
           <option value="SOLARWINDS">SolarWinds</option>
         </select>
-        <select class="page-size-select" id="cmdbHealthSelect" onchange="handleCmdbHealthFilter(this.value)" style="height: 30px;">
-          <option value="">All Health Tiers</option>
-          <option value="High">High Health</option>
-          <option value="Medium">Medium Warning</option>
-          <option value="Low">Critical / Low</option>
+        <select class="page-size-select" id="cmdbTypeSelect" onchange="handleCmdbTypeFilter(this.value)" style="height: 30px;">
+          <option value="">All CI Types</option>
+        </select>
+        <select class="page-size-select" id="cmdbVendorSelect" onchange="handleCmdbVendorFilter(this.value)" style="height: 30px;">
+          <option value="">All Vendors</option>
         </select>
         <button class="btn-export-csv" onclick="exportCmdbCsv()">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -409,9 +416,10 @@
             <th>Configuration Item</th>
             <th>CI Type</th>
             <th>Discovery Source</th>
-            <th>Health Tier</th>
-            <th>Operational Status</th>
+            <th>Vendor / Model</th>
             <th>Serial Number / ID</th>
+            <th>IP Address</th>
+            <th>Location</th>
             <th>Last Reconciled</th>
           </tr>
         </thead>
@@ -436,195 +444,307 @@
     </div>
   </main>
 
+  <section id="ciDetailModal" class="ci-detail-modal" aria-live="polite" aria-labelledby="ciDetailTitle">
+    <div class="ci-detail-panel">
+      <div class="ci-detail-header">
+        <div>
+          <h2 id="ciDetailTitle">Configuration Item</h2>
+          <p id="ciDetailSubtitle">Select a CI to inspect its current record, history, and relationships.</p>
+        </div>
+        <button id="closeCiDetail" class="btn-close" type="button">Close</button>
+      </div>
+      <div class="ci-detail-grid">
+        <div class="ci-detail-field"><span>Source</span><b id="detailSource">--</b></div>
+        <div class="ci-detail-field"><span>CI type</span><b id="detailType">--</b></div>
+        <div class="ci-detail-field"><span>Source ID</span><b id="detailSourceId">--</b></div>
+        <div class="ci-detail-field"><span>Last reconciled</span><b id="detailReconciled">--</b></div>
+        <div class="ci-detail-field"><span>IP address</span><b id="detailIp">--</b></div>
+        <div class="ci-detail-field"><span>Serial / source ID</span><b id="detailSerial">--</b></div>
+        <div class="ci-detail-field"><span>Vendor / model</span><b id="detailVendor">--</b></div>
+        <div class="ci-detail-field"><span>Location</span><b id="detailLocation">--</b></div>
+      </div>
+      <div class="detail-columns">
+        <div class="detail-section">
+          <h3>Configuration attributes</h3>
+          <div id="detailAttributes" class="detail-empty">No attributes loaded.</div>
+        </div>
+        <div class="detail-section">
+          <h3>Topology relationships</h3>
+          <div id="detailRelationships" class="detail-empty">No relationships loaded.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <div class="toast-container" id="toastContainer"></div>
 
-  <script src="js/constants.js"></script>
-  <script src="js/utils.js"></script>
-  <script src="js/services.js"></script>
-
   <script>
-    let cmdbSearchQuery = '';
-    let cmdbSourceFilter = '';
-    let cmdbHealthFilter = '';
-    let cmdbCurrentPage = 1;
-    let cmdbPageSize = 25;
-    let cmdbTotal = 0;
+    (() => {
+      "use strict";
 
-    function escapeHtml(str) {
-      if (!str) return '';
-      return String(str)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
-    }
+      const isLocalStatic = ["localhost", "127.0.0.1"].includes(location.hostname) && location.port !== "8000";
+      const API_BASE = isLocalStatic ? "http://127.0.0.1:8000/api/v1" : "/api/v1";
+      const state = { page: 1, pageSize: 25, search: "", source: "", vendor: "", ciType: "", total: 0, currentItems: [] };
+      const $ = (id) => document.getElementById(id);
+      const number = (value) => Number.isFinite(Number(value)) ? Number(value).toLocaleString() : "--";
+      const pct = (part, whole) => whole > 0 ? (Number(part || 0) / whole) * 100 : 0;
+      const escapeHtml = (value) => String(value ?? "--").replace(/[&<>"']/g, (char) => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;"
+      }[char]));
 
-    function showToast(msg) {
-      const container = document.getElementById('toastContainer');
-      const toast = document.createElement('div');
-      toast.className = 'toast';
-      toast.innerHTML = `<span>✓</span> <span>${escapeHtml(msg)}</span>`;
-      container.appendChild(toast);
-      setTimeout(() => {
-        toast.style.opacity = '0';
-        toast.style.transition = 'opacity 0.3s ease';
-        setTimeout(() => toast.remove(), 300);
-      }, 3000);
-    }
-
-    async function initCmdb() {
-      try {
-        const summary = await ITOM_SERVICES.fetchCmdbSummary();
-        if (summary) {
-          const total = summary.total_cis || 28984;
-          document.getElementById('kpiTotalCis').textContent = total.toLocaleString();
-
-          const sw = summary.source_distribution?.SOLARWINDS || 1572;
-          const intune = summary.source_distribution?.INTUNE || (total - sw);
-          document.getElementById('kpiEndpointsCount').textContent = intune.toLocaleString();
-          document.getElementById('kpiServersCount').textContent = sw.toLocaleString();
-          document.getElementById('chartIntuneCount').textContent = `${intune.toLocaleString()} CIs (${((intune / total) * 100).toFixed(1)}%)`;
-          document.getElementById('chartSwCount').textContent = `${sw.toLocaleString()} CIs (${((sw / total) * 100).toFixed(1)}%)`;
-
-          const high = summary.health_distribution?.High || 28056;
-          document.getElementById('kpiPassedControls').textContent = high.toLocaleString();
-          document.getElementById('kpiAlertCount').textContent = (total - high).toLocaleString();
-        }
-
-        const syncStatus = await ITOM_SERVICES.fetchSyncStatus();
-        if (syncStatus) {
-          const ageMins = syncStatus.age_seconds ? Math.floor(syncStatus.age_seconds / 60) : 1;
-          document.getElementById('cmdbFreshnessText').textContent = `Reconciled ${ageMins}m ago (${syncStatus.sync_state || 'HEALTHY'})`;
-        }
-      } catch (err) {
-        console.warn('CMDB summary error:', err);
+      async function fetchJson(path) {
+        const response = await fetch(`${API_BASE}${path}`, { headers: { Accept: "application/json" } });
+        let body = null;
+        try { body = await response.json(); } catch { /* Status error below remains actionable. */ }
+        if (!response.ok) throw new Error(body?.detail || body?.error || `HTTP ${response.status}`);
+        return body;
       }
 
-      await loadCmdbCis();
-    }
+      function showToast(message) {
+        const toast = document.createElement("div");
+        toast.className = "toast";
+        toast.textContent = message;
+        $("toastContainer").appendChild(toast);
+        setTimeout(() => toast.remove(), 3000);
+      }
 
-    async function loadCmdbCis() {
-      const tbody = document.getElementById('cmdbTableBody');
-      tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 40px; color: var(--text-muted);">Loading enterprise Configuration Items...</td></tr>`;
+      function renderAnalytics(targetId, values, palette) {
+        const entries = Object.entries(values || {}).filter(([, value]) => Number(value) >= 0);
+        const total = entries.reduce((sum, [, value]) => sum + Number(value), 0);
+        $(targetId).innerHTML = entries.length && total
+          ? entries.map(([label, value], index) => `
+              <div class="analytics-row">
+                <span title="${escapeHtml(label)}">${escapeHtml(label)}</span>
+                <div class="analytics-track"><div class="analytics-fill" style="width:${Math.max(2, pct(value, total))}%;--bar-color:${palette[index % palette.length]}"></div></div>
+                <b>${number(value)}</b>
+              </div>`).join("")
+          : `<div class="detail-empty">No analytics returned.</div>`;
+      }
 
-      try {
-        const resp = await ITOM_SERVICES.fetchCmdbCis({
-          page: cmdbCurrentPage,
-          pageSize: cmdbPageSize,
-          search: cmdbSearchQuery || undefined,
-          sourceSystem: cmdbSourceFilter || undefined,
-          healthTier: cmdbHealthFilter || undefined
+      function renderSummary(summary) {
+        const total = Number(summary.total_cis || 0);
+        const completeness = summary.metadata_completeness || {};
+        const serial = completeness.serial_number || {};
+        const ip = completeness.ip_address || {};
+        const location = completeness.location || {};
+        const model = completeness.model || {};
+
+        $("kpiTotalCis").textContent = number(total);
+        [
+          ["Serial", "kpiSerialCoverage", "kpiSerialNote", "serialProgress", serial],
+          ["IP address", "kpiIpCoverage", "kpiIpNote", "ipProgress", ip],
+          ["Location", "kpiLocationCoverage", "kpiLocationNote", "locationProgress", location],
+          ["Model", "kpiModelCoverage", "kpiModelNote", "modelProgress", model]
+        ].forEach(([label, valueId, noteId, progressId, metric]) => {
+          const coverage = Number(metric.coverage_pct || 0);
+          $(valueId).textContent = `${coverage.toFixed(1)}%`;
+          $(noteId).textContent = `${number(metric.populated || 0)} populated · ${number(metric.missing || 0)} missing`;
+          $(progressId).style.width = `${coverage}%`;
         });
 
-        if (resp && Array.isArray(resp.items)) {
-          cmdbTotal = resp.total || resp.items.length;
-          const totalPages = resp.pages || Math.ceil(cmdbTotal / cmdbPageSize) || 1;
+        renderAnalytics("typeAnalytics", summary.ci_type_distribution, ["#F97316", "#06B6D4", "#10B981", "#8B5CF6", "#F59E0B"]);
+        renderAnalytics("vendorAnalytics", summary.vendor_distribution, ["#8B5CF6", "#06B6D4", "#10B981", "#F97316", "#F59E0B"]);
+        renderAnalytics("completenessAnalytics", {
+          "Missing serial": serial.missing || 0,
+          "Missing IP address": ip.missing || 0,
+          "Missing location": location.missing || 0,
+          "Missing model": model.missing || 0
+        }, ["#F59E0B", "#EF4444", "#F97316", "#8B5CF6"]);
 
-          if (resp.items.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 40px; color: var(--text-muted);">No Configuration Items match the criteria.</td></tr>`;
-          } else {
-            tbody.innerHTML = resp.items.map(ci => {
-              const src = (ci.source_system || 'INTUNE').toUpperCase();
-              const srcClass = src === 'SOLARWINDS' ? 'solarwinds' : 'intune';
-              const tier = ci.health_tier || 'High';
-              const tierClass = tier === 'High' ? 'green' : tier === 'Medium' ? 'amber' : 'red';
-              const dateStr = ci.updated_at ? ci.updated_at.slice(0, 19).replace('T', ' ') : 'Live Sync';
-
-              return `
-                <tr>
-                  <td><strong>${escapeHtml(ci.name || 'Unnamed CI')}</strong></td>
-                  <td style="color: var(--text-secondary);">${escapeHtml(ci.ci_type || 'Hardware')}</td>
-                  <td><span class="source-badge ${srcClass}">● ${src}</span></td>
-                  <td><span class="health-pill ${tierClass}">● ${tier}</span></td>
-                  <td>${escapeHtml(ci.status || 'Active')}</td>
-                  <td style="font-family: var(--font-mono); color: var(--text-muted);">${escapeHtml(ci.serial_number || ci.id?.slice(0, 12) || '--')}</td>
-                  <td style="font-size: 11px; color: var(--text-muted);">${escapeHtml(dateStr)}</td>
-                </tr>
-              `;
-            }).join('');
-          }
-
-          const start = (cmdbCurrentPage - 1) * cmdbPageSize + 1;
-          const end = Math.min(start + resp.items.length - 1, cmdbTotal);
-          document.getElementById('cmdbFooterText').textContent = cmdbTotal === 0 ? 'Showing 0 of 0 CIs' : `Showing ${start}–${end} of ${cmdbTotal.toLocaleString()} CIs`;
-
-          renderCmdbPagination(totalPages);
-        }
-      } catch (err) {
-        tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 40px; color: var(--accent-red);">Failed to load CMDB items: ${err.message}</td></tr>`;
+        const typeSelect = $("cmdbTypeSelect");
+        typeSelect.innerHTML = `<option value="">All CI Types</option>` +
+          Object.keys(summary.ci_type_distribution || {}).sort().map((type) =>
+            `<option value="${escapeHtml(type)}">${escapeHtml(type)}</option>`
+          ).join("");
+        const vendorSelect = $("cmdbVendorSelect");
+        vendorSelect.innerHTML = `<option value="">All Vendors</option>` +
+          Object.keys(summary.vendor_distribution || {}).sort().map((vendor) =>
+            `<option value="${escapeHtml(vendor)}">${escapeHtml(vendor)}</option>`
+          ).join("");
       }
-    }
 
-    function renderCmdbPagination(totalPages) {
-      const container = document.getElementById('cmdbPaginationControls');
-      let html = `<button class="page-btn" onclick="goToCmdbPage(${cmdbCurrentPage - 1})" ${cmdbCurrentPage === 1 ? 'disabled' : ''}>«</button>`;
-      for (let p = 1; p <= totalPages; p++) {
-        if (p === 1 || p === totalPages || (p >= cmdbCurrentPage - 1 && p <= cmdbCurrentPage + 1)) {
-          html += `<button class="page-btn ${p === cmdbCurrentPage ? 'active' : ''}" onclick="goToCmdbPage(${p})">${p}</button>`;
-        } else if (p === cmdbCurrentPage - 2 || p === cmdbCurrentPage + 2) {
-          html += `<span style="color: var(--text-muted); padding: 0 4px;">…</span>`;
+      async function loadSummary() {
+        try {
+          renderSummary(await fetchJson("/cmdb/summary"));
+          const freshness = await fetchJson("/system/freshness");
+          const status = String(freshness.overall_status || "UNKNOWN");
+          const age = freshness.oldest_age_seconds;
+          $("cmdbFreshnessText").textContent = age === null || age === undefined
+            ? `Freshness ${status}`
+            : `Oldest source age ${number(age)}s (${status})`;
+        } catch (error) {
+          $("cmdbFreshnessText").textContent = `CMDB analytics unavailable: ${error.message}`;
         }
       }
-      html += `<button class="page-btn" onclick="goToCmdbPage(${cmdbCurrentPage + 1})" ${cmdbCurrentPage === totalPages ? 'disabled' : ''}>»</button>`;
-      container.innerHTML = html;
-    }
 
-    function goToCmdbPage(p) {
-      cmdbCurrentPage = p;
-      loadCmdbCis();
-    }
+      function queryString(page = state.page, pageSize = state.pageSize) {
+        const params = new URLSearchParams({ page, page_size: pageSize, sort_by: "name", sort_order: "asc" });
+        if (state.search) params.set("search", state.search);
+        if (state.source) params.set("source_system", state.source);
+        if (state.vendor) params.set("vendor", state.vendor);
+        if (state.ciType) params.set("ci_type", state.ciType);
+        return params.toString();
+      }
 
-    function changeCmdbPageSize(size) {
-      cmdbPageSize = parseInt(size, 10);
-      cmdbCurrentPage = 1;
-      loadCmdbCis();
-    }
+      function renderTable(payload) {
+        const items = payload.items || [];
+        state.currentItems = items;
+        state.total = Number(payload.total || 0);
+        if (!items.length) {
+          $("cmdbTableBody").innerHTML = `<tr><td colspan="8"><div class="detail-empty">No Configuration Items match the current filters.</div></td></tr>`;
+        } else {
+          $("cmdbTableBody").innerHTML = items.map((ci) => {
+            const source = String(ci.source_system || "Unknown").toUpperCase();
+            const sourceClass = source === "SOLARWINDS" ? "solarwinds" : "intune";
+            const reconciled = ci.last_sync_time || ci.updated_at || "--";
+            return `<tr>
+              <td><button class="ci-link" type="button" data-ci-id="${escapeHtml(ci.id)}">${escapeHtml(ci.name || "Unnamed CI")}</button></td>
+              <td style="color:var(--text-secondary)">${escapeHtml(ci.ci_type)}</td>
+              <td><span class="source-badge ${sourceClass}">● ${escapeHtml(source)}</span></td>
+              <td>${escapeHtml([ci.vendor, ci.model].filter(Boolean).join(" / ") || "--")}</td>
+              <td style="font-family:var(--font-mono);color:var(--text-muted)">${escapeHtml(ci.serial_number || ci.source_id || ci.id)}</td>
+              <td style="font-family:var(--font-mono);color:var(--text-muted)">${escapeHtml(ci.ip_address)}</td>
+              <td>${escapeHtml(ci.location)}</td>
+              <td style="font-size:11px;color:var(--text-muted)">${escapeHtml(reconciled)}</td>
+            </tr>`;
+          }).join("");
+        }
+        const start = items.length ? ((payload.page - 1) * payload.page_size) + 1 : 0;
+        const end = items.length ? start + items.length - 1 : 0;
+        $("cmdbFooterText").textContent = `Showing ${number(start)}-${number(end)} of ${number(payload.total)} CIs`;
+        renderPagination(Number(payload.total_pages || 1));
+      }
 
-    function handleCmdbSearch(val) {
-      cmdbSearchQuery = val.trim();
-      cmdbCurrentPage = 1;
-      loadCmdbCis();
-    }
+      function renderPagination(totalPages) {
+        const pages = new Set([1, totalPages, state.page - 1, state.page, state.page + 1]);
+        const validPages = Array.from(pages).filter((page) => page >= 1 && page <= totalPages).sort((a, b) => a - b);
+        let previous = 0;
+        let html = `<button class="page-btn" data-page="${state.page - 1}" ${state.page <= 1 ? "disabled" : ""}>‹</button>`;
+        validPages.forEach((page) => {
+          if (previous && page - previous > 1) html += `<span style="color:var(--text-muted)">...</span>`;
+          html += `<button class="page-btn ${page === state.page ? "active" : ""}" data-page="${page}">${page}</button>`;
+          previous = page;
+        });
+        html += `<button class="page-btn" data-page="${state.page + 1}" ${state.page >= totalPages ? "disabled" : ""}>›</button>`;
+        $("cmdbPaginationControls").innerHTML = html;
+      }
 
-    function handleCmdbSourceFilter(val) {
-      cmdbSourceFilter = val;
-      cmdbCurrentPage = 1;
-      loadCmdbCis();
-    }
+      async function loadCis() {
+        $("cmdbTableBody").innerHTML = `<tr><td colspan="8"><div class="detail-empty">Loading Configuration Items...</div></td></tr>`;
+        try {
+          renderTable(await fetchJson(`/cmdb/cis?${queryString()}`));
+        } catch (error) {
+          $("cmdbTableBody").innerHTML = `<tr><td colspan="8"><div class="detail-empty" style="color:var(--accent-red)">CMDB inventory unavailable: ${escapeHtml(error.message)}</div></td></tr>`;
+        }
+      }
 
-    function handleCmdbHealthFilter(val) {
-      cmdbHealthFilter = val;
-      cmdbCurrentPage = 1;
-      loadCmdbCis();
-    }
+      function renderAttributes(attributes) {
+        const blocked = /(password|secret|token|credential|key)/i;
+        const entries = Object.entries(attributes || {})
+          .filter(([key, value]) => !blocked.test(key) && value !== null && value !== "" && typeof value !== "object")
+          .slice(0, 24);
+        $("detailAttributes").innerHTML = entries.length
+          ? `<table><thead><tr><th>Attribute</th><th>Value</th></tr></thead><tbody>${entries.map(([key, value]) =>
+              `<tr><td>${escapeHtml(key)}</td><td>${escapeHtml(value)}</td></tr>`
+            ).join("")}</tbody></table>`
+          : `<div class="detail-empty">No additional configuration attributes are recorded for this CI.</div>`;
+      }
 
-    async function exportCmdbCsv() {
-      try {
-        const resp = await ITOM_SERVICES.fetchCmdbCis({ page: 1, pageSize: 100 });
-        if (resp && Array.isArray(resp.items)) {
-          const headers = ['CI Name', 'CI Type', 'Source System', 'Health Tier', 'Status', 'Serial Number', 'Last Reconciled'];
-          const rows = resp.items.map(ci => [
-            ci.name,
-            ci.ci_type,
-            ci.source_system,
-            ci.health_tier,
-            ci.status,
-            ci.serial_number,
-            ci.updated_at
+      function renderRelationships(relationships) {
+        $("detailRelationships").innerHTML = relationships.length
+          ? `<table><thead><tr><th>Relationship</th><th>Source</th><th>Target</th></tr></thead><tbody>${relationships.map((row) =>
+              `<tr><td>${escapeHtml(row.relationship_type)}</td><td>${escapeHtml(row.source_ci_id)}</td><td>${escapeHtml(row.target_ci_id)}</td></tr>`
+            ).join("")}</tbody></table>`
+          : `<div class="detail-empty">No topology relationships are recorded for this CI.</div>`;
+      }
+
+      async function openCiDetail(ciId) {
+        $("ciDetailModal").classList.add("show");
+        $("ciDetailTitle").textContent = "Loading Configuration Item...";
+        $("detailAttributes").textContent = "Loading configuration attributes...";
+        $("detailRelationships").textContent = "Loading relationships...";
+        try {
+          const [ci, relationships] = await Promise.all([
+            fetchJson(`/cmdb/cis/${encodeURIComponent(ciId)}`),
+            fetchJson(`/cmdb/cis/${encodeURIComponent(ciId)}/relationships`)
           ]);
-          const dateStr = new Date().toISOString().slice(0, 10);
-          ITOM_SERVICES.exportToCsv(`cmdb_ci_catalog_${dateStr}.csv`, headers, rows);
-          showToast(`Exported ${resp.items.length} Configuration Items to CSV`);
+          const attributes = ci.attributes || {};
+          $("ciDetailTitle").textContent = ci.name || "Configuration Item";
+          $("ciDetailSubtitle").textContent = `Last reconciled ${ci.last_sync_time || ci.updated_at || "--"}`;
+          $("detailSource").textContent = ci.source_system || "--";
+          $("detailType").textContent = ci.ci_type || "--";
+          $("detailSourceId").textContent = ci.source_id || "--";
+          $("detailReconciled").textContent = ci.last_sync_time || ci.updated_at || "--";
+          $("detailIp").textContent = ci.ip_address || "--";
+          $("detailSerial").textContent = ci.serial_number || ci.source_id || "--";
+          $("detailVendor").textContent = [ci.vendor || attributes.vendor, ci.model || attributes.model].filter(Boolean).join(" / ") || "--";
+          $("detailLocation").textContent = ci.location || attributes.location || attributes.site || "--";
+          renderAttributes(attributes);
+          renderRelationships(Array.isArray(relationships) ? relationships : []);
+        } catch (error) {
+          $("ciDetailTitle").textContent = "CI details unavailable";
+          $("ciDetailSubtitle").textContent = error.message;
         }
-      } catch (err) {
-        showToast('Export failed: ' + err.message);
       }
-    }
 
-    window.addEventListener('DOMContentLoaded', () => {
-      initCmdb();
-    });
+      function debounce(callback, delay = 300) {
+        let timer;
+        return (...args) => { clearTimeout(timer); timer = setTimeout(() => callback(...args), delay); };
+      }
+
+      window.handleCmdbSearch = debounce((value) => { state.search = value.trim(); state.page = 1; loadCis(); });
+      window.handleCmdbSourceFilter = (value) => { state.source = value; state.page = 1; loadCis(); };
+      window.handleCmdbTypeFilter = (value) => { state.ciType = value; state.page = 1; loadCis(); };
+      window.handleCmdbVendorFilter = (value) => { state.vendor = value; state.page = 1; loadCis(); };
+      window.changeCmdbPageSize = (value) => { state.pageSize = Number(value); state.page = 1; loadCis(); };
+      window.exportCmdbCsv = async () => {
+        try {
+          const rows = [];
+          let page = 1;
+          let hasNext = true;
+          while (hasNext) {
+            const payload = await fetchJson(`/cmdb/cis?${queryString(page, 100)}`);
+            rows.push(...(payload.items || []));
+            hasNext = Boolean(payload.has_next);
+            page += 1;
+          }
+          const quote = (value) => `"${String(value ?? "").replace(/"/g, '""')}"`;
+          const data = [
+            ["CI Name", "CI Type", "Source System", "Vendor", "Model", "Serial Number", "IP Address", "Location", "Last Reconciled"],
+            ...rows.map((ci) => [ci.name, ci.ci_type, ci.source_system, ci.vendor, ci.model, ci.serial_number, ci.ip_address, ci.location, ci.last_sync_time || ci.updated_at])
+          ];
+          const blob = new Blob([data.map((row) => row.map(quote).join(",")).join("\r\n")], { type: "text/csv;charset=utf-8" });
+          const link = document.createElement("a");
+          link.href = URL.createObjectURL(blob);
+          link.download = `cmdb_catalog_${new Date().toISOString().slice(0, 10)}.csv`;
+          link.click();
+          URL.revokeObjectURL(link.href);
+          showToast(`Exported ${number(rows.length)} filtered CIs`);
+        } catch (error) {
+          showToast(`Export failed: ${error.message}`);
+        }
+      };
+
+      $("cmdbPaginationControls").addEventListener("click", (event) => {
+        const button = event.target.closest("[data-page]");
+        if (!button || button.disabled) return;
+        state.page = Number(button.dataset.page);
+        loadCis();
+      });
+      $("cmdbTableBody").addEventListener("click", (event) => {
+        const button = event.target.closest("[data-ci-id]");
+        if (button) openCiDetail(button.dataset.ciId);
+      });
+      $("closeCiDetail").addEventListener("click", () => $("ciDetailModal").classList.remove("show"));
+      $("ciDetailModal").addEventListener("click", (event) => {
+        if (event.target === $("ciDetailModal")) $("ciDetailModal").classList.remove("show");
+      });
+      document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") $("ciDetailModal").classList.remove("show");
+      });
+
+      Promise.all([loadSummary(), loadCis()]);
+    })();
   </script>
 </body>
 </html>

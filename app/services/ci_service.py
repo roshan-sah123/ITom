@@ -112,6 +112,16 @@ class CIService:
         """
         return await self.summary_repo.get_solarwinds_summary()
 
+    async def get_solarwinds_sites(self) -> List[Dict[str, Any]]:
+        """Return the SolarWinds location aggregates expected by the sites route."""
+        return await self.ci_repo.get_solarwinds_sites()
+
+    async def get_solarwinds_site_trend(
+        self, site_id: str, hours: int = 24
+    ) -> Dict[str, Any]:
+        """Return the requested SolarWinds site trend payload."""
+        return await self.ci_repo.get_solarwinds_site_trend(site_id, hours=hours)
+
     async def get_ci_history(
         self, ci_id: str | uuid.UUID, limit: int = 50
     ) -> List[Dict[str, Any]]:

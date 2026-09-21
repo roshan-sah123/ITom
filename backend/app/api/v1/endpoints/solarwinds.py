@@ -16,7 +16,13 @@ async def get_solarwinds_summary(
     ci_service: CIService = Depends(get_ci_service),
 ) -> Dict[str, Any]:
     """Retrieve SolarWinds Orion server node metrics, health tier distributions, and performance averages."""
-    return await ci_service.get_solarwinds_summary()
+    summary = await ci_service.get_solarwinds_summary()
+    if summary.get("data_source") == "NONE":
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="No Configuration Items persisted for source system 'SOLARWINDS'. Run a telemetry synchronization first.",
+        )
+    return summary
 
 
 @router.get("/nodes", status_code=status.HTTP_200_OK)
@@ -26,6 +32,7 @@ async def list_solarwinds_nodes(
     search: Optional[str] = Query(None),
     health_tier: Optional[str] = Query(None),
     status_filter: Optional[str] = Query(None, alias="status"),
+    location: Optional[str] = Query(None, description="Exact SolarWinds site location"),
     vendor: Optional[str] = Query(None),
     sort_by: Optional[str] = Query("name"),
     sort_order: Optional[str] = Query("asc"),
@@ -45,6 +52,7 @@ async def list_solarwinds_nodes(
         source_system="SOLARWINDS",
         health_tier=health_tier,
         status=status_filter,
+        location=location,
         vendor=vendor,
         sort_by=sort_by,
         sort_order=sort_order,
@@ -78,4 +86,3 @@ async def get_solarwinds_site_trend(
         "status": "success",
         "data": trend,
     }
-

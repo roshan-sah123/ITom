@@ -26,7 +26,7 @@ let activeSwVendor = '';
 let activeSwLocation = '';
 let activeSwFilterLabel = '';
 let allFetchedNodes = [];
-let cachedTotalServers = 1572;
+let cachedTotalServers = 0;
 
 // Campus sites state
 let campusSitesData = [];
@@ -40,13 +40,32 @@ let currentNetPageSize = 25;
 let activeNetSearch = '';
 let activeNetType = '';
 let allFetchedNetDevices = [];
-let cachedTotalNetworks = 488;
+let cachedTotalNetworks = 0;
+
+function asNumber(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
+function metricText(value, suffix = '') {
+  const number = asNumber(value);
+  return number === null ? '—' : `${formatNumber(number)}${suffix}`;
+}
+
+function percentageText(value) {
+  const number = asNumber(value);
+  return number === null ? '—' : `${number.toFixed(1)}%`;
+}
+
+function statusCount(statuses, label) {
+  return asNumber(statuses?.[label] ?? statuses?.[label.toLowerCase()]);
+}
 
 export async function renderInfrastructureWorkspace() {
   initSubtabTriggers();
   await loadInfraCategoryMetrics();
-  await loadServerKpisAndCharts();
-  await loadCampusSites();
+  const summary = await loadServerKpisAndCharts();
+  await loadCampusSites(summary);
   await loadServerGrid();
   await loadNetworkGrid();
   initServerFilters();
@@ -98,10 +117,10 @@ async function loadInfraCategoryMetrics() {
   try {
     const swSum = await itomApi.getSolarWindsSummary();
     const metrics = swSum.metrics || {};
-    const totalServers = metrics.total_server_nodes || 1572;
-    const highHealthPct = metrics.high_health_pct !== undefined ? metrics.high_health_pct : 88.8;
+    const totalServers = asNumber(metrics.total_server_nodes);
+    const availability = asNumber(metrics.availability_pct);
 
-    cachedTotalServers = totalServers;
+    cachedTotalServers = totalServers ?? 0;
 
     const catServVal = document.getElementById('catServersVal');
     const catServSub = document.getElementById('catServersSub');
@@ -112,17 +131,21 @@ async function loadInfraCategoryMetrics() {
     const catBaseVal = document.getElementById('catBaselineVal');
     const catBaseSub = document.getElementById('catBaselineSub');
 
-    if (catServVal) catServVal.textContent = formatNumber(totalServers);
-    if (catServSub) catServSub.textContent = `${highHealthPct.toFixed(1)}% Availability SLA`;
-    if (catNetVal) catNetVal.textContent = `488`;
-    if (catNetSub) catNetSub.textContent = `42.8ms Fleet Ping Latency`;
-    if (catSitesVal) catSitesVal.textContent = `71`;
-    if (catSitesSub) catSitesSub.textContent = `38 India · 19 Americas · 14 EMEA`;
-    if (catBaseVal) catBaseVal.textContent = `96.8%`;
-    if (catBaseSub) catBaseSub.textContent = `SolarWinds Asset Posture`;
+    if (catServVal) catServVal.textContent = metricText(totalServers);
+    if (catServSub) catServSub.textContent = `${percentageText(availability)} availability`;
+    if (catNetVal) catNetVal.textContent = '—';
+    if (catNetSub) catNetSub.textContent = 'Not reported by node summary';
+    if (catSitesVal) catSitesVal.textContent = '—';
+    if (catSitesSub) catSitesSub.textContent = 'Loaded from location analytics';
+    if (catBaseVal) catBaseVal.textContent = '—';
+    if (catBaseSub) catBaseSub.textContent = 'CMDB baseline not reported';
 
   } catch (err) {
     console.error('Failed to load infra category metrics:', err);
+    ['catServersVal', 'catNetVal', 'catSitesVal', 'catBaselineVal'].forEach((id) => {
+      const element = document.getElementById(id);
+      if (element) element.textContent = '—';
+    });
   }
 }
 
@@ -134,10 +157,10 @@ async function loadServerKpisAndCharts() {
   try {
     const summary = await itomApi.getSolarWindsSummary();
     const metrics = summary.metrics || {};
-    const total = metrics.total_server_nodes || 1572;
-    const active = metrics.active_monitored_nodes || 1515;
-    const sla = metrics.high_health_pct || 88.8;
-    const alerts = (metrics.low_critical_nodes || 41) + (metrics.medium_health_nodes || 150) || 176;
+    const total = asNumber(metrics.total_server_nodes);
+    const active = asNumber(metrics.active_monitored_nodes);
+    const availability = asNumber(metrics.availability_pct);
+    const unavailable = asNumber(metrics.unavailable_nodes);
 
     const totalEl = document.getElementById('swTotalNodesVal');
     const totalSub = document.getElementById('swTotalNodesSub');
@@ -145,23 +168,29 @@ async function loadServerKpisAndCharts() {
     const alertsEl = document.getElementById('swAlertsVal');
     const osEl = document.getElementById('swOsVal');
 
-    if (totalEl) totalEl.textContent = formatNumber(total);
-    if (totalSub) totalSub.textContent = `${formatNumber(active)} Monitored`;
-    if (slaEl) slaEl.textContent = `${sla.toFixed(1)}%`;
-    if (alertsEl) alertsEl.textContent = formatNumber(alerts);
-    if (osEl) osEl.textContent = `Cisco / Windows / Linux`;
+    if (totalEl) totalEl.textContent = metricText(total);
+    if (totalSub) totalSub.textContent = active === null ? 'Active-node count not reported' : `${formatNumber(active)} actively monitored`;
+    if (slaEl) slaEl.textContent = percentageText(availability);
+    if (alertsEl) alertsEl.textContent = metricText(unavailable);
+    if (osEl) osEl.textContent = 'Not reported by node summary';
 
     // Render Charts
-    renderSwHealthChart(summary.health_breakdown || { High: 1396, Medium: 89, Low: 87 });
-    renderSwStatusChart(metrics.status_counts || { up: 1410, warning: 19, critical: 60, down: 26, unmanaged_unknown: 57 });
-    renderSwVendorChart(summary.vendor_distribution || { Cisco: 488, Windows: 261, 'Palo Alto': 51, Fortinet: 32, Juniper: 12, Linux: 5, Other: 708 });
+    renderSwHealthChart(summary.health_breakdown || {});
+    renderSwStatusChart(summary.status_breakdown || metrics.status_counts || {});
+    renderSwVendorChart(summary.vendor_distribution || {});
     renderSwSaturatedTriage(summary.top_saturated_servers || []);
 
     // Populate Campus Location Select Dropdown
     populateCampusLocationSelect();
 
+    return summary;
   } catch (err) {
     console.error('Failed to load SolarWinds server summary:', err);
+    ['swTotalNodesVal', 'swSlaVal', 'swAlertsVal', 'swOsVal'].forEach((id) => {
+      const element = document.getElementById(id);
+      if (element) element.textContent = '—';
+    });
+    return null;
   }
 }
 
@@ -232,7 +261,13 @@ function renderSwStatusChart(statusCounts) {
   swStatusChartInstance = destroyChartSafe(swStatusChartInstance);
 
   const labels = ['Up', 'Warning', 'Critical', 'Down', 'Unmanaged'];
-  const values = [statusCounts.up || 0, statusCounts.warning || 0, statusCounts.critical || 0, statusCounts.down || 0, statusCounts.unmanaged_unknown || 0];
+  const values = [
+    statusCount(statusCounts, 'Up') ?? 0,
+    statusCount(statusCounts, 'Warning') ?? 0,
+    statusCount(statusCounts, 'Critical') ?? 0,
+    statusCount(statusCounts, 'Down') ?? 0,
+    statusCount(statusCounts, 'Unmanaged') ?? statusCount(statusCounts, 'unmanaged_unknown') ?? 0,
+  ];
 
   const ctx = canvas.getContext('2d');
   swStatusChartInstance = new Chart(ctx, {
@@ -326,7 +361,7 @@ function renderSwSaturatedTriage(servers) {
   if (!container) return;
 
   if (!servers.length) {
-    container.innerHTML = `<div style="padding: 12px; color: #6B7280; font-size: 11px;">No saturation threshold breaches. All nodes healthy.</div>`;
+    container.innerHTML = `<div style="padding: 12px; color: #6B7280; font-size: 11px;">No saturation data was returned by the SolarWinds summary.</div>`;
     return;
   }
 
@@ -418,20 +453,21 @@ async function loadServerGrid() {
     }
 
     tbody.innerHTML = allFetchedNodes.map(n => {
-      const cpu = Number(n.attributes?.cpu_load ?? n.cpu_load ?? 0);
-      const ram = Number(n.attributes?.percent_memory_used ?? n.memory_used ?? 0);
-      const lat = Number(n.attributes?.response_time_ms ?? n.latency_ms ?? 18.0);
-      const healthTier = n.health_tier || 'High';
+      const cpu = asNumber(n.attributes?.cpu_load ?? n.cpu_load);
+      const ram = asNumber(n.attributes?.percent_memory_used ?? n.memory_used);
+      const healthTier = n.health_tier || 'Unknown';
+      const ipAddress = n.ip_address || n.attributes?.ip_address || '—';
+      const latency = asNumber(n.attributes?.response_time_ms ?? n.attributes?.latency_ms ?? n.latency_ms);
 
       return `
         <tr>
           <td><strong>${escapeHtml(n.name)}</strong></td>
-          <td class="font-mono">${escapeHtml(n.ip_address || n.attributes?.ip_address || '10.251.104.211')}</td>
-          <td>${escapeHtml(n.vendor || 'Generic')}</td>
+          <td class="font-mono">${escapeHtml(ipAddress)}</td>
+          <td>${escapeHtml(n.vendor || '—')}</td>
           <td><span class="status-pill status-${healthTier.toLowerCase() === 'high' ? 'healthy' : healthTier.toLowerCase() === 'medium' ? 'warning' : 'critical'}">${escapeHtml(healthTier)}</span></td>
-          <td class="font-mono" style="color: ${cpu > 80 ? '#EF4444' : '#10B981'};">${cpu.toFixed(1)}%</td>
-          <td class="font-mono" style="color: ${ram > 85 ? '#EF4444' : '#10B981'};">${ram.toFixed(1)}%</td>
-          <td class="font-mono">${lat.toFixed(1)}ms</td>
+          <td class="font-mono" style="color: ${cpu === null ? 'var(--text-muted)' : cpu > 80 ? '#EF4444' : '#10B981'};">${cpu === null ? '—' : `${cpu.toFixed(1)}%`}</td>
+          <td class="font-mono" style="color: ${ram === null ? 'var(--text-muted)' : ram > 85 ? '#EF4444' : '#10B981'};">${ram === null ? '—' : `${ram.toFixed(1)}%`}</td>
+          <td class="font-mono">${latency === null ? '—' : `${latency.toFixed(1)}ms`}</td>
           <td>
             <button class="btn-action btn-inspect-node" data-id="${escapeHtml(n.id || '')}" style="height: 28px; padding: 0 10px; font-size: 11px;">
               Inspect
@@ -558,12 +594,12 @@ function initServerFilters() {
       ];
       const rows = allFetchedNodes.map(n => ({
         name: n.name,
-        ip: n.ip_address || n.attributes?.ip_address || '10.251.104.211',
-        vendor: n.vendor || 'Generic',
-        health_tier: n.health_tier || 'High',
-        cpu: (n.attributes?.cpu_load !== undefined ? n.attributes.cpu_load : n.cpu_load || 0) + '%',
-        ram: (n.attributes?.percent_memory_used !== undefined ? n.attributes.percent_memory_used : n.memory_used || 0) + '%',
-        latency: (n.attributes?.response_time_ms !== undefined ? n.attributes.response_time_ms : n.latency_ms || 18.0) + 'ms'
+        ip: n.ip_address || n.attributes?.ip_address || '—',
+        vendor: n.vendor || '—',
+        health_tier: n.health_tier || 'Unknown',
+        cpu: asNumber(n.attributes?.cpu_load ?? n.cpu_load) === null ? '—' : `${asNumber(n.attributes?.cpu_load ?? n.cpu_load)}%`,
+        ram: asNumber(n.attributes?.percent_memory_used ?? n.memory_used) === null ? '—' : `${asNumber(n.attributes?.percent_memory_used ?? n.memory_used)}%`,
+        latency: asNumber(n.attributes?.response_time_ms ?? n.attributes?.latency_ms ?? n.latency_ms) === null ? '—' : `${asNumber(n.attributes?.response_time_ms ?? n.attributes?.latency_ms ?? n.latency_ms)}ms`
       }));
       exportToCsv(`SolarWinds_Server_Nodes_Page_${currentSwPage}`, headers, rows);
     });
@@ -593,35 +629,42 @@ async function loadNetworkGrid() {
     const data = res.data || res;
     allFetchedNetDevices = (data.items || []).filter(item => {
       const type = (item.ci_type || '').toLowerCase();
-      return type.includes('switch') || type.includes('router') || type.includes('firewall') || type.includes('appliance');
+      const isNetworkDevice = type.includes('switch') || type.includes('router') || type.includes('firewall') || type.includes('appliance');
+      return isNetworkDevice && (!activeNetType || type.includes(activeNetType));
     });
 
-    if (!allFetchedNetDevices.length) {
-      allFetchedNetDevices = (data.items || []).slice(0, 15);
-    }
-
-    const totalRecords = 488;
-    const totalPages = Math.max(1, Math.ceil(totalRecords / currentNetPageSize));
+    // The API does not expose a network-only total. Do not label an unverified
+    // aggregate as the fleet population.
+    const totalRecords = allFetchedNetDevices.length;
+    const totalPages = 1;
 
     currentNetPage = Math.min(currentNetPage, totalPages);
-    const startRecord = (currentNetPage - 1) * currentNetPageSize + 1;
+    const startRecord = totalRecords ? 1 : 0;
     const endRecord = Math.min(startRecord + allFetchedNetDevices.length - 1, totalRecords);
 
     if (recordCountEl) {
       recordCountEl.textContent = `Showing ${formatNumber(startRecord)}–${formatNumber(endRecord)} of ${formatNumber(totalRecords)} Network Devices`;
     }
 
+    if (!allFetchedNetDevices.length) {
+      tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding: 32px; color: #6B7280;">No network devices were returned by the current CMDB query.</td></tr>`;
+      if (paginationControls) paginationControls.innerHTML = '';
+      return;
+    }
+
     tbody.innerHTML = allFetchedNetDevices.map(dev => {
-      const healthClass = (dev.health_tier || 'High').toLowerCase() === 'high' ? 'healthy' : (dev.health_tier || '').toLowerCase() === 'medium' ? 'warning' : 'critical';
+      const healthTier = dev.health_tier || 'Unknown';
+      const healthClass = healthTier.toLowerCase() === 'high' ? 'healthy' : healthTier.toLowerCase() === 'medium' ? 'warning' : 'critical';
+      const latency = asNumber(dev.attributes?.response_time_ms ?? dev.attributes?.latency_ms ?? dev.latency_ms);
 
       return `
         <tr>
           <td><strong>${escapeHtml(dev.name)}</strong></td>
-          <td class="font-mono">${escapeHtml(dev.ip_address || dev.attributes?.ip_address || '172.32.32.26')}</td>
-          <td><span class="status-pill status-healthy">${escapeHtml(dev.ci_type || 'Access Switch')}</span></td>
-          <td>${escapeHtml(dev.vendor || 'Cisco')}</td>
-          <td><span class="status-pill status-${healthClass}">${escapeHtml(dev.health_tier || 'High')}</span></td>
-          <td class="font-mono">${(Math.random() * 20 + 5).toFixed(1)}ms</td>
+          <td class="font-mono">${escapeHtml(dev.ip_address || dev.attributes?.ip_address || '—')}</td>
+          <td><span class="status-pill status-healthy">${escapeHtml(dev.ci_type || '—')}</span></td>
+          <td>${escapeHtml(dev.vendor || '—')}</td>
+          <td><span class="status-pill status-${healthClass}">${escapeHtml(healthTier)}</span></td>
+          <td class="font-mono">${latency === null ? '—' : `${latency.toFixed(1)}ms`}</td>
           <td>
             <button class="btn-action btn-inspect-net" data-id="${escapeHtml(dev.id || '')}" style="height: 28px; padding: 0 10px; font-size: 11px;">
               Inspect
@@ -685,51 +728,30 @@ function initNetworkFilters() {
    SUB-VIEW 3: 71 CAMPUS SITES & 24H SLA CONTINUOUS TREND
    ========================================================================= */
 
-async function loadCampusSites() {
-  renderFleetSlaTrend();
+async function loadCampusSites(summary) {
+  renderFleetStatusProfile(summary?.status_breakdown || {});
   await renderCampusFacilitiesTable();
 }
 
-function renderFleetSlaTrend() {
+function renderFleetStatusProfile(statusCounts) {
   const canvas = document.getElementById('ovFleetSlaChart');
   if (!canvas) return;
   fleetTrendChartInstance = destroyChartSafe(fleetTrendChartInstance);
 
-  const hours = Array.from({ length: 24 }, (_, i) => `${String(i).padStart(2, '0')}:00`);
-  const slaPoints = [99.2, 99.5, 99.1, 98.9, 99.2, 99.6, 98.4, 98.9, 99.4, 99.5, 99.2, 98.9, 99.1, 98.7, 99.3, 99.6, 99.1, 99.2, 99.4, 99.5, 99.2, 99.4, 99.6, 99.5];
-  const latencyPoints = [42, 41, 43, 44, 42, 40, 52, 48, 43, 42, 43, 41, 42, 44, 45, 41, 40, 42, 41, 43, 42, 41, 40, 42];
+  const labels = ['Up', 'Warning', 'Critical', 'Down', 'Unmanaged'];
+  const values = labels.map((label) => statusCount(statusCounts, label) ?? 0);
 
   const ctx = canvas.getContext('2d');
   fleetTrendChartInstance = new Chart(ctx, {
-    type: 'line',
+    type: 'bar',
     data: {
-      labels: hours,
-      datasets: [
-        {
-          label: 'Fleet SLA Availability (%)',
-          data: slaPoints,
-          borderColor: '#10B981',
-          backgroundColor: 'rgba(16, 185, 129, 0.08)',
-          borderWidth: 2,
-          fill: true,
-          tension: 0.3,
-          pointRadius: 2,
-          pointHoverRadius: 5,
-          yAxisID: 'ySla'
-        },
-        {
-          label: 'Network Latency (ms)',
-          data: latencyPoints,
-          borderColor: '#F97316',
-          borderDash: [3, 3],
-          borderWidth: 1.5,
-          fill: false,
-          tension: 0.3,
-          pointRadius: 2,
-          pointHoverRadius: 5,
-          yAxisID: 'yLat'
-        }
-      ]
+      labels,
+      datasets: [{
+        label: 'SolarWinds nodes',
+        data: values,
+        backgroundColor: ['#10B981', '#F59E0B', '#EF4444', '#B91C1C', '#6B7280'],
+        borderRadius: 4,
+      }],
     },
     options: {
       responsive: true,
@@ -739,20 +761,7 @@ function renderFleetSlaTrend() {
       },
       scales: {
         x: { grid: { color: 'rgba(255,255,255,0.03)' }, ticks: { color: '#6B7280', font: { family: 'JetBrains Mono', size: 10 } } },
-        ySla: {
-          position: 'left',
-          min: 95,
-          max: 100,
-          grid: { color: 'rgba(255,255,255,0.03)' },
-          ticks: { color: '#10B981', font: { family: 'JetBrains Mono', size: 10 }, callback: v => v + '%' }
-        },
-        yLat: {
-          position: 'right',
-          min: 0,
-          max: 100,
-          grid: { display: false },
-          ticks: { color: '#F97316', font: { family: 'JetBrains Mono', size: 10 }, callback: v => v + 'ms' }
-        }
+        y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.03)' }, ticks: { color: '#6B7280', font: { family: 'JetBrains Mono', size: 10 } } },
       }
     }
   });
@@ -818,9 +827,15 @@ function renderCampusRows() {
     const statusText = s.health_status ? s.health_status.toUpperCase() : 'UNKNOWN';
 
     // SVG sparkline
-    const points = s.trend_24h || [99, 99.2, 98.5, 99, 99.4, 99.1, 98.8, 99.5];
-    const minVal = Math.min(...points);
-    const maxVal = Math.max(...points) || 100;
+    const points = Array.isArray(s.trend_24h) ? s.trend_24h : [];
+    const siteName = s.name || s.location || 'Unnamed location';
+    const nodeCount = asNumber(s.nodes_count ?? s.total_cis);
+    const availability = asNumber(s.sla_pct ?? s.availability_pct);
+    const avgCpu = asNumber(s.avg_cpu);
+    const avgRam = asNumber(s.avg_ram);
+    const hasTrend = points.length > 1;
+    const minVal = hasTrend ? Math.min(...points) : 0;
+    const maxVal = hasTrend ? Math.max(...points) : 1;
     const range = Math.max(1, maxVal - minVal);
     const svgPoints = points.map((p, idx) => {
       const x = (idx / (points.length - 1)) * 90 + 5;
@@ -830,22 +845,20 @@ function renderCampusRows() {
 
     return `
       <tr>
-        <td><strong>${escapeHtml(s.name)}</strong></td>
+        <td><strong>${escapeHtml(siteName)}</strong></td>
         <td><span class="badge-region">${escapeHtml(s.region || 'GLOBAL')}</span></td>
-        <td class="font-mono">${formatNumber(s.nodes_count || 0)}</td>
-        <td class="font-mono" style="color: ${(s.sla_pct || 99) < 95 ? '#EF4444' : '#10B981'}; font-weight: 600;">${(s.sla_pct || 99.0).toFixed(1)}%</td>
-        <td class="font-mono">${(s.avg_cpu || 10.0).toFixed(1)}% / ${(s.avg_ram || 25.0).toFixed(1)}%</td>
+        <td class="font-mono">${nodeCount === null ? '—' : formatNumber(nodeCount)}</td>
+        <td class="font-mono" style="color: ${availability === null ? 'var(--text-muted)' : availability < 95 ? '#EF4444' : '#10B981'}; font-weight: 600;">${availability === null ? '—' : `${availability.toFixed(1)}%`}</td>
+        <td class="font-mono">${avgCpu === null ? '—' : `${avgCpu.toFixed(1)}%`} / ${avgRam === null ? '—' : `${avgRam.toFixed(1)}%`}</td>
         <td>
-          <svg class="sparkline-svg" viewBox="0 0 100 30">
-            <polyline fill="none" stroke="#10B981" stroke-width="1.5" points="${svgPoints}" />
-          </svg>
+          ${hasTrend ? `<svg class="sparkline-svg" viewBox="0 0 100 30"><polyline fill="none" stroke="#10B981" stroke-width="1.5" points="${svgPoints}" /></svg>` : '<span class="text-muted">Not reported</span>'}
         </td>
         <td>
           <div style="display: flex; gap: 6px; align-items: center;">
-            <button class="btn-action btn-site-trend" data-name="${escapeHtml(s.name)}" data-region="${escapeHtml(s.region)}" style="height: 26px; padding: 0 8px; font-size: 11px;">
+            <button class="btn-action btn-site-trend" data-name="${escapeHtml(siteName)}" data-region="${escapeHtml(s.region)}" style="height: 26px; padding: 0 8px; font-size: 11px;">
               Trend
             </button>
-            <button class="btn-action btn-filter-campus-servers" data-name="${escapeHtml(s.name)}" style="height: 26px; padding: 0 8px; font-size: 11px; border-color: rgba(249, 115, 22, 0.4); color: var(--accent-ops);">
+            <button class="btn-action btn-filter-campus-servers" data-name="${escapeHtml(siteName)}" style="height: 26px; padding: 0 8px; font-size: 11px; border-color: rgba(249, 115, 22, 0.4); color: var(--accent-ops);">
               Nodes
             </button>
           </div>

@@ -17,10 +17,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.core.middleware import set_last_sync_timestamp
 from app.models.ci import ConfigurationItem
+from app.models.compliance_cache import IntuneComplianceReasonCache
 from app.models.history import CIStatusHistory
 from app.models.sync import SyncErrorLog, SyncRun
 from app.repositories.ci_repository import CIRepository
 from app.repositories.sync_repository import SyncRepository
+from app.services.remediation_cache import remediation_cache_write_lock
 from app.services.seed_service import (
     classify_device_role,
     classify_node_health,
@@ -78,6 +80,92 @@ class SyncService:
         storage = _safe_float(ci_data.get("storage_used"))
         payload = f"{status}:{health}:{cpu}:{ram}:{storage}"
         return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+    async def _refresh_cached_intune_remediation_worklists(
+        self, graph_client: Any
+    ) -> None:
+        """Refresh cached Intune reason/worklist evidence during the scheduled sync."""
+        now = datetime.now(timezone.utc)
+        reasons = await asyncio.to_thread(
+            graph_client.get_noncompliance_reason_summaries
+        )
+        existing = list(
+            (
+                await self.session.execute(select(IntuneComplianceReasonCache))
+            ).scalars().all()
+        )
+        cached_worklist_ids = [
+            record.summary_id
+            for record in existing
+            if record.is_active and record.worklist_refreshed_at is not None
+        ]
+        # Release the read transaction before remote calls. SQLite otherwise
+        # retains a transaction while waiting for Graph responses.
+        await self.session.rollback()
+
+        refreshed_worklists: Dict[str, List[Dict[str, Any]]] = {}
+        for summary_id in cached_worklist_ids:
+            try:
+                refreshed_worklists[summary_id] = await asyncio.to_thread(
+                    graph_client.get_noncompliant_devices_for_reason,
+                    summary_id,
+                )
+            except Exception as exc:
+                logger.warning(
+                    "Intune remediation cache refresh skipped for %s: %s",
+                    summary_id,
+                    exc,
+                )
+
+        # Only one cache update may write at a time in SQLite. All Graph calls
+        # above are complete before this short protected database update.
+        async with remediation_cache_write_lock:
+            existing = list(
+                (
+                    await self.session.execute(select(IntuneComplianceReasonCache))
+                ).scalars().all()
+            )
+            by_id = {record.summary_id: record for record in existing}
+            cached_worklists = [
+                record
+                for record in existing
+                if record.is_active and record.worklist_refreshed_at is not None
+            ]
+            for record in existing:
+                record.is_active = False
+
+            for reason in reasons:
+                summary_id = str(reason.get("id") or "")
+                if not summary_id:
+                    continue
+                record = by_id.get(summary_id)
+                if record is None:
+                    record = IntuneComplianceReasonCache(
+                        summary_id=summary_id,
+                        setting_name=str(reason.get("setting_name") or "Unnamed setting"),
+                        platform=str(reason.get("platform") or "unknown"),
+                        devices=[],
+                        catalog_refreshed_at=now,
+                        is_active=True,
+                    )
+                    self.session.add(record)
+                record.setting_name = str(reason.get("setting_name") or "Unnamed setting")
+                record.platform = str(reason.get("platform") or "unknown")
+                record.noncompliant_count = int(reason.get("noncompliant_count") or 0)
+                record.error_count = int(reason.get("error_count") or 0)
+                record.conflict_count = int(reason.get("conflict_count") or 0)
+                record.affected_count = int(reason.get("affected_count") or 0)
+                record.catalog_refreshed_at = now
+                record.is_active = True
+
+            active_ids = {str(reason.get("id") or "") for reason in reasons}
+            for record in cached_worklists:
+                if record.summary_id not in active_ids or record.summary_id not in refreshed_worklists:
+                    continue
+                record.devices = refreshed_worklists[record.summary_id]
+                record.worklist_refreshed_at = now
+
+            await self.session.flush()
 
     async def _try_acquire_advisory_lock(self) -> bool:
         """Attempt to acquire session-level advisory lock 1048576."""
@@ -301,7 +389,10 @@ class SyncService:
             started_at=started_at,
         )
         self.session.add(sync_run)
-        await self.session.flush()
+        # Commit the short audit write before any long source request. This
+        # prevents a SQLite write transaction from blocking dashboard reads
+        # while Microsoft Graph or SolarWinds is being queried.
+        await self.session.commit()
 
         try:
             if should_fail:
@@ -312,6 +403,7 @@ class SyncService:
             total_updated = 0
             total_unchanged = 0
             total_history = 0
+            intune_remediation_client = None
 
             # If external telemetry items provided (e.g. test invocation), process them directly
             if telemetry_items is not None:
@@ -329,14 +421,20 @@ class SyncService:
                 # 1. Ingest Microsoft Intune Telemetry (27,412 Devices)
                 if source_system in ("ALL", "INTUNE"):
                     intune_devices = None
-                    tenant_id = os.getenv("AZURE_TENANT_ID")
-                    client_id = os.getenv("AZURE_CLIENT_ID")
-                    client_sec = os.getenv("AZURE_CLIENT_SECRET")
+                    intune_graph_client = None
+                    # Settings loads the approved .env file; os.getenv() does
+                    # not see values parsed by Pydantic Settings.
+                    tenant_id = settings.AZURE_TENANT_ID
+                    client_id = settings.AZURE_CLIENT_ID
+                    client_sec = settings.AZURE_CLIENT_SECRET
                     if tenant_id and client_id and client_sec:
                         try:
                             from src.sync.graph_client import GraphClient
                             gc = GraphClient(tenant_id=tenant_id, client_id=client_id, client_secret=client_sec)
-                            intune_devices = gc.fetch_managed_devices()
+                            intune_graph_client = gc
+                            intune_devices = await asyncio.to_thread(
+                                gc.fetch_managed_devices
+                            )
                             logger.info("Live Graph API fetch extracted %d Intune devices.", len(intune_devices))
                         except Exception as exc:
                             logger.warning("Live Graph API fetch failed: %s; falling back to staged file", exc)
@@ -391,18 +489,19 @@ class SyncService:
                         total_updated += res_intune["updated"]
                         total_unchanged += res_intune["unchanged"]
                         total_history += res_intune["history_written"]
+                        intune_remediation_client = intune_graph_client
 
                 # 2. Ingest SolarWinds Server Nodes (1,572 Nodes)
                 if source_system in ("ALL", "SOLARWINDS"):
                     sw_nodes = None
-                    sw_host = os.getenv("SOLARWINDS_HOST")
-                    sw_user = os.getenv("SOLARWINDS_USERNAME")
-                    sw_pwd = os.getenv("SOLARWINDS_PASSWORD")
+                    sw_host = settings.SOLARWINDS_HOST
+                    sw_user = settings.SOLARWINDS_USERNAME
+                    sw_pwd = settings.SOLARWINDS_PASSWORD
                     if sw_host and sw_user and sw_pwd:
                         try:
                             from src.sync.solarwinds_client import SolarWindsClient
                             sw_c = SolarWindsClient(host=sw_host, username=sw_user, password=sw_pwd)
-                            sw_nodes = sw_c.fetch_nodes()
+                            sw_nodes = await asyncio.to_thread(sw_c.fetch_nodes)
                             logger.info("Live SolarWinds SWIS API fetch extracted %d nodes.", len(sw_nodes))
                         except Exception as exc:
                             logger.warning("Live SolarWinds fetch failed: %s; falling back to staged file", exc)
@@ -448,6 +547,21 @@ class SyncService:
                         total_updated += res_sw["updated"]
                         total_unchanged += res_sw["unchanged"]
                         total_history += res_sw["history_written"]
+
+            if intune_remediation_client is not None:
+                # Persist main telemetry before the optional cache refresh.
+                # The main dashboard remains available even if cache refresh
+                # needs more time or encounters a Graph permission issue.
+                await self.session.commit()
+                try:
+                    await self._refresh_cached_intune_remediation_worklists(
+                        intune_remediation_client
+                    )
+                except Exception as exc:
+                    logger.warning(
+                        "Intune remediation cache refresh skipped: %s",
+                        exc,
+                    )
 
             completed_at = datetime.now(timezone.utc)
             duration_ms = int((completed_at - started_at).total_seconds() * 1000)
