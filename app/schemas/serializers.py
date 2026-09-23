@@ -40,6 +40,14 @@ def _json_safe(value: Any) -> Any:
     if isinstance(value, uuid.UUID):
         return str(value)
     if isinstance(value, (_dt.datetime, _dt.date, _dt.time)):
+        if isinstance(value, _dt.datetime):
+            # SQLite returns DateTime(timezone=True) columns as naive values.
+            # Persisted ITOM timestamps are written in UTC, so make that
+            # contract explicit at the JSON boundary.
+            if value.tzinfo is None:
+                value = value.replace(tzinfo=_dt.timezone.utc)
+            else:
+                value = value.astimezone(_dt.timezone.utc)
         return value.isoformat()
     if isinstance(value, decimal.Decimal):
         return float(value)

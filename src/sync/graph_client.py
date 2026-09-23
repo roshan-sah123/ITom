@@ -10,6 +10,7 @@ import json
 import logging
 import os
 import time
+from urllib.parse import urlparse
 from typing import Any, Dict, List, Optional
 import requests
 from requests.adapters import HTTPAdapter
@@ -153,11 +154,11 @@ class GraphClient:
             "grant_type": "client_credentials",
         }
 
-        logger.info("Requesting OAuth 2.0 token from Azure AD: %s", token_url)
+        logger.info("Requesting OAuth client-credentials token from Microsoft Entra.")
         try:
             response = self._session.post(token_url, headers=headers, data=payload, timeout=self.timeout)
             if response.status_code != 200:
-                error_details = response.text
+                error_details = "Token endpoint rejected authentication"
                 logger.error("OAuth token request failed (%d): %s", response.status_code, error_details)
                 raise GraphAuthError(f"OAuth authentication failed ({response.status_code}): {error_details}")
 
@@ -168,8 +169,7 @@ class GraphClient:
             logger.info("Acquired fresh access token (expires in %ds).", expires_in)
             return self._access_token
         except requests.RequestException as exc:
-            logger.error("Network error during Azure AD authentication: %s", exc)
-            raise GraphAuthError(f"Network error during authentication: {exc}") from exc
+            raise GraphAuthError(f"Entra connection failed ({type(exc).__name__})") from exc
 
     def fetch_managed_devices(
         self,
@@ -206,9 +206,14 @@ class GraphClient:
 
         devices: List[Dict[str, Any]] = []
         page_num = 1
+        visited = set()
 
         logger.info("Initiating Intune managed devices extraction from Microsoft Graph...")
         while endpoint:
+            parsed = urlparse(endpoint)
+            if parsed.scheme != "https" or parsed.hostname != "graph.microsoft.com" or endpoint in visited:
+                raise GraphApiError("Invalid or repeated Graph pagination URL")
+            visited.add(endpoint)
             try:
                 response = self._session.get(endpoint, headers=headers, timeout=self.timeout)
                 if response.status_code == 401:
@@ -219,12 +224,14 @@ class GraphClient:
                     response = self._session.get(endpoint, headers=headers, timeout=self.timeout)
 
                 if response.status_code != 200:
-                    error_msg = f"Graph API request failed on page {page_num} ({response.status_code}): {response.text}"
+                    error_msg = f"Graph API request failed on page {page_num} (HTTP {response.status_code})"
                     logger.error(error_msg)
                     raise GraphApiError(error_msg)
 
                 page_data = response.json()
-                page_items = page_data.get("value", [])
+                if not isinstance(page_data, dict) or not isinstance(page_data.get("value"), list):
+                    raise GraphApiError("Malformed Graph page: expected a value array")
+                page_items = page_data["value"]
                 devices.extend(page_items)
                 logger.info("Page %d: fetched %d devices (total so far: %d)", page_num, len(page_items), len(devices))
 
@@ -235,8 +242,7 @@ class GraphClient:
                 endpoint = page_data.get("@odata.nextLink")
                 page_num += 1
             except requests.RequestException as exc:
-                logger.error("Network error while querying Graph API on page %d: %s", page_num, exc)
-                raise GraphApiError(f"Network error during device extraction: {exc}") from exc
+                raise GraphApiError(f"Graph page {page_num} connection failed ({type(exc).__name__})") from exc
 
         logger.info("Extraction complete. Total devices fetched: %d", len(devices))
         return devices

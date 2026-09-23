@@ -26,6 +26,7 @@ from app.models import history as _history_models  # noqa: F401  (registers tabl
 from app.models import sync as _sync_models  # noqa: F401  (registers tables)
 from app.models.base import Base
 from app.models.ci import ConfigurationItem
+from app.repositories.ci_repository import CIRepository
 from app.repositories.summary_repository import EmptyDatasetError, SummaryRepository
 
 # The exact figures that used to be hardcoded in ci_service.py. If any of these
@@ -44,6 +45,7 @@ def _ci(
     health_tier: str,
     ci_type: str = "Server",
     vendor: str = "Dell",
+    location: str | None = None,
 ) -> ConfigurationItem:
     """Build a minimal, valid ConfigurationItem row."""
     now = datetime.now(timezone.utc)
@@ -56,6 +58,7 @@ def _ci(
         status=status,
         health_tier=health_tier,
         vendor=vendor,
+        location=location,
         last_sync_time=now,
         state_hash="deadbeef",
         attributes={},
@@ -202,6 +205,29 @@ async def test_solarwinds_summary_includes_every_status(session: AsyncSession):
 
     # The Low health tier must be reachable.
     assert metrics["low_health_count"] == 2
+
+
+@pytest.mark.asyncio
+async def test_solarwinds_sites_include_nodes_without_a_location(session: AsyncSession):
+    """Site totals must reconcile to all SolarWinds nodes without inventing a site."""
+    session.add_all([
+        _ci("SOLARWINDS", "SRV-PUNE-1", "Up", "High", location="Pune"),
+        _ci("SOLARWINDS", "SRV-PUNE-2", "Warning", "Medium", location="Pune"),
+        _ci("SOLARWINDS", "SRV-NO-LOCATION", "Up", "High", location=None),
+        _ci("SOLARWINDS", "SRV-BLANK-LOCATION", "Critical", "Low", location=""),
+    ])
+    await session.flush()
+
+    sites = await CIRepository(session).get_solarwinds_sites()
+    totals_by_site = {site["name"]: site["total_nodes"] for site in sites}
+
+    assert totals_by_site["Pune"] == 2
+    assert totals_by_site["Unassigned"] == 2
+    assert sum(totals_by_site.values()) == 4
+
+    unassigned = next(site for site in sites if site["name"] == "Unassigned")
+    assert unassigned["id"] == "unassigned"
+    assert unassigned["region"] == "UNASSIGNED"
 
 
 # --------------------------------------------------------------------------- #

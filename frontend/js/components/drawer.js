@@ -61,10 +61,14 @@ export async function openCiDrawer(ci) {
           <span class="font-mono">${escapeHtml(ci.serial_number || 'N/A')}</span>
           <span style="color: #9CA3AF;">Operating System:</span>
           <span>${escapeHtml(ci.operating_system || 'N/A')}</span>
+          <span style="color: #9CA3AF;">Accountable Owner:</span>
+          <span>${escapeHtml(ci.attributes?.contact || ci.attributes?.user_principal_name || ci.attributes?.primary_user || 'Unassigned')}</span>
           <span style="color: #9CA3AF;">Campus Facility:</span>
-          <span>${escapeHtml(ci.location || 'Data Center')}</span>
+          <span>${escapeHtml(ci.location || 'Unassigned')}</span>
           <span style="color: #9CA3AF;">Last Sync Time:</span>
           <span>${escapeHtml(formatRelativeTime(ci.last_sync_time))}</span>
+          <span style="color: #9CA3AF;">Discovered At:</span>
+          <span>${escapeHtml(formatRelativeTime(ci.created_at || ci.last_sync_time))}</span>
         </div>
       </div>
 

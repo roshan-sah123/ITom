@@ -46,3 +46,5 @@ __pycache__/
 # Local database - never commit
 data/*.db
 data/*.sqlite
+data/*.db-journal
+data/*.db-*

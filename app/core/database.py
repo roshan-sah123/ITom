@@ -4,6 +4,8 @@ import logging
 import os
 from collections.abc import AsyncGenerator
 from typing import Optional
+from sqlalchemy import event
+from sqlalchemy.orm import Session, with_loader_criteria
 
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
@@ -15,6 +17,16 @@ from sqlalchemy.ext.asyncio import (
 from app.core.config import settings
 
 logger = logging.getLogger("itom.database")
+
+
+@event.listens_for(Session, "do_orm_execute")
+def active_inventory_scope(execute_state):
+    """Inventory reads exclude retired assets; ingestion opts in explicitly."""
+    if execute_state.is_select and not execute_state.execution_options.get("include_retired"):
+        from app.models.ci import ConfigurationItem
+        execute_state.statement = execute_state.statement.options(
+            with_loader_criteria(ConfigurationItem, lambda ci: ci.is_active.is_(True), include_aliases=True)
+        )
 
 
 def _find_project_root() -> str:
@@ -45,23 +57,50 @@ def _is_db_reachable(db_url: str) -> bool:
         return False
 
 
+def _create_sqlite_engine(url: str) -> AsyncEngine:
+    """Create a local engine that lets portal reads coexist with sync writes."""
+    sqlite_engine = create_async_engine(
+        url,
+        echo=settings.DB_ECHO,
+        connect_args={"check_same_thread": False, "timeout": 30},
+    )
+
+    @event.listens_for(sqlite_engine.sync_engine, "connect")
+    def configure_sqlite_connection(dbapi_connection, _connection_record):
+        cursor = dbapi_connection.cursor()
+        try:
+            cursor.execute("PRAGMA journal_mode=WAL")
+            cursor.execute("PRAGMA synchronous=NORMAL")
+            cursor.execute("PRAGMA busy_timeout=30000")
+        finally:
+            cursor.close()
+
+    return sqlite_engine
+
+
 def create_engine_for_url(db_url: Optional[str] = None) -> AsyncEngine:
     """Create an AsyncEngine optimized for the target database dialect with resilient fallbacks."""
     url = db_url or settings.async_database_url
+    local_mode = settings.ENVIRONMENT.lower() in {"development", "local", "demo", "test"}
+    if not local_mode and not url.startswith(("postgresql", "postgres:")):
+        raise RuntimeError("PostgreSQL is required outside explicit local/demo/development/test mode.")
 
     if "postgresql" in url and not _is_db_reachable(url):
-        logger.info("Configured PostgreSQL server is unreachable; activating SQLite fallback: %s", SQLITE_FALLBACK_URL)
+        if not local_mode:
+            raise RuntimeError(
+                "Configured PostgreSQL server is unreachable; SQLite fallback is disabled in production."
+            )
+        logger.warning(
+            "Configured PostgreSQL server is unreachable; activating local SQLite fallback: %s",
+            SQLITE_FALLBACK_URL,
+        )
         url = SQLITE_FALLBACK_URL
 
     if "sqlite" in url:
         if "./data/itom.db" in url or "data/itom.db" in url:
             url = SQLITE_FALLBACK_URL
         try:
-            return create_async_engine(
-                url,
-                echo=settings.DB_ECHO,
-                connect_args={"check_same_thread": False},
-            )
+            return _create_sqlite_engine(url)
         except (ModuleNotFoundError, Exception) as exc:
             logger.warning("SQLite async driver error (%s); initializing fallback mock async engine", exc)
 
@@ -76,13 +115,11 @@ def create_engine_for_url(db_url: Optional[str] = None) -> AsyncEngine:
             echo=settings.DB_ECHO,
         )
     except (ModuleNotFoundError, Exception) as exc:
+        if not local_mode:
+            raise RuntimeError("PostgreSQL engine initialization failed; fallback is disabled.") from exc
         logger.warning("PostgreSQL async engine creation fallback triggered (%s)", exc)
         try:
-            return create_async_engine(
-                SQLITE_FALLBACK_URL,
-                echo=settings.DB_ECHO,
-                connect_args={"check_same_thread": False},
-            )
+            return _create_sqlite_engine(SQLITE_FALLBACK_URL)
         except (ModuleNotFoundError, Exception) as fallback_exc:
             logger.warning("aiosqlite driver not installed; running in decoupled testing mode (%s)", fallback_exc)
             # Create in-memory mock engine placeholder

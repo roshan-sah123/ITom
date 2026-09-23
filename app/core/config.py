@@ -62,7 +62,7 @@ class Settings(BaseSettings):
     LOCAL_SERVER_PORT: int = 22
 
     # CORS Configuration
-    CORS_ORIGINS: Union[str, List[str]] = "http://localhost:8080,http://127.0.0.1:8080,http://localhost:8000,http://127.0.0.1:8000"
+    CORS_ORIGINS: Union[str, List[str]] = "http://localhost:8080,http://127.0.0.1:8080,http://localhost:8081,http://127.0.0.1:8081,http://localhost:8000,http://127.0.0.1:8000"
     CORS_ALLOW_CREDENTIALS: bool = True
     BACKEND_CORS_ORIGINS: List[str] = Field(
         default_factory=lambda: [
@@ -152,8 +152,14 @@ class Settings(BaseSettings):
                 values["BACKEND_CORS_ORIGINS"] = origins
                 values["CORS_ORIGINS"] = origins
             else:
-                values["BACKEND_CORS_ORIGINS"] = ["http://localhost:8080"]
-                values["CORS_ORIGINS"] = ["http://localhost:8080"]
+                # Local supervisor may serve the UI on either hostname and on
+                # 8080/8081 depending on which portal instance is open.
+                origins = [
+                    "http://localhost:8080", "http://127.0.0.1:8080",
+                    "http://localhost:8081", "http://127.0.0.1:8081",
+                ]
+                values["BACKEND_CORS_ORIGINS"] = origins
+                values["CORS_ORIGINS"] = origins
 
         return values
 

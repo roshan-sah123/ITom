@@ -27,6 +27,7 @@ async def list_solarwinds_nodes(
     health_tier: Optional[str] = Query(None),
     status_filter: Optional[str] = Query(None, alias="status"),
     vendor: Optional[str] = Query(None),
+    location: Optional[str] = Query(None, description="Exact source location; use Unassigned for blank locations"),
     sort_by: Optional[str] = Query("name"),
     sort_order: Optional[str] = Query("asc"),
     ci_service: CIService = Depends(get_ci_service),
@@ -46,8 +47,34 @@ async def list_solarwinds_nodes(
         health_tier=health_tier,
         status=status_filter,
         vendor=vendor,
+        location=location,
         sort_by=sort_by,
         sort_order=sort_order,
+    )
+
+
+@router.get("/network-devices", status_code=status.HTTP_200_OK)
+async def list_network_devices(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(25),
+    search: Optional[str] = Query(None),
+    ci_type: Optional[str] = Query(None),
+    vendor: Optional[str] = Query(None),
+    health_tier: Optional[str] = Query(None),
+    status_filter: Optional[str] = Query(None, alias="status"),
+    location: Optional[str] = Query(None, description="Exact source location; use Unassigned for blank locations"),
+    sort_by: Optional[str] = Query("name"),
+    sort_order: Optional[str] = Query("asc"),
+    ci_service: CIService = Depends(get_ci_service),
+) -> Dict[str, Any]:
+    """List SolarWinds node inventory classified from vendor and MachineType as network gear."""
+    if page_size not in ALLOWED_PAGE_SIZES:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                            detail=f"page_size must be one of {sorted(list(ALLOWED_PAGE_SIZES))}")
+    return await ci_service.get_network_devices(
+        page=page, page_size=page_size, search=search, ci_type=ci_type,
+        vendor=vendor, health_tier=health_tier, status=status_filter,
+        location=location, sort_by=sort_by, sort_order=sort_order,
     )
 
 
@@ -55,7 +82,7 @@ async def list_solarwinds_nodes(
 async def list_solarwinds_sites(
     ci_service: CIService = Depends(get_ci_service),
 ) -> Dict[str, Any]:
-    """Retrieve 60-campus location telemetry breakdown, health tiers, and sparkline trends."""
+    """Retrieve location telemetry groups, including explicitly unassigned nodes."""
     sites = await ci_service.get_solarwinds_sites()
     return {
         "status": "success",
@@ -78,4 +105,3 @@ async def get_solarwinds_site_trend(
         "status": "success",
         "data": trend,
     }
-

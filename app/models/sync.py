@@ -28,6 +28,9 @@ class SyncRun(Base, UUIDPrimaryKeyMixin):
     records_processed: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     records_updated: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     records_unchanged: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    records_retired: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    records_failed: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    items_normalized: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
     items_extracted: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     items_persisted: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     duration_ms: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
@@ -52,6 +55,15 @@ class SyncRun(Base, UUIDPrimaryKeyMixin):
 
     def to_dict(self) -> Dict[str, Any]:
         """Serialize to a JSON-safe dict."""
+        def utc_iso(value: Optional[datetime]) -> Optional[str]:
+            if value is None:
+                return None
+            if value.tzinfo is None:
+                value = value.replace(tzinfo=timezone.utc)
+            else:
+                value = value.astimezone(timezone.utc)
+            return value.isoformat()
+
         return {
             "id": str(self.id),
             "source_system": self.source_system,
@@ -59,11 +71,14 @@ class SyncRun(Base, UUIDPrimaryKeyMixin):
             "records_processed": self.records_processed,
             "records_updated": self.records_updated,
             "records_unchanged": self.records_unchanged,
+            "records_retired": self.records_retired,
+            "records_failed": self.records_failed,
+            "items_normalized": self.items_normalized,
             "items_extracted": self.items_extracted,
             "items_persisted": self.items_persisted,
             "duration_ms": self.duration_ms,
-            "started_at": self.started_at.isoformat() if self.started_at else None,
-            "completed_at": self.completed_at.isoformat() if self.completed_at else None,
+            "started_at": utc_iso(self.started_at),
+            "completed_at": utc_iso(self.completed_at),
             "error_logs": [log.to_dict() for log in self.error_logs] if self.error_logs else [],
         }
 
@@ -102,6 +117,9 @@ class SyncErrorLog(Base, UUIDPrimaryKeyMixin):
 
     def to_dict(self) -> Dict[str, Any]:
         """Serialize to a JSON-safe dict."""
+        occurred_at = self.occurred_at
+        if occurred_at is not None:
+            occurred_at = occurred_at.replace(tzinfo=timezone.utc) if occurred_at.tzinfo is None else occurred_at.astimezone(timezone.utc)
         return {
             "id": str(self.id),
             "sync_run_id": str(self.sync_run_id),
@@ -110,6 +128,5 @@ class SyncErrorLog(Base, UUIDPrimaryKeyMixin):
             "error_message": self.error_message,
             "stack_trace": self.stack_trace,
             "context_data": self.context_data or {},
-            "occurred_at": self.occurred_at.isoformat() if self.occurred_at else None,
+            "occurred_at": occurred_at.isoformat() if occurred_at else None,
         }
-

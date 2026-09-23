@@ -36,7 +36,7 @@ def create_scheduler() -> AsyncIOScheduler:
     scheduler = AsyncIOScheduler(timezone="UTC")
     scheduler.add_job(
         run_periodic_telemetry_sync,
-        trigger=IntervalTrigger(seconds=settings.SYNC_INTERVAL_SECONDS),
+        trigger=IntervalTrigger(seconds=settings.SYNC_INTERVAL_SECONDS, timezone="UTC"),
         id=JOB_ID,
         name=JOB_NAME,
         max_instances=1,

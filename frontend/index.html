@@ -15,55 +15,38 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   
   <!-- Master Obsidian Design System & Favicon -->
-  <link rel="icon" type="image/png" href="logo.png">
-  <link rel="stylesheet" href="css/style.css">
+  <link rel="icon" type="image/png" href="logo.png?v=2">
+  <link rel="stylesheet" href="css/style.css?v=10">
 </head>
 <body>
   <div class="app-container">
     
-    <!-- 1. Global Header (64px) -->
+    <!-- Minimal global header -->
     <header class="global-header">
-      <div class="header-brand">
-        <div class="brand-badge">
-          <span>COFORGE</span> ITOM
-        </div>
-        <div>
-          <div class="brand-title">Unified Command & Telemetry Platform</div>
-          <div class="brand-sub">Multi-Domain Observability & PostgreSQL 16 CMDB Core</div>
-        </div>
+      <button class="brand-home" id="brandHome" type="button" aria-label="Return to portal home">
+        <img class="brand-logo" src="logo.png?v=2" alt="Coforge">
+      </button>
+      <div class="header-context" aria-label="Current workspace">
+        <span class="header-product">ITOM</span>
+        <span class="header-separator" aria-hidden="true">/</span>
+        <span id="activeWorkspaceLabel">Operations overview</span>
       </div>
-      <div class="header-telemetry">
-        <div class="heartbeat-pill" id="headerSyncPill">
-          <div class="heartbeat-dot"></div>
-          <span id="headerSyncText" class="font-mono">Sync: Connecting...</span>
-        </div>
-        <button class="btn-sync" id="btnTriggerSync">
-          <span>⚡</span> Sync Now
-        </button>
+      <div class="header-actions">
+        <label class="global-search">
+          <span class="sr-only">Search configuration items, devices, or sites</span>
+          <input id="globalSearch" type="search" placeholder="Search CIs, devices, sites" autocomplete="off">
+          <kbd>/</kbd>
+        </label>
       </div>
     </header>
 
-    <!-- 2. Module Navigation Bar (52px) -->
-    <nav class="module-nav">
-      <button class="nav-tab active" data-view="home">
-        <span>⌂ Portal Home</span>
-      </button>
-      <button class="nav-tab" data-view="infrastructure">
-        <span>Infrastructure Analytics</span>
-        <span class="tab-badge">1,572</span>
-      </button>
-      <button class="nav-tab" data-view="endpoints">
-        <span>Digital Experience (DEX)</span>
-        <span class="tab-badge">27,412</span>
-      </button>
-      <button class="nav-tab" data-view="cmdb">
-        <span>Enterprise CMDB</span>
-        <span class="tab-badge">28,984</span>
-      </button>
-      <button class="nav-tab" data-view="sync">
-        <span>Sync Ledger</span>
-        <span class="tab-badge">600s</span>
-      </button>
+    <nav class="module-nav" aria-label="Primary navigation">
+      <button class="nav-tab active" type="button" data-view="home">Overview</button>
+      <button class="nav-tab" type="button" data-view="infrastructure">Infrastructure</button>
+      <button class="nav-tab" type="button" data-view="endpoints">Endpoints</button>
+      <button class="nav-tab" type="button" data-view="cmdb">CMDB</button>
+      <button class="nav-tab" type="button" data-view="sync">Sync runs</button>
+      <button class="nav-tab" type="button" data-view="automation">Sync &amp; schedule</button>
     </nav>
 
     <!-- 3. Main Workspace Viewport -->
@@ -73,6 +56,52 @@
            VIEW 0: ITOM PORTAL MASTER HOME PAGE (MODULE LAUNCHER)
            ========================================================================= -->
       <section id="view-home" class="view-section active">
+        <div class="portal-home-v2">
+          <div class="portal-intro">
+            <p class="eyebrow">IT Operations Intelligence Platform</p>
+            <h1 class="sr-only">IT Operations Intelligence Platform</h1>
+            <label class="module-search">
+              <span class="sr-only">Search modules and supported analytics</span>
+              <input id="moduleSearch" type="search" placeholder="Search modules or analytics" autocomplete="off">
+              <kbd>/</kbd>
+            </label>
+            <p id="moduleSearchStatus" class="search-status" aria-live="polite"></p>
+          </div>
+          <div class="module-grid-v2" id="moduleGrid">
+            <button class="module-card-v2" data-target-view="infrastructure" data-search="infrastructure health servers network devices locations solarwinds">
+              <span class="module-code">INFRA</span>
+              <strong>Infrastructure Analytics</strong>
+              <span>Health, server and network-device inventory, and location operations.</span>
+              <em>Open workspace</em>
+            </button>
+            <button class="module-card-v2" data-target-view="endpoints" data-search="digital workplace devices compliance operating systems manufacturers storage intune">
+              <span class="module-code">DEX</span>
+              <strong>Digital Workplace Experience</strong>
+              <span>Compliance, operating systems, manufacturers, and managed-device inventory.</span>
+              <em>Open workspace</em>
+            </button>
+            <button class="module-card-v2" data-target-view="cmdb" data-search="cmdb reports assets inventory search categories location critical ownership solarwinds">
+              <span class="module-code">CMDB</span>
+              <strong>CMDB Reports</strong>
+              <span>SolarWinds-derived asset inventory and configuration reporting.</span>
+              <em>Open reports</em>
+            </button>
+            <button class="module-card-v2" data-target-view="automation" data-search="sync schedule automatic ingestion data freshness solarwinds intune">
+              <span class="module-code">SYNC</span>
+              <strong>Sync &amp; schedule</strong>
+              <span>Scheduled source refreshes, latest outcomes, and data freshness.</span>
+              <em>Review sync status</em>
+            </button>
+          </div>
+          <div class="portal-operations" aria-label="Data freshness status">
+            <div class="freshness-widget" id="headerSyncPill" role="status" aria-live="polite">
+              <strong>Data Freshness</strong>
+              <span id="freshnessSolarWinds">SolarWinds: checking</span>
+              <span id="freshnessIntune">Intune: checking</span>
+              <span id="headerSyncText">Status: checking</span>
+            </div>
+          </div>
+        </div>
         
         <!-- Multi-Domain Executive Pulse Banner -->
         <div class="home-banner">
@@ -249,6 +278,7 @@
            VIEW 1: INFRASTRUCTURE ANALYTICS WORKSPACE
            ========================================================================= -->
       <section id="view-infrastructure" class="view-section">
+        <button class="module-back-button" type="button" data-back-home>← Back to portal home</button>
         
         <!-- 4 Primary Category Cards (Top Sub-Tabs) -->
         <div class="infra-category-grid">
@@ -258,8 +288,8 @@
               <span>HYBRID ENTERPRISE SERVERS</span>
               <span>🖥️</span>
             </div>
-            <div class="cat-value" id="catServersVal">1,572</div>
-            <div class="cat-sub" id="catServersSub">88.8% Availability SLA</div>
+            <div class="cat-value" id="catServersVal">—</div>
+            <div class="cat-sub" id="catServersSub">Loading SolarWinds data</div>
           </div>
 
           <div class="category-card-tab" data-subtab="networks">
@@ -267,26 +297,26 @@
               <span>NETWORK INFRASTRUCTURE</span>
               <span>🌐</span>
             </div>
-            <div class="cat-value" id="catNetworksVal">488</div>
-            <div class="cat-sub" id="catNetworksSub">42.8ms Fleet Ping Latency</div>
+            <div class="cat-value" id="catNetworksVal">—</div>
+            <div class="cat-sub" id="catNetworksSub">Loading SolarWinds inventory</div>
           </div>
 
           <div class="category-card-tab" data-subtab="sites">
             <div class="cat-header">
-              <span>GLOBAL CAMPUS FACILITIES</span>
+              <span>LOCATION HEALTH</span>
               <span>🏢</span>
             </div>
-            <div class="cat-value" id="catSitesVal">71</div>
-            <div class="cat-sub" id="catSitesSub">38 India · 19 Americas · 14 EMEA</div>
+            <div class="cat-value" id="catSitesVal">—</div>
+            <div class="cat-sub" id="catSitesSub">Find locations that need attention</div>
           </div>
 
           <div class="category-card-tab" data-subtab="baseline">
             <div class="cat-header">
-              <span>CMDB COMPLIANCE BASELINE</span>
+              <span>CAPACITY & ALERT ANALYTICS</span>
               <span>🛡️</span>
             </div>
-            <div class="cat-value" id="catBaselineVal">96.8%</div>
-            <div class="cat-sub" id="catBaselineSub">SolarWinds Asset Posture</div>
+            <div class="cat-value" id="catBaselineVal">Coming soon</div>
+            <div class="cat-sub" id="catBaselineSub">Volume and alert APIs required</div>
           </div>
 
         </div>
@@ -303,17 +333,17 @@
                 <span>TOTAL SERVER NODES</span>
                 <div class="kpi-icon">🖥️</div>
               </div>
-              <div class="kpi-value" id="swTotalNodesVal">1,572</div>
-              <div class="kpi-footer" id="swTotalNodesSub">1,515 Monitored</div>
+              <div class="kpi-value" id="swTotalNodesVal">—</div>
+              <div class="kpi-footer" id="swTotalNodesSub">Loading live data</div>
             </div>
 
             <div class="kpi-card">
               <div class="kpi-header">
-                <span>FLEET AVAILABILITY SLA</span>
+                <span>FLEET HIGH HEALTH</span>
                 <div class="kpi-icon">☑️</div>
               </div>
-              <div class="kpi-value text-healthy" id="swSlaVal">88.8%</div>
-              <div class="kpi-footer">Authoritative SolarWinds SWIS</div>
+              <div class="kpi-value text-healthy" id="swSlaVal">—</div>
+              <div class="kpi-footer" id="swSlaFooter">High Health Tier • Snapshot Avail: <span id="swAvailSub">—</span></div>
             </div>
 
             <div class="kpi-card">
@@ -321,8 +351,8 @@
                 <span>ACTIVE ANOMALY ALERTS</span>
                 <div class="kpi-icon">⚠️</div>
               </div>
-              <div class="kpi-value text-warning" id="swAlertsVal">176</div>
-              <div class="kpi-footer">150 Warning · 41 Critical</div>
+              <div class="kpi-value text-warning" id="swAlertsVal">—</div>
+              <div class="kpi-footer">Derived from current node status</div>
             </div>
 
             <div class="kpi-card">
@@ -330,7 +360,7 @@
                 <span>CORE OS FOOTPRINT</span>
                 <div class="kpi-icon">🕹️</div>
               </div>
-              <div class="kpi-value" style="font-size: 16px; margin-top: 6px;" id="swOsVal">Cisco / Windows / Linux</div>
+              <div class="kpi-value" style="font-size: 16px; margin-top: 6px;" id="swOsVal">—</div>
               <div class="kpi-footer">Enterprise DC Infrastructure</div>
             </div>
           </div>
@@ -417,7 +447,7 @@
               </div>
               <div class="toolbar-right">
                 <button class="btn-export-csv" id="swExportCsv">
-                  <span>📊</span> Export CSV
+                  <span>📊</span> Export Filtered Results (CSV)
                 </button>
               </div>
             </div>
@@ -429,12 +459,13 @@
                   <tr>
                     <th>NODE NAME</th>
                     <th>IP ADDRESS</th>
+                    <th>OPERATIONAL STATUS</th>
+                    <th>DEVICE TYPE</th>
                     <th>VENDOR</th>
                     <th>HEALTH TIER</th>
                     <th>CPU LOAD</th>
                     <th>MEMORY USED</th>
                     <th>LATENCY</th>
-                    <th>ACTIONS</th>
                   </tr>
                 </thead>
                 <tbody id="swServerTableBody">
@@ -469,44 +500,6 @@
              =================================================================== -->
         <div id="subview-networks" class="infra-subview-panel" style="display: none;">
           
-          <div class="kpi-grid" style="margin-bottom: var(--space-6);">
-            <div class="kpi-card">
-              <div class="kpi-header">
-                <span>TOTAL NETWORK APPLIANCES</span>
-                <div class="kpi-icon">🌐</div>
-              </div>
-              <div class="kpi-value">488</div>
-              <div class="kpi-footer">Access & Distribution Switches</div>
-            </div>
-
-            <div class="kpi-card">
-              <div class="kpi-header">
-                <span>AVERAGE PING LATENCY</span>
-                <div class="kpi-icon">⚡</div>
-              </div>
-              <div class="kpi-value text-healthy">42.8ms</div>
-              <div class="kpi-footer">Campus Core Interconnects</div>
-            </div>
-
-            <div class="kpi-card">
-              <div class="kpi-header">
-                <span>ACTIVE ROUTERS & FIREWALLS</span>
-                <div class="kpi-icon">🛡️</div>
-              </div>
-              <div class="kpi-value">95</div>
-              <div class="kpi-footer">Palo Alto · Cisco · Fortinet</div>
-            </div>
-
-            <div class="kpi-card">
-              <div class="kpi-header">
-                <span>TOPOLOGY PROVENANCE</span>
-                <div class="kpi-icon">🗺️</div>
-              </div>
-              <div class="kpi-value" style="font-size: 16px; margin-top: 6px;">SolarWinds SWIS</div>
-              <div class="kpi-footer">Reconciled in PostgreSQL</div>
-            </div>
-          </div>
-
           <!-- Network Devices Table -->
           <div class="data-grid-card">
             <div class="grid-toolbar">
@@ -522,9 +515,12 @@
                   <option value="firewall">Firewalls</option>
                   <option value="appliance">Network Appliances</option>
                 </select>
+                <select class="filter-select" id="netLocationSelect">
+                  <option value="">Location (All)</option>
+                </select>
               </div>
               <div class="toolbar-right">
-                <span class="font-mono text-muted" style="font-size: 12px;">SolarWinds Network Discovery</span>
+                <button class="btn-export-csv" id="netExportCsv"><span>📊</span> Export Filtered Results (CSV)</button>
               </div>
             </div>
 
@@ -536,9 +532,9 @@
                     <th>IP ADDRESS</th>
                     <th>DEVICE TYPE</th>
                     <th>VENDOR</th>
+                    <th>OPERATIONAL STATUS</th>
                     <th>HEALTH TIER</th>
                     <th>PING LATENCY</th>
-                    <th>ACTIONS</th>
                   </tr>
                 </thead>
                 <tbody id="netDeviceTableBody">
@@ -548,7 +544,7 @@
             </div>
 
             <div class="grid-footer">
-              <div class="footer-count" id="netRecordCount">Showing 1–25 of 488 Network Devices</div>
+              <div class="footer-count" id="netRecordCount">Loading network devices…</div>
               <div class="footer-page-size">
                 <label for="netPageSizeSelect">Rows per page:</label>
                 <select class="select-page-size" id="netPageSizeSelect">
@@ -568,59 +564,42 @@
              =================================================================== -->
         <div id="subview-sites" class="infra-subview-panel" style="display: none;">
           
-          <!-- 24-Hour Continuous Fleet SLA & Latency Dual-Axis Trend -->
-          <div class="chart-card" style="height: 280px; margin-bottom: var(--space-6);">
-            <div class="chart-header">
-              <span class="chart-title">24-Hour Continuous Fleet SLA & Latency Trend</span>
-              <span class="chart-subtitle text-healthy">99.2% 24h Average SLA</span>
-            </div>
-            <div class="chart-canvas-wrap" style="height: 220px;">
-              <canvas id="ovFleetSlaChart"></canvas>
-            </div>
-          </div>
-
-          <!-- 71 Campus Facilities Table -->
-          <div class="data-grid-card">
-            
-            <div class="campus-table-header">
-              <div class="campus-title-area">
-                <span class="section-title" style="margin-bottom: 0;">Global Campus Facilities Telemetry (71 Locations)</span>
-                <div class="campus-region-tabs">
-                  <button class="campus-reg-tab active" data-region="ALL">All Regions</button>
-                  <button class="campus-reg-tab" data-region="INDIA">India (38)</button>
-                  <button class="campus-reg-tab" data-region="AMERICAS">Americas (19)</button>
-                  <button class="campus-reg-tab" data-region="APAC/EMEA">APAC & EMEA (14)</button>
-                </div>
+          <div class="data-grid-card location-health">
+            <div class="location-health-heading">
+              <div>
+                <h2>Location Health</h2>
+                <p>Find affected locations, then select a status count to see the devices.</p>
               </div>
-              <span class="font-mono text-muted" style="font-size: 11px;">SolarWinds SWIS Live Aggregation</span>
+              <span class="location-source-note">Latest synchronized SolarWinds inventory</span>
             </div>
-
-            <div class="grid-scroll" style="max-height: 480px;">
+            <div class="grid-toolbar">
+              <div class="toolbar-left">
+                <label class="location-search">
+                  <span class="sr-only">Search locations</span>
+                  <input class="filter-select" id="locationHealthSearch" type="search" placeholder="Search locations">
+                </label>
+                <label class="location-issues-toggle"><input type="checkbox" id="locationIssuesOnly"> Only locations with issues</label>
+                <button class="btn-filter-reset" id="locationHealthReset" type="button">Reset</button>
+              </div>
+            </div>
+            <p class="location-health-note" id="locationHealthSummary" role="status">Loading location health…</p>
+            <div class="grid-scroll">
               <table class="itom-table">
-                <thead>
-                  <tr>
-                    <th>CAMPUS LOCATION</th>
-                    <th>REGION</th>
-                    <th>MONITORED NODES</th>
-                    <th>AVAILABILITY SLA %</th>
-                    <th>AVG CPU / RAM</th>
-                    <th>24H TREND LINE</th>
-                    <th>ACTIONS</th>
-                  </tr>
-                </thead>
-                <tbody id="ovCampusTableBody">
-                  <!-- Campus facilities populated dynamically -->
-                </tbody>
+                <caption class="sr-only">Location inventory by operational status, ordered by critical and down devices</caption>
+                <thead><tr>
+                  <th scope="col">Location</th><th scope="col">Devices</th>
+                  <th scope="col">Up</th><th scope="col">Down</th>
+                  <th scope="col">Warning</th><th scope="col">Critical</th>
+                  <th scope="col">Other / Unmanaged</th>
+                </tr></thead>
+                <tbody id="ovCampusTableBody"></tbody>
               </table>
             </div>
-
             <div class="grid-footer">
-              <div class="footer-count" id="ovCampusRecordCount">Showing 1–10 of 71 Facilities</div>
-              <div class="footer-pagination" id="ovCampusPagination"></div>
+              <div class="footer-count" id="ovCampusRecordCount" aria-live="polite">Loading locations</div>
+              <nav class="footer-pagination" id="ovCampusPagination" aria-label="Location pages"></nav>
             </div>
-
           </div>
-
         </div>
 
         <!-- ===================================================================
@@ -670,6 +649,7 @@
            VIEW 2: DIGITAL WORKPLACE EXPERIENCE (DEX / ENDPOINTS)
            ========================================================================= -->
       <section id="view-endpoints" class="view-section">
+        <button class="module-back-button" type="button" data-back-home>← Back to portal home</button>
         
         <!-- 4 Executive KPI Cards Row -->
         <div class="kpi-grid">
@@ -688,7 +668,7 @@
               <div class="kpi-icon">🛡️</div>
             </div>
             <div class="kpi-value text-healthy" id="epCompRateVal">82.9%</div>
-            <div class="kpi-footer" id="epCompRateSub">Target: 95.0% SLA</div>
+            <div class="kpi-footer" id="epCompRateSub">Calculated from current device status</div>
           </div>
 
           <div class="kpi-card">
@@ -705,8 +685,8 @@
               <span>ZERO-TRUST ENCRYPTION</span>
               <div class="kpi-icon">🔒</div>
             </div>
-            <div class="kpi-value" style="color: #3B82F6;" id="epZeroTrustVal">94.2% BitLocker</div>
-            <div class="kpi-footer">Hardware TPM 2.0 Enforced</div>
+            <div class="kpi-value" style="color: #3B82F6;" id="epZeroTrustVal">Coming soon</div>
+            <div class="kpi-footer">Additional Intune security fields required</div>
           </div>
         </div>
 
@@ -743,26 +723,6 @@
             </div>
           </div>
 
-          <div class="chart-card">
-            <div class="chart-header">
-              <span class="chart-title">Sync Aging & Lifecycle</span>
-              <span class="chart-subtitle text-healthy">Live Mirror</span>
-            </div>
-            <div class="aging-widget">
-              <div class="aging-row">
-                <span class="aging-label text-healthy">Active (≤ 7 Days):</span>
-                <span class="aging-val font-mono" id="epAging7Val">24,123</span>
-              </div>
-              <div class="aging-row">
-                <span class="aging-label text-warning">Idle (7–30 Days):</span>
-                <span class="aging-val font-mono" id="epAging30Val">2,467</span>
-              </div>
-              <div class="aging-row">
-                <span class="aging-label text-critical">Stale (> 30 Days):</span>
-                <span class="aging-val font-mono" id="epAgingStaleVal">822</span>
-              </div>
-            </div>
-          </div>
 
         </div>
 
@@ -792,7 +752,7 @@
             </div>
             <div class="toolbar-right">
               <button class="btn-export-csv" id="epExportCsv">
-                <span>📊</span> Export CSV
+                <span>📊</span> Export Filtered Results (CSV)
               </button>
             </div>
           </div>
@@ -808,7 +768,6 @@
                   <th>MANUFACTURER</th>
                   <th>COMPLIANCE</th>
                   <th>SERIAL NUMBER</th>
-                  <th>ACTIONS</th>
                 </tr>
               </thead>
               <tbody id="epDeviceTableBody">
@@ -843,6 +802,7 @@
            VIEW 3: ENTERPRISE CMDB REPOSITORY (PURE CI ACCOUNTING)
            ========================================================================= -->
       <section id="view-cmdb" class="view-section">
+        <button class="module-back-button" type="button" data-back-home>← Back to portal home</button>
         
         <!-- 4 KPI Cards Row -->
         <div class="kpi-grid">
@@ -851,17 +811,17 @@
               <span>TOTAL RECONCILED CIS</span>
               <div class="kpi-icon">🗄️</div>
             </div>
-            <div class="kpi-value" id="cmdbTotalCisVal">28,984</div>
-            <div class="kpi-footer">0% Duplicate Records Enforced</div>
+            <div class="kpi-value" id="cmdbTotalCisVal">—</div>
+            <div class="kpi-footer">SolarWinds inventory and custom properties</div>
           </div>
 
           <div class="kpi-card">
             <div class="kpi-header">
-              <span>INTUNE PROVENANCE</span>
+              <span>CMDB DATA SOURCE</span>
               <div class="kpi-icon">💻</div>
             </div>
-            <div class="kpi-value" style="color: #3B82F6;" id="cmdbIntuneProvVal">27,287 (94.1%)</div>
-            <div class="kpi-footer">Microsoft Graph API Extractions</div>
+            <div class="kpi-value" style="color: #3B82F6;" id="cmdbIntuneProvVal">SolarWinds</div>
+            <div class="kpi-footer">Inventory plus custom properties</div>
           </div>
 
           <div class="kpi-card">
@@ -869,7 +829,7 @@
               <span>SOLARWINDS PROVENANCE</span>
               <div class="kpi-icon">🖥️</div>
             </div>
-            <div class="kpi-value text-warning" id="cmdbSwProvVal">1,697 (5.9%)</div>
+            <div class="kpi-value text-warning" id="cmdbSwProvVal">—</div>
             <div class="kpi-footer">SolarWinds Orion SWIS Extractions</div>
           </div>
 
@@ -878,8 +838,8 @@
               <span>HEALTH COMPLIANCE BASELINE</span>
               <div class="kpi-icon">🛡️</div>
             </div>
-            <div class="kpi-value text-healthy" id="cmdbHealthCompVal">83.3% (24,131)</div>
-            <div class="kpi-footer">Authoritative PostgreSQL 16</div>
+            <div class="kpi-value text-healthy" id="cmdbHealthCompVal">—</div>
+            <div class="kpi-footer">Calculated from current inventory</div>
           </div>
         </div>
 
@@ -902,7 +862,7 @@
               </div>
             </div>
             <div style="margin-top: 16px; font-size: 11px; color: var(--text-muted);">
-              All CIs reconciled into unified PostgreSQL schema with zero mock numbers or operational load noise.
+              Inventory reporting is derived from the currently available SolarWinds source data.
             </div>
           </div>
 
@@ -949,9 +909,9 @@
                 <input type="text" class="search-input" id="cmdbSearchInput" placeholder="Search CI name, serial number, IP address...">
               </div>
               <select class="filter-select" id="cmdbFilterSource">
-                <option value="">Source System (All)</option>
-                <option value="INTUNE">Microsoft Intune</option>
+                <option value="">Discovery Source (All)</option>
                 <option value="SOLARWINDS">SolarWinds Orion</option>
+                <option value="INTUNE">Microsoft Intune</option>
               </select>
               <select class="filter-select" id="cmdbFilterHealth">
                 <option value="">Health Tier (All)</option>
@@ -959,11 +919,14 @@
                 <option value="Medium">Medium Health</option>
                 <option value="Low">Low / Critical</option>
               </select>
+              <select class="filter-select" id="cmdbLocationSelect">
+                <option value="">Location (All)</option>
+              </select>
               <button class="btn-filter-reset" id="cmdbResetFilters">Reset</button>
             </div>
             <div class="toolbar-right">
               <button class="btn-export-csv" id="cmdbExportCsv">
-                <span>📊</span> Export CSV
+                <span>📊</span> Export Filtered Results (CSV)
               </button>
             </div>
           </div>
@@ -976,9 +939,9 @@
                   <th>SOURCE SYSTEM</th>
                   <th>CI TYPE</th>
                   <th>VENDOR</th>
+                  <th>LOCATION</th>
                   <th>HEALTH TIER</th>
                   <th>SERIAL NUMBER</th>
-                  <th>ACTIONS</th>
                 </tr>
               </thead>
               <tbody id="cmdbTableBody">
@@ -1009,16 +972,29 @@
       <!-- =========================================================================
            VIEW 4: BACKGROUND TELEMETRY INGESTION & SYNC LEDGER
            ========================================================================= -->
+      <section id="view-automation" class="view-section">
+        <button class="module-back-button" type="button" data-back-home>← Back to portal home</button>
+        <div class="sync-workspace" id="syncScheduleWorkspace" aria-live="polite">
+          <header class="sync-workspace-heading">
+            <div><p class="section-kicker">Source operations</p><h1>Sync &amp; schedule</h1><p>Live scheduler and source state from the local API and sync ledger.</p></div>
+            <button class="primary-action" id="runSyncNow" type="button">Run sync now</button>
+          </header>
+          <p class="sync-action-message" id="syncActionMessage" role="status"></p>
+          <div class="sync-facts" id="syncScheduleFacts"><p>Loading scheduler and source status…</p></div>
+          <div class="sync-source-grid" id="syncScheduleSources"></div>
+          <p class="sync-schedule-note">A sync runs only while this computer and the local service are running. If a source is unreachable, the attempt is recorded as failed and the next scheduled attempt will retry.</p>
+        </div>
+      </section>
+
       <section id="view-sync" class="view-section">
+        <button class="module-back-button" type="button" data-back-home>← Back to portal home</button>
         
         <div class="sync-status-strip" id="syncStatusStrip">
           <div>
-            <strong>Ingestion Daemon:</strong> <span class="text-healthy" id="syncDaemonStatus">HEALTHY</span> | 
-            <span>Cadence: 600s</span> | 
-            <span>Storage: PostgreSQL 16 (Relational Core)</span>
+            <strong>Ingestion status:</strong> <span id="syncDaemonStatus">Checking</span>
           </div>
           <div class="font-mono text-muted" id="syncMetadataStrip">
-            Age: 0s | SW Records: 1,572 | Intune Records: 27,412
+            Status is read from the local sync ledger.
           </div>
         </div>
 
@@ -1062,20 +1038,20 @@
     <div class="system-status-strip">
       <div class="status-left">
         <span class="status-dot"></span>
-        <span>PostgreSQL 16 Relational Storage: <strong>ONLINE (28,984 CIs Persisted)</strong></span>
+        <span>Operational data is sourced from SolarWinds and Microsoft Intune.</span>
       </div>
       <div class="status-center">
-        <span>Sync Cadence: Every 10 Minutes (600s) | Upstream SWIS & Graph: <strong>STRICT READ-ONLY</strong></span>
+        <span>Current freshness and sync health are shown on the portal home.</span>
       </div>
       <div class="status-right font-mono">
-        <span>HTTP 8000 REST API • 100% Zero-Hallucination</span>
+        <span>Internal POC</span>
       </div>
     </div>
 
     <!-- 6. Global Footer (56px) -->
     <footer class="global-footer">
       <div class="footer-left">
-        <strong>Coforge ITOM Platform</strong> © 2026 • Enterprise Telemetry & Command Center
+        <strong>Coforge IT Operations Intelligence</strong> © 2026
       </div>
       <div class="footer-right">
         <a href="http://localhost:8000/docs" target="_blank" class="footer-link">FastAPI Docs</a>
@@ -1124,6 +1100,6 @@
   </aside>
 
   <!-- Master ES6 Application Bootstrap -->
-  <script type="module" src="js/app.js"></script>
+  <script type="module" src="js/app.js?v=13"></script>
 </body>
 </html>

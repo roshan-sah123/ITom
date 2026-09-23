@@ -48,13 +48,19 @@ export async function openCampusTrendModal(siteName, region) {
     const data = trendRes.data || trendRes;
     const points = data.data_points || [];
 
+    if (!points.length) {
+      if (subEl) subEl.textContent = 'Unavailable: historical performance samples are not collected.';
+      if (chartCanvas) chartCanvas.hidden = true;
+      return;
+    }
+    if (chartCanvas) chartCanvas.hidden = false;
     const labels = points.length ? points.map(p => {
       const d = new Date(p.timestamp);
       return `${d.getHours().toString().padStart(2, '0')}:00`;
     }) : Array.from({ length: 24 }, (_, i) => `${String(i).padStart(2, '0')}:00`);
 
-    const slaValues = points.length ? points.map(p => p.availability_pct) : [98.8, 99.1, 99.4, 99.2, 98.9, 99.5, 99.3, 98.7, 99.2, 99.6, 99.1, 98.9, 99.2, 99.4, 99.6, 99.5, 99.2, 99.4, 99.5, 99.6, 99.2, 99.5, 99.4, 99.2];
-    const cpuValues = points.length ? points.map(p => p.avg_cpu) : [12, 14, 11, 10, 9, 12, 18, 22, 25, 24, 21, 19, 18, 20, 22, 19, 15, 12, 14, 13, 11, 12, 10, 11];
+    const slaValues = points.map(p => p.availability_pct);
+    const cpuValues = points.map(p => p.avg_cpu);
 
     if (chartCanvas) {
       const ctx = chartCanvas.getContext('2d');

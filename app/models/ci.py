@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 from sqlalchemy import (
+    Boolean,
     DateTime,
     ForeignKey,
     Index,
@@ -24,6 +25,9 @@ class ConfigurationItem(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     """Authoritative relational representation of an IT Configuration Item (CI)."""
 
     __tablename__ = "configuration_items"
+
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="true")
+    retired_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
     source_id: Mapped[str] = mapped_column(String(128), nullable=False)
     source_system: Mapped[str] = mapped_column(String(32), nullable=False)  # "SOLARWINDS" | "INTUNE"
@@ -66,6 +70,7 @@ class ConfigurationItem(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     )
 
     __table_args__ = (
+        Index("ix_ci_source_active", "source_system", "is_active"),
         UniqueConstraint("source_system", "source_id", name="uq_ci_source_system_source_id"),
         Index("ix_ci_source_system_type_status", "source_system", "ci_type", "status"),
         Index("ix_ci_source_system_created", "source_system", "created_at"),
@@ -83,6 +88,8 @@ class ConfigurationItem(Base, UUIDPrimaryKeyMixin, TimestampMixin):
         """Serialize to a JSON-safe dict; ORM instances must never leak past the repository layer."""
         return {
             "id": str(self.id),
+            "is_active": self.is_active,
+            "retired_at": self.retired_at.isoformat() if self.retired_at else None,
             "source_id": self.source_id,
             "source_system": self.source_system,
             "name": self.name,

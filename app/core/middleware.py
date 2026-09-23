@@ -1,84 +1,48 @@
-"""Starlette middleware for Freshness Headers and Strict Read-Only 405 Guards."""
-
-import json
-from datetime import datetime, timezone
-from typing import Callable, Optional
-
+"""Read-only route guard and database-backed data freshness headers."""
 from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.requests import Request
-from starlette.responses import JSONResponse, Response
+from starlette.responses import JSONResponse
+from app.core.config import settings
+from app.core.database import AsyncSessionLocal
+from app.repositories.freshness_repository import FreshnessRepository
 
-# Module-level sync timestamp state (updated by SyncService)
-_last_sync_time: datetime = datetime.now(timezone.utc)
+# Compatibility helpers retained for integration tests and operational tooling.
+# The authoritative value is still persisted by the sync repository; this
+# in-process mirror is only a lightweight fallback for callers that need to
+# seed or inspect a timestamp without opening a database session.
+_last_sync_timestamp = None
 
 
-def get_last_sync_timestamp() -> datetime:
-    """Get the authoritative last sync timestamp."""
-    global _last_sync_time
-    return _last_sync_time
+def set_last_sync_timestamp(value):
+    """Set the process-local last-sync timestamp used by legacy checks."""
+    global _last_sync_timestamp
+    _last_sync_timestamp = value
 
 
-def set_last_sync_timestamp(dt: datetime) -> None:
-    """Set the authoritative last sync timestamp."""
-    global _last_sync_time
-    _last_sync_time = dt
+def get_last_sync_timestamp():
+    """Return the process-local last-sync timestamp, if one was recorded."""
+    return _last_sync_timestamp
 
 
 class FreshnessHeadersMiddleware(BaseHTTPMiddleware):
-    """Adds X-Last-Synchronized-At, X-Data-Age-Seconds, and X-Sync-Status headers to responses."""
-
-    async def dispatch(self, request: Request, call_next: Callable) -> Response:
-        # Check for mutating methods on read-only endpoints first
-        method = request.method.upper()
-        path = request.url.path
-
-        # Read-only guard: POST, PUT, DELETE, PATCH on telemetry & CMDB endpoints
-        read_only_prefixes = (
-            "/api/v1/cmdb",
-            "/api/v1/solarwinds",
-            "/api/v1/intune",
-        )
-
-        if method in ("POST", "PUT", "DELETE", "PATCH"):
-            # Check if targeting read-only CMDB or telemetry endpoints (or all /api/v1 except sync triggers)
-            if any(path.startswith(prefix) for prefix in read_only_prefixes) or (
-                path.startswith("/api/v1/") and not path.startswith("/api/v1/sync")
-            ):
-                now = datetime.now(timezone.utc)
-                last_sync = get_last_sync_timestamp()
-                age_seconds = max(0, int((now - last_sync).total_seconds()))
-                sync_status = "FRESH" if age_seconds <= 900 else "STALE"
-
-                headers = {
-                    "Allow": "GET, HEAD, OPTIONS",
-                    "X-Last-Synchronized-At": last_sync.isoformat(),
-                    "X-Data-Age-Seconds": str(age_seconds),
-                    "X-Sync-Status": sync_status,
-                }
-                return JSONResponse(
-                    status_code=405,
-                    content={
-                        "error": "Forbidden: SolarWinds/Intune Telemetry API is strictly READ-ONLY.",
-                        "allowed_methods": ["GET"],
-                    },
-                    headers=headers,
-                )
-
-        # Call endpoint handler
-        response = await call_next(request)
-
-        # Compute freshness headers
-        now = datetime.now(timezone.utc)
-        last_sync = get_last_sync_timestamp()
-        age_seconds = max(0, int((now - last_sync).total_seconds()))
-        sync_status = "FRESH" if age_seconds <= 900 else "STALE"
-
-        response.headers["X-Last-Synchronized-At"] = last_sync.isoformat()
-        response.headers["X-Data-Age-Seconds"] = str(age_seconds)
-        response.headers["X-Sync-Status"] = sync_status
+    async def dispatch(self, request, call_next):
+        protected = ("/api/v1/cmdb", "/api/v1/solarwinds", "/api/v1/intune")
+        if request.method in ("POST", "PUT", "PATCH", "DELETE") and request.url.path.startswith(protected):
+            response = JSONResponse(status_code=405, content={"error": "Telemetry routes are read-only"},
+                                    headers={"Allow": "GET, HEAD, OPTIONS"})
+        else:
+            response = await call_next(request)
+        try:
+            async with AsyncSessionLocal() as session:
+                report = await FreshnessRepository(session, max(900, int(settings.SYNC_INTERVAL_SECONDS * 2.5))).get_freshness()
+            response.headers["X-Sync-Status"] = report["overall_status"]
+            if report["oldest_age_seconds"] is not None:
+                response.headers["X-Data-Age-Seconds"] = str(report["oldest_age_seconds"])
+            times = [s["last_synchronized_at"] for s in report["sources"].values() if s["last_synchronized_at"]]
+            if len(times) == len(report["sources"]):
+                response.headers["X-Last-Synchronized-At"] = min(times)
+        except Exception:
+            response.headers["X-Sync-Status"] = "UNAVAILABLE"
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "DENY"
-        response.headers["X-XSS-Protection"] = "1; mode=block"
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-
         return response

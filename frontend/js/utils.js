@@ -31,7 +31,12 @@ export function formatLatency(ms) {
 export function formatRelativeTime(isoString) {
   if (!isoString) return 'Unknown';
   try {
-    const date = new Date(isoString);
+    // Older SQLite-backed API responses may omit the UTC offset. All persisted
+    // ITOM timestamps are UTC, so interpret a naive ISO value as UTC.
+    const normalized = typeof isoString === 'string' && /T\d{2}:\d{2}:\d{2}(?:\.\d+)?$/.test(isoString)
+      ? `${isoString}Z`
+      : isoString;
+    const date = new Date(normalized);
     const now = new Date();
     const diffSec = Math.max(0, Math.floor((now - date) / 1000));
     if (diffSec < 60) return `${diffSec}s ago`;
@@ -74,7 +79,12 @@ export function debounce(func, delay = 200) {
 export function exportToCsv(filename, headers, rows) {
   const escapeCell = (cell) => {
     if (cell === null || cell === undefined) return '""';
-    const str = String(cell).replace(/"/g, '""');
+    let str = String(cell);
+    // Neutralize formula injection: if cell starts with =, +, -, @, \t, or \r
+    if (/^[=+\-@\t\r]/.test(str)) {
+      str = "'" + str;
+    }
+    str = str.replace(/"/g, '""');
     return `"${str}"`;
   };
 
@@ -96,6 +106,29 @@ export function exportToCsv(filename, headers, rows) {
   link.click();
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
+}
+
+/** Fetch every API page for the current filter set before exporting. */
+export async function fetchAllFilteredRows(fetchPage, filters = {}) {
+  const pageSize = 100;
+  const rows = [];
+  let page = 1;
+  let expectedTotal = null;
+  while (page <= 10000) {
+    const response = await fetchPage({ ...filters, page, page_size: pageSize });
+    const data = response?.data || response || {};
+    const items = Array.isArray(data.items) ? data.items : [];
+    const total = Number(data.total ?? data.pagination?.total_records);
+    if (Number.isFinite(total) && total >= 0) expectedTotal = total;
+    rows.push(...items);
+    if (!items.length || items.length < pageSize || (expectedTotal !== null && rows.length >= expectedTotal)) break;
+    page += 1;
+  }
+  if (page > 10000) throw new Error('Export stopped at the safety limit; narrow the filters and try again.');
+  if (expectedTotal !== null && rows.length !== expectedTotal) {
+    throw new Error(`Export incomplete: fetched ${rows.length} of ${expectedTotal} matching rows. Try again after data sync finishes.`);
+  }
+  return rows;
 }
 
 /**

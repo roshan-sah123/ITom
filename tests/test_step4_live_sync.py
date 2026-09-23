@@ -218,8 +218,9 @@ async def test_cpu_churn_does_not_write_history(session: AsyncSession):
     second = [normalize_solarwinds_node({"NodeID": 7, "Status": 1, "Caption": "SRV-7", "CPULoad": 42.0})]
     result = await service.sync_single_source(FakeSource("SOLARWINDS", items=second))
 
-    assert result["items_unchanged"] == 1
-    assert result["items_updated"] == 0
+    # Persisted CPU changed, but the status/health history must stay unchanged.
+    assert result["items_unchanged"] == 0
+    assert result["items_updated"] == 1
     history_after_second = len((await session.execute(select(CIStatusHistory))).scalars().all())
     assert history_after_second == 1, "CPU churn must not create history rows"
 

@@ -1,16 +1,26 @@
 /**
  * Master Application Bootstrap & Unified View Router
  */
-import { initHeader } from './components/header.js';
+import { initHeader } from './components/header.js?v=4';
 import { initModal } from './components/modal.js';
 import { initDrawer } from './components/drawer.js';
-import { renderHome } from './components/home.js';
-import { renderInfrastructureWorkspace, switchInfraSubtab } from './components/infraWorkspace.js';
-import { renderEndpoints } from './components/endpoints.js';
-import { renderCmdb } from './components/cmdb.js';
-import { renderSyncLedger } from './components/syncLedger.js';
+import { renderHome } from './components/home.js?v=6';
+import { renderInfrastructureWorkspace } from './components/infraWorkspace.js?v=10';
+import { renderEndpoints } from './components/endpoints.js?v=9';
+import { renderCmdb } from './components/cmdb.js?v=8';
+import { renderSyncLedger } from './components/syncLedger.js?v=3';
+import { renderSyncSchedule } from './components/syncSchedule.js?v=1';
 
 let activeView = 'home';
+
+const workspaceLabels = {
+  home: 'Operations overview',
+  infrastructure: 'Infrastructure',
+  endpoints: 'Endpoints',
+  cmdb: 'CMDB',
+  sync: 'Sync runs',
+  automation: 'Sync & schedule'
+};
 
 // Expose global navigation helper for cards and buttons
 window.navigateToView = function(viewName, subtabName = '', filterParam = '') {
@@ -27,26 +37,45 @@ window.navigateToView = function(viewName, subtabName = '', filterParam = '') {
   if (targetSec) targetSec.classList.add('active');
 
   activeView = viewName;
-  loadViewData(viewName);
-
-  if (viewName === 'infrastructure' && subtabName) {
-    setTimeout(() => {
-      switchInfraSubtab(subtabName, filterParam);
-    }, 50);
-  }
+  const workspaceLabel = document.getElementById('activeWorkspaceLabel');
+  if (workspaceLabel) workspaceLabel.textContent = workspaceLabels[viewName] || 'Operations overview';
+  loadViewData(viewName, subtabName, filterParam);
 
   window.scrollTo({ top: 0, behavior: 'smooth' });
 };
 
 document.addEventListener('DOMContentLoaded', () => {
   // Initialize Global UI Shell components
-  initHeader({
-    onSyncTriggered: () => {
-      refreshCurrentView();
-    }
-  });
+  initHeader();
   initModal();
   initDrawer();
+
+  const globalSearch = document.getElementById('globalSearch');
+  globalSearch?.addEventListener('keydown', (event) => {
+    if (event.key !== 'Enter') return;
+    const query = globalSearch.value.trim();
+    if (!query) return;
+    window.navigateToView('cmdb');
+    document.dispatchEvent(new CustomEvent('itom:global-search', { detail: { query } }));
+  });
+  document.addEventListener('keydown', (event) => {
+    if (event.key === '/' && document.activeElement !== globalSearch) {
+      event.preventDefault();
+      globalSearch?.focus();
+    }
+  });
+
+  document.getElementById('brandHome')?.addEventListener('click', () => {
+    window.navigateToView('home');
+  });
+
+  document.querySelectorAll('[data-back-home]').forEach(button => {
+    button.addEventListener('click', () => window.navigateToView('home'));
+  });
+
+  document.getElementById('btnSyncLedger')?.addEventListener('click', () => {
+    window.navigateToView('sync');
+  });
 
   // Navigation tab routing
   const tabs = document.querySelectorAll('.nav-tab');
@@ -72,22 +101,25 @@ document.addEventListener('DOMContentLoaded', () => {
   loadViewData('home');
 });
 
-function loadViewData(view) {
+function loadViewData(view, subtabName = '', filterParam = '') {
   switch (view) {
     case 'home':
       renderHome();
       break;
     case 'infrastructure':
-      renderInfrastructureWorkspace();
+      renderInfrastructureWorkspace(subtabName || 'servers', filterParam);
       break;
     case 'endpoints':
-      renderEndpoints();
+      renderEndpoints(subtabName, filterParam);
       break;
     case 'cmdb':
       renderCmdb();
       break;
     case 'sync':
       renderSyncLedger();
+      break;
+    case 'automation':
+      renderSyncSchedule();
       break;
   }
 }

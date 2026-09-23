@@ -1,9 +1,18 @@
 """Pydantic v2 schemas for Sync Runs and Sync Error Logs."""
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_serializer
+
+
+def _utc_datetime(value: Optional[datetime]) -> Optional[datetime]:
+    """Make SQLite-naive persisted UTC timestamps explicit for JSON output."""
+    if value is None:
+        return None
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
 
 
 class SyncRunBase(BaseModel):
@@ -14,6 +23,9 @@ class SyncRunBase(BaseModel):
     records_processed: int = 0
     records_updated: int = 0
     records_unchanged: int = 0
+    records_retired: int = 0
+    records_failed: int = 0
+    items_normalized: int = 0
     items_extracted: int = 0
     items_persisted: int = 0
     duration_ms: int = 0
@@ -62,6 +74,10 @@ class SyncErrorLogRead(SyncErrorLogBase):
     sync_run_id: uuid.UUID
     occurred_at: datetime
 
+    @field_serializer("occurred_at")
+    def serialize_occurred_at(self, value: datetime) -> str:
+        return _utc_datetime(value).isoformat()
+
 
 class SyncRunRead(SyncRunBase):
     """Authoritative output schema for a sync run."""
@@ -72,6 +88,11 @@ class SyncRunRead(SyncRunBase):
     started_at: datetime
     completed_at: Optional[datetime] = None
     error_logs: List[SyncErrorLogRead] = Field(default_factory=list)
+
+    @field_serializer("started_at", "completed_at")
+    def serialize_run_time(self, value: Optional[datetime]) -> Optional[str]:
+        normalized = _utc_datetime(value)
+        return normalized.isoformat() if normalized else None
 
 
 class SyncTriggerResponse(BaseModel):

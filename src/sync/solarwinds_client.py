@@ -17,6 +17,13 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 import urllib3
 
+from app.core.security import (
+    ALLOWED_METHODS,
+    FORBIDDEN_SWQL_KEYWORDS,
+    SolarWindsSecurityError,
+    validate_swql_read_only,
+)
+
 # Suppress insecure HTTPS request warnings when connecting to internal servers with self-signed certs
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -167,53 +174,6 @@ def classify_node_health(node: Dict[str, Any]) -> str:
     return "Medium"
 
 
-class SolarWindsSecurityError(Exception):
-    """Exception raised when a forbidden write/mutation operation is attempted against SolarWinds."""
-    pass
-
-
-ALLOWED_METHODS = ["GET"]
-FORBIDDEN_SWQL_KEYWORDS = {
-    "INSERT", "UPDATE", "DELETE", "DROP", "ALTER", "CREATE", 
-    "TRUNCATE", "EXEC", "EXECUTE", "GRANT", "REVOKE", "MERGE"
-}
-
-
-def validate_swql_read_only(query_str: str) -> None:
-    """Validate that a SWQL query is strictly read-only and non-mutating.
-
-    Args:
-        query_str: The SWQL query string to validate.
-
-    Raises:
-        SolarWindsSecurityError: If query contains mutating keywords or does not start with SELECT.
-    """
-    if not query_str or not isinstance(query_str, str):
-        raise SolarWindsSecurityError("Query must be a non-empty string.")
-
-    cleaned = query_str.strip()
-    # Remove leading comments if any
-    while cleaned.startswith("--") or cleaned.startswith("/*"):
-        if cleaned.startswith("--"):
-            cleaned = cleaned.split("\n", 1)[-1].strip()
-        elif cleaned.startswith("/*"):
-            cleaned = cleaned.split("*/", 1)[-1].strip()
-
-    first_word = cleaned.split()[0].upper() if cleaned.split() else ""
-    if first_word != "SELECT":
-        raise SolarWindsSecurityError(
-            f"SolarWinds integration is strictly READ-ONLY. Queries must start with SELECT (got: {first_word})."
-        )
-
-    # Check for mutating tokens as standalone words
-    upper_query = f" {cleaned.upper()} "
-    for kw in FORBIDDEN_SWQL_KEYWORDS:
-        if f" {kw} " in upper_query or f"\n{kw} " in upper_query or f" {kw}\n" in upper_query or f"\t{kw} " in upper_query:
-            raise SolarWindsSecurityError(
-                f"SolarWinds integration is strictly READ-ONLY. Forbidden mutating keyword detected: '{kw}'"
-            )
-
-
 class SolarWindsClient:
     """Enterprise read-only client for SolarWinds Orion SWIS API v3."""
 
@@ -286,44 +246,35 @@ class SolarWindsClient:
 
         query_params = {"query": swql_query}
         if params:
+            if any(str(key).lower() == "query" for key in params):
+                raise SolarWindsSecurityError("Parameters cannot override the validated SELECT query")
             query_params.update(params)
 
         logger.info("Executing read-only SWQL query against SWIS API (%s:%s)...", self.host, self.port)
 
         try:
-            # First attempt with standard certificate verification
-            try:
-                response = self._session.get(
-                    self.base_url,
-                    params=query_params,
-                    timeout=self.timeout,
-                    verify=self.verify_ssl,
-                )
-            except (requests.exceptions.SSLError, urllib3.exceptions.SSLError):
-                if self.verify_ssl:
-                    logger.warning("Internal/self-signed SSL certificate detected; retrying with verify=False...")
-                    response = self._session.get(
-                        self.base_url,
-                        params=query_params,
-                        timeout=self.timeout,
-                        verify=False,
-                    )
-                else:
-                    raise
+            response = self._session.get(
+                self.base_url,
+                params=query_params,
+                timeout=self.timeout,
+                verify=self.verify_ssl,
+            )
 
             if response.status_code == 200:
                 data = response.json()
-                results = data.get("results", [])
+                if not isinstance(data, dict) or not isinstance(data.get("results"), list):
+                    raise SolarWindsApiError("SWIS response must contain a results list")
+                results = data["results"]
                 logger.info("SWIS query succeeded. %d rows returned.", len(results))
                 return results
 
             if response.status_code in (401, 403):
                 raise SolarWindsAuthError(
-                    f"Authentication failed ({response.status_code}): {response.text}"
+                    f"Authentication failed (HTTP {response.status_code})"
                 )
 
             raise SolarWindsApiError(
-                f"SWIS API error HTTP {response.status_code}: {response.text}"
+                f"SWIS API error HTTP {response.status_code}"
             )
 
         except requests.exceptions.Timeout as exc:

@@ -4,7 +4,10 @@
  * Enforces Zero-Hallucination telemetry contracts with graceful degradation
  */
 
-const API_BASE = 'http://localhost:8000/api/v1';
+const API_BASE = window.ITOM_API_BASE
+  || ((window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') && ['8080', '8081'].includes(window.location.port)
+    ? 'http://127.0.0.1:8000/api/v1'
+    : '/api/v1');
 
 async function fetchJson(endpoint, options = {}) {
   const url = endpoint.startsWith('http') ? endpoint : `${API_BASE}${endpoint}`;
@@ -33,6 +36,10 @@ export const itomApi = {
     const query = new URLSearchParams(params).toString();
     return fetchJson(`/solarwinds/nodes?${query}`);
   },
+  getSolarWindsNetworkDevices: (params = {}) => {
+    const query = new URLSearchParams(params).toString();
+    return fetchJson(`/solarwinds/network-devices?${query}`);
+  },
   getSolarWindsSites: () => fetchJson('/solarwinds/sites'),
   getSolarWindsSiteTrend: (siteId, hours = 24) => fetchJson(`/solarwinds/sites/${encodeURIComponent(siteId)}/trend?hours=${hours}`),
 
@@ -54,6 +61,8 @@ export const itomApi = {
 
   // Telemetry Sync Engine
   getSyncStatus: () => fetchJson('/sync/status'),
+  getSyncScheduler: () => fetchJson('/sync/scheduler'),
+  triggerSync: () => fetchJson('/sync/trigger?source_system=ALL', { method: 'POST' }),
+  getFreshness: () => fetchJson('/system/freshness'),
   getSyncRuns: (page = 1, pageSize = 25) => fetchJson(`/sync/runs?page=${page}&page_size=${pageSize}`),
-  triggerManualSync: (source = 'ALL') => fetchJson(`/sync/trigger?source_system=${encodeURIComponent(source)}`, { method: 'POST' }),
 };

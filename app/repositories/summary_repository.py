@@ -415,22 +415,55 @@ class SummaryRepository:
         def _scoped(stmt):
             return stmt.where(ConfigurationItem.source_system == src) if src else stmt
 
-        # One pass for status, one for health. Both grouped by location.
-        status_rows = (await self.session.execute(_scoped(
+        # Normalize location with canonical spelling selection
+        unassigned_marker = "__UNASSIGNED_LOCATION__"
+        source_loc_col = func.coalesce(
+            func.nullif(func.trim(ConfigurationItem.location), ""),
+            unassigned_marker,
+        )
+        norm_loc_col = func.lower(source_loc_col)
+
+        # 1. Determine canonical display spelling per normalized location key
+        spelling_stmt = (
             select(
-                ConfigurationItem.location,
+                norm_loc_col.label("norm_key"),
+                source_loc_col.label("raw_val"),
+                func.count(ConfigurationItem.id).label("cnt"),
+            )
+            .group_by(norm_loc_col, source_loc_col)
+        )
+        spelling_rows = (await self.session.execute(_scoped(spelling_stmt))).all()
+
+        canonical_spellings: Dict[str, str] = {}
+        counts_by_spelling: Dict[str, int] = {}
+        for norm_k, raw_v, count in spelling_rows:
+            nk = str(norm_k or unassigned_marker.lower())
+            rv = str(raw_v or unassigned_marker)
+            c = int(count or 0)
+            if nk not in canonical_spellings or c > counts_by_spelling.get(nk, -1):
+                canonical_spellings[nk] = rv
+                counts_by_spelling[nk] = c
+
+        # 2. Group status and health by normalized location key
+        status_stmt = (
+            select(
+                norm_loc_col.label("norm_key"),
                 ConfigurationItem.status,
                 func.count(ConfigurationItem.id),
-            ).group_by(ConfigurationItem.location, ConfigurationItem.status)
-        ))).all()
+            )
+            .group_by(norm_loc_col, ConfigurationItem.status)
+        )
+        status_rows = (await self.session.execute(_scoped(status_stmt))).all()
 
-        health_rows = (await self.session.execute(_scoped(
+        health_stmt = (
             select(
-                ConfigurationItem.location,
+                norm_loc_col.label("norm_key"),
                 ConfigurationItem.health_tier,
                 func.count(ConfigurationItem.id),
-            ).group_by(ConfigurationItem.location, ConfigurationItem.health_tier)
-        ))).all()
+            )
+            .group_by(norm_loc_col, ConfigurationItem.health_tier)
+        )
+        health_rows = (await self.session.execute(_scoped(health_stmt))).all()
 
         if not status_rows:
             raise EmptyDatasetError(src or "ALL")
@@ -438,14 +471,16 @@ class SummaryRepository:
         sites: Dict[str, Dict[str, Any]] = {}
         unlocated = 0
 
-        for location, status, count in status_rows:
+        for norm_key, status, count in status_rows:
             count = int(count)
-            name = (location or "").strip()
-            if not name:
+            nk = str(norm_key or "").strip()
+            if not nk or nk == unassigned_marker.lower():
                 unlocated += count
                 continue
-            site = sites.setdefault(name, {
-                "location": name,
+            canonical_name = canonical_spellings.get(nk, nk)
+            site = sites.setdefault(nk, {
+                "location": canonical_name,
+                "location_key": nk,
                 "total_cis": 0,
                 "status_breakdown": {},
                 "health_breakdown": {"High": 0, "Medium": 0, "Low": 0},
@@ -453,11 +488,11 @@ class SummaryRepository:
             site["total_cis"] += count
             site["status_breakdown"][status or "Unknown"] = count
 
-        for location, health, count in health_rows:
-            name = (location or "").strip()
-            if not name or name not in sites:
+        for norm_key, health, count in health_rows:
+            nk = str(norm_key or "").strip()
+            if not nk or nk not in sites:
                 continue
-            sites[name]["health_breakdown"][health or "Medium"] = int(count)
+            sites[nk]["health_breakdown"][health or "Medium"] = int(count)
 
         located = sum(site["total_cis"] for site in sites.values())
         total = located + unlocated
@@ -490,6 +525,11 @@ class SummaryRepository:
             "data_source": "DATABASE",
             "generated_at": datetime.now(timezone.utc).isoformat(),
             "sorted_by": sort_by,
+            "location_scope": "SOLARWINDS_INFRASTRUCTURE" if src == "SOLARWINDS" else "ALL",
+            "scope_description": (
+                "Geographic location telemetry is collected from SolarWinds Orion City/ITSM_Location properties. "
+                "Microsoft Intune endpoints do not report geographic locations via Graph API."
+            ),
             "total_cis": total,
             "located_cis": located,
             "unlocated_cis": unlocated,
@@ -615,9 +655,115 @@ class SummaryRepository:
         available = _sum_matching(status_breakdown, AVAILABLE_STATUSES)
         monitored = _sum_excluding(status_breakdown, UNMONITORED_STATUSES)
 
+        # Canonical category classification across SolarWinds nodes
+        NETWORK_VENDORS = {
+            "cisco", "juniper", "arista", "fortinet", "palo alto", "check point",
+            "extreme", "hpe aruba", "ubiquiti", "f5", "mikrotik",
+        }
+        NETWORK_TYPE_TERMS = (
+            "switch", "router", "firewall", "wireless", "wlc", "access point",
+            "network", "catalyst", "asa", "nexus", "fortigate", "palo alto",
+        )
+        SERVER_TERMS = (
+            "server", "linux", "ubuntu", "redhat", "centos", "esx", "hyper-v",
+            "nutanix", "freebsd",
+        )
+
+        sw_cats_stmt = (
+            select(
+                ConfigurationItem.vendor,
+                ConfigurationItem.ci_type,
+                func.count(ConfigurationItem.id),
+            )
+            .where(ConfigurationItem.source_system == "SOLARWINDS")
+            .group_by(ConfigurationItem.vendor, ConfigurationItem.ci_type)
+        )
+        sw_cats_res = await self.session.execute(sw_cats_stmt)
+
+        sw_net = 0
+        sw_srv = 0
+        sw_uncl = 0
+        for v, t, count in sw_cats_res.all():
+            v_low = (v or "").strip().lower()
+            t_low = (t or "").strip().lower()
+            c = int(count)
+            if any(nv in v_low for nv in NETWORK_VENDORS) or any(nt in t_low for nt in NETWORK_TYPE_TERMS):
+                sw_net += c
+            elif any(st in t_low for st in SERVER_TERMS):
+                sw_srv += c
+            else:
+                sw_uncl += c
+
+        # Query top saturated servers (CPU >= 75% or RAM >= 80%)
+        sat_stmt = (
+            select(
+                ConfigurationItem.name,
+                ConfigurationItem.ip_address,
+                ConfigurationItem.location,
+                ConfigurationItem.ci_type,
+                ConfigurationItem.vendor,
+                ConfigurationItem.attributes,
+            )
+            .where(
+                ConfigurationItem.source_system == "SOLARWINDS",
+                ConfigurationItem.is_active == True,
+            )
+        )
+        sat_res = await self.session.execute(sat_stmt)
+        saturated_candidates: List[Dict[str, Any]] = []
+
+        for row in sat_res.all():
+            attrs = row.attributes or {}
+            cpu = attrs.get("cpu_load")
+            if cpu is None:
+                cpu = attrs.get("CPULoad")
+            ram = attrs.get("memory_used")
+            if ram is None:
+                ram = attrs.get("PercentMemoryUsed")
+
+            try:
+                cpu_val = float(cpu) if cpu is not None else None
+            except (ValueError, TypeError):
+                cpu_val = None
+
+            try:
+                ram_val = float(ram) if ram is not None else None
+            except (ValueError, TypeError):
+                ram_val = None
+
+            if (cpu_val is not None and cpu_val >= 75.0) or (ram_val is not None and ram_val >= 80.0):
+                eff_cpu = cpu_val if cpu_val is not None else 0.0
+                eff_ram = ram_val if ram_val is not None else 0.0
+                saturated_candidates.append({
+                    "name": (row.name or "").strip(),
+                    "Caption": (row.name or "").strip(),
+                    "ip_address": row.ip_address or "Unavailable",
+                    "location": row.location or "Unassigned",
+                    "ci_type": row.ci_type,
+                    "vendor": row.vendor,
+                    "cpu_load": round(eff_cpu, 1),
+                    "CPULoad": round(eff_cpu, 1),
+                    "memory_used": round(eff_ram, 1),
+                    "PercentMemoryUsed": round(eff_ram, 1),
+                    "_score": max(eff_cpu, eff_ram),
+                })
+
+        saturated_candidates.sort(key=lambda s: -s["_score"])
+        for item in saturated_candidates:
+            item.pop("_score", None)
+
         metrics.update(
             {
-                "total_server_nodes": total,
+                "total_server_nodes": total,  # Preserved for backward compatibility
+                "total_monitored_nodes": total,
+                "server_nodes_count": sw_srv,
+                "network_devices_count": sw_net,
+                "unclassified_nodes_count": sw_uncl,
+                "category_breakdown": {
+                    "servers": sw_srv,
+                    "network_devices": sw_net,
+                    "unclassified": sw_uncl,
+                },
                 "available_nodes": available,
                 "unavailable_nodes": total - available,
                 "availability_pct": _pct(available, total),
@@ -646,4 +792,6 @@ class SummaryRepository:
         payload["ci_type_distribution"] = type_distribution
         # Legacy alias - same live dictionary under its older key name.
         payload["node_type_breakdown"] = type_distribution
+        payload["top_saturated_servers"] = saturated_candidates[:10]
+        payload["total_saturated_nodes"] = len(saturated_candidates)
         return payload

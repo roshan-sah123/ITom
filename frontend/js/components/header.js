@@ -1,59 +1,51 @@
-/**
- * Header Component: 64px sticky bar, real-time sync countdown, live status heartbeat
- */
-import { itomApi } from '../api.js';
-import { formatRelativeTime } from '../utils.js';
+/** Compact, source-backed freshness and sync controls. */
+import { itomApi } from '../api.js?v=4';
 
-export function initHeader({ onSyncTriggered }) {
-  const syncPill = document.getElementById('headerSyncPill');
-  const syncBtn = document.getElementById('btnTriggerSync');
+const formatTimestamp = (value) => value
+  ? new Intl.DateTimeFormat(undefined, { dateStyle: 'short', timeStyle: 'short' }).format(new Date(value))
+  : 'Unavailable';
+
+export function initHeader() {
   const syncText = document.getElementById('headerSyncText');
+  const solarwindsText = document.getElementById('freshnessSolarWinds');
+  const intuneText = document.getElementById('freshnessIntune');
 
-  let syncCountdown = 600;
-
-  async function updateSyncStatus() {
+  async function updateFreshness() {
     try {
-      const status = await itomApi.getSyncStatus();
-      const lastSync = status.last_sync ? new Date(status.last_sync) : new Date();
-      const ageSeconds = status.age_seconds !== null ? status.age_seconds : Math.floor((Date.now() - lastSync) / 1000);
-      syncCountdown = Math.max(0, 600 - (ageSeconds % 600));
+      const [freshness, sync] = await Promise.all([
+        itomApi.getFreshness(),
+        itomApi.getSyncStatus().catch(() => ({}))
+      ]);
+      const sources = freshness.sources || {};
+      setSource(solarwindsText, 'SolarWinds', sources.SOLARWINDS);
+      setSource(intuneText, 'Intune', sources.INTUNE);
 
+      const state = sync.sync_state || freshness.overall_status || 'UNKNOWN';
+      const label = state === 'HEALTHY' || state === 'FRESH'
+        ? 'Success'
+        : state === 'FAILED' ? 'Failed' : 'Warning';
       if (syncText) {
-        const stateBadge = status.sync_state === 'HEALTHY' ? 'FRESH' : 'STALE';
-        syncText.textContent = `Sync: ${formatRelativeTime(status.last_sync)} (${stateBadge}) | Next in: ${syncCountdown}s`;
+        syncText.textContent = `Last Sync Status: ${label}`;
+        syncText.dataset.status = label.toLowerCase();
       }
     } catch {
+      setSource(solarwindsText, 'SolarWinds');
+      setSource(intuneText, 'Intune');
       if (syncText) {
-        syncText.textContent = `Sync: Live Mirror (Connecting...)`;
+        syncText.textContent = 'Last Sync Status: Failed';
+        syncText.dataset.status = 'failed';
       }
     }
   }
 
-  // Initial fetch and 10s polling interval
-  updateSyncStatus();
-  setInterval(updateSyncStatus, 10000);
+  updateFreshness();
+  setInterval(updateFreshness, 10000);
 
-  // Countdown timer ticker every second
-  setInterval(() => {
-    if (syncCountdown > 0) syncCountdown--;
-  }, 1000);
+}
 
-  if (syncBtn) {
-    syncBtn.addEventListener('click', async () => {
-      syncBtn.disabled = true;
-      syncBtn.innerHTML = `<span>⏳</span> Syncing...`;
-      try {
-        await itomApi.triggerManualSync('ALL');
-        setTimeout(async () => {
-          await updateSyncStatus();
-          syncBtn.disabled = false;
-          syncBtn.innerHTML = `<span>⚡</span> Sync Now`;
-          if (typeof onSyncTriggered === 'function') onSyncTriggered();
-        }, 1500);
-      } catch {
-        syncBtn.disabled = false;
-        syncBtn.innerHTML = `<span>⚡</span> Sync Now`;
-      }
-    });
-  }
+function setSource(element, label, source = {}) {
+  if (!element) return;
+  element.textContent = `${label}: ${formatTimestamp(source.last_synchronized_at)}`;
+  element.dataset.status = (source.status || 'UNKNOWN').toLowerCase();
+  element.title = source.age_seconds == null ? 'No successful synchronization recorded' : `${source.status} · ${source.age_seconds}s old`;
 }

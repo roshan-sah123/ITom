@@ -17,7 +17,7 @@ from app.api.v1.endpoints import health
 from app.api.v1.router import api_router
 from app.core.config import settings
 from app.core.database import create_db_and_tables, engine
-from app.core.middleware import FreshnessHeadersMiddleware, get_last_sync_timestamp
+from app.core.middleware import FreshnessHeadersMiddleware
 from app.core.security import SolarWindsSecurityError
 from app.repositories.summary_repository import EmptyDatasetError
 from app.workers.scheduler import start_scheduler, stop_scheduler
@@ -34,11 +34,13 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Application lifecycle management handling database migrations and scheduler worker."""
     logger.info("Starting ITOM Portal FastAPI Backend v%s (%s)...", settings.VERSION, settings.ENVIRONMENT)
 
-    # Auto-create tables in development/local mode
-    try:
-        await create_db_and_tables(engine)
-    except Exception as exc:
-        logger.warning("Auto table creation encountered notice: %s", exc)
+    # Local development can bootstrap an empty SQLite database. Production
+    # schema changes must be applied through Alembic before startup.
+    if settings.ENVIRONMENT.lower() != "production":
+        try:
+            await create_db_and_tables(engine)
+        except Exception as exc:
+            logger.warning("Auto table creation encountered notice: %s", exc)
 
     # The deployed VM keeps ingestion enabled by default. Local API contract
     # checks can explicitly disable it without changing the production cadence.
@@ -116,17 +118,7 @@ async def solarwinds_security_exception_handler(request: Request, exc: SolarWind
 @app.exception_handler(405)
 async def method_not_allowed_exception_handler(request: Request, exc: Exception):
     """Enforce strict read-only error envelope for HTTP 405 Method Not Allowed."""
-    now = datetime.now(timezone.utc)
-    last_sync = get_last_sync_timestamp()
-    age_seconds = max(0, int((now - last_sync).total_seconds()))
-    sync_status = "FRESH" if age_seconds <= 900 else "STALE"
-
-    headers = {
-        "Allow": "GET, HEAD, OPTIONS",
-        "X-Last-Synchronized-At": last_sync.isoformat(),
-        "X-Data-Age-Seconds": str(age_seconds),
-        "X-Sync-Status": sync_status,
-    }
+    headers = {"Allow": "GET, HEAD, OPTIONS"}
     return JSONResponse(
         status_code=405,
         content={
@@ -137,9 +129,8 @@ async def method_not_allowed_exception_handler(request: Request, exc: Exception)
     )
 
 
-# Mount Root and API v1 Health Probes
+# Mount Root Health Probe. The versioned health probe is included by api_router.
 app.include_router(health.router)
-app.include_router(health.router, prefix=settings.API_V1_STR)
 
 # Mount API v1 Routes
 app.include_router(api_router, prefix=settings.API_V1_STR)

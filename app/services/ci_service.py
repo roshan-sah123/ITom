@@ -54,6 +54,7 @@ class CIService:
         vendor: Optional[str] = None,
         health_tier: Optional[str] = None,
         status: Optional[str] = None,
+        location: Optional[str] = None,
         sort_by: Optional[str] = "name",
         sort_order: Optional[str] = "asc",
     ) -> Dict[str, Any]:
@@ -70,6 +71,7 @@ class CIService:
             vendor=vendor,
             health_tier=health_tier,
             status=status,
+            location=location,
             sort_by=sort_by,
             sort_order=sort_order,
         )
@@ -84,6 +86,28 @@ class CIService:
             "total_pages": total_pages,
             "has_next": page < total_pages,
             "has_prev": page > 1,
+        }
+
+    async def get_network_devices(
+        self, page: int = 1, page_size: int = 25, search: Optional[str] = None,
+        ci_type: Optional[str] = None, vendor: Optional[str] = None,
+        health_tier: Optional[str] = None, status: Optional[str] = None,
+        location: Optional[str] = None, sort_by: Optional[str] = "name",
+        sort_order: Optional[str] = "asc",
+    ) -> Dict[str, Any]:
+        """Return source-backed SolarWinds network-device inventory."""
+        items, total = await self.ci_repo.get_network_devices(
+            page=page, page_size=page_size, search=search, ci_type=ci_type,
+            vendor=vendor, health_tier=health_tier, status=status,
+            location=location, sort_by=sort_by, sort_order=sort_order,
+        )
+        total_pages = max(1, (total + page_size - 1) // page_size)
+        return {
+            "items": orm_list_to_dicts(items), "total": total, "page": page,
+            "page_size": page_size, "total_pages": total_pages,
+            "has_next": page < total_pages, "has_prev": page > 1,
+            "data_lineage": "SOLARWINDS_NODES",
+            "classification": "vendor_and_machine_type",
         }
 
     async def get_ci_by_id(self, ci_id: str | uuid.UUID) -> Optional[Any]:
@@ -111,6 +135,16 @@ class CIService:
             EmptyDatasetError: If no SolarWinds CIs have been ingested.
         """
         return await self.summary_repo.get_solarwinds_summary()
+
+    async def get_solarwinds_sites(self) -> List[Dict[str, Any]]:
+        """Return the site catalog used by the infrastructure dashboard."""
+        return await self.ci_repo.get_solarwinds_sites()
+
+    async def get_solarwinds_site_trend(
+        self, site_id: str, hours: int = 24
+    ) -> Dict[str, Any]:
+        """Return the requested availability trend for an infrastructure site."""
+        return await self.ci_repo.get_solarwinds_site_trend(site_id, hours=hours)
 
     async def get_ci_history(
         self, ci_id: str | uuid.UUID, limit: int = 50

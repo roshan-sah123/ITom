@@ -1,6 +1,9 @@
 """System liveness, readiness, and diagnostic health check endpoints."""
 
 from datetime import datetime, timezone
+from pathlib import Path
+from alembic.config import Config
+from alembic.script import ScriptDirectory
 from fastapi import APIRouter, Depends, Response, status
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -30,10 +33,20 @@ async def readiness_probe(
     """Readiness probe validating relational database connectivity."""
     try:
         await session.execute(text("SELECT 1"))
+        root = Path(__file__).resolve().parents[4]
+        config = Config(str(root / "alembic.ini"))
+        config.set_main_option("script_location", str(root / "alembic"))
+        expected = set(ScriptDirectory.from_config(config).get_heads())
+        revisions = set((await session.execute(text("SELECT version_num FROM alembic_version"))).scalars())
+        dialect = session.bind.dialect.name
+        ready = revisions == expected and (settings.ENVIRONMENT.lower() != "production" or dialect == "postgresql")
+        if not ready:
+            response.status_code = 503
         return {
-            "status": "ready",
+            "status": "ready" if ready else "not_ready",
             "database": "connected",
-            "migration_head": True,
+            "database_engine": dialect,
+            "migration_head": revisions == expected,
             "timestamp": datetime.now(timezone.utc).isoformat(),
         }
     except Exception as exc:
@@ -41,6 +54,6 @@ async def readiness_probe(
         return {
             "status": "unhealthy",
             "database": "disconnected",
-            "detail": str(exc),
+            "detail": f"Readiness check failed: {type(exc).__name__}",
             "timestamp": datetime.now(timezone.utc).isoformat(),
         }

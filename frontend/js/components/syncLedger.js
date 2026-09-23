@@ -2,12 +2,12 @@
  * Module 7: Telemetry Ingestion Ledger
  * Audit trail of 600s sync executions, durations, records, and error traces
  */
-import { itomApi } from '../api.js';
+import { itomApi } from '../api.js?v=4';
 import { formatNumber, formatRelativeTime, escapeHtml } from '../utils.js';
 
 export async function renderSyncLedger() {
-  const tbody = document.getElementById('syncLedgerTableBody');
-  const statusBanner = document.getElementById('syncEngineStatusBanner');
+  const tbody = document.getElementById('syncLedgerTableBody') || document.getElementById('syncRunTableBody');
+  const statusBanner = document.getElementById('syncEngineStatusBanner') || document.getElementById('syncStatusStrip');
   if (!tbody) return;
 
   try {
@@ -20,10 +20,10 @@ export async function renderSyncLedger() {
       statusBanner.innerHTML = `
         <div style="display: flex; justify-content: space-between; align-items: center;">
           <div>
-            <strong>Ingestion Daemon:</strong> <span style="color: #10B981;">HEALTHY</span> | Cadence: 600s | Storage: PostgreSQL 16 (Relational Core)
+            <strong>Ingestion status:</strong> <span style="color: ${status.sync_state === 'HEALTHY' ? '#10B981' : '#F59E0B'};">${escapeHtml(status.sync_state || 'UNKNOWN')}</span>
           </div>
           <div class="font-mono">
-            Age: ${status.age_seconds || 0}s | SW Records: ${formatNumber(status.solarwinds?.records_processed || 1572)} | Intune Records: ${formatNumber(status.intune?.records_processed || 27412)}
+            Last update: ${escapeHtml(formatRelativeTime(status.last_sync))}
           </div>
         </div>
       `;
@@ -40,7 +40,7 @@ export async function renderSyncLedger() {
         <td><strong style="color: #F97316;">${escapeHtml(r.source_system || 'ALL')}</strong></td>
         <td><span class="status-pill status-${(r.status || '').toLowerCase() === 'success' ? 'healthy' : 'warning'}">${escapeHtml(r.status || 'SUCCESS')}</span></td>
         <td class="font-mono">${formatNumber(r.records_processed || 0)}</td>
-        <td class="font-mono">${r.duration_ms ? `${(r.duration_ms / 1000).toFixed(2)}s` : '0.42s'}</td>
+        <td class="font-mono">${r.duration_ms != null ? `${(r.duration_ms / 1000).toFixed(2)}s` : 'Unavailable'}</td>
         <td class="font-mono" style="color: #6B7280;">${escapeHtml(formatRelativeTime(r.completed_at || r.created_at))}</td>
       </tr>
     `).join('');

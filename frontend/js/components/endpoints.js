@@ -2,8 +2,8 @@
  * Module 3: Digital Workplace Experience (DEX) / Endpoints (Microsoft Intune Cloud Mirror)
  * 4 KPI cards, 5 visualizations, interactive chart slice filtering, true full pagination across 27,412 devices
  */
-import { itomApi } from '../api.js';
-import { formatNumber, formatPercent, escapeHtml, calculateNewPageAnchor, debounce, exportToCsv, destroyChartSafe, generatePaginationControls } from '../utils.js';
+import { itomApi } from '../api.js?v=4';
+import { formatNumber, formatPercent, escapeHtml, calculateNewPageAnchor, debounce, exportToCsv, fetchAllFilteredRows, destroyChartSafe, generatePaginationControls } from '../utils.js';
 import { openCiDrawer } from './drawer.js';
 
 let osChartInstance = null;
@@ -14,24 +14,87 @@ let currentEpPage = 1;
 let currentEpPageSize = 25;
 let activeEpSearch = '';
 let activeEpStatus = '';
+let activeEpVendor = '';
 let activeEpFilterLabel = '';
 
 let allFetchedDevices = [];
-let cachedTotalRecords = 27412;
+let cachedTotalRecords = 0;
 
-export async function renderEndpoints() {
-  await loadEndpointsKpisAndCharts();
-  await loadEndpointsGrid();
+let endpointsFiltersInitialized = false;
+
+export function parseEndpointFilter(filterParam) {
+  if (!filterParam) return {};
+  if (typeof filterParam === 'object') return { ...filterParam };
+  if (typeof filterParam === 'string') {
+    const trimmed = filterParam.trim();
+    if (!trimmed) return {};
+    if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+      try {
+        return JSON.parse(trimmed);
+      } catch (e) {
+        // fallback
+      }
+    }
+    if (trimmed.includes('=')) {
+      const parsed = {};
+      const usp = new URLSearchParams(trimmed);
+      for (const [k, v] of usp.entries()) {
+        parsed[k] = v;
+      }
+      return parsed;
+    }
+    if (['Compliant', 'Noncompliant', 'ConfigManager'].includes(trimmed)) {
+      return { status: trimmed };
+    }
+    return { search: trimmed };
+  }
+  return {};
+}
+
+export function applyEndpointFilter(filterParam) {
+  applyEndpointFilterState(filterParam);
+  return loadEndpointsGrid();
+}
+
+function applyEndpointFilterState(filterParam) {
+  const filters = parseEndpointFilter(filterParam);
+  if (filters.status) {
+    activeEpStatus = filters.status;
+    const statusSelect = document.getElementById('epFilterStatus');
+    if (statusSelect) statusSelect.value = filters.status;
+    activeEpFilterLabel = `Compliance: ${filters.status}`;
+  }
+  if (filters.search) {
+    activeEpSearch = filters.search;
+    const searchInput = document.getElementById('epSearchInput');
+    if (searchInput) searchInput.value = filters.search;
+    activeEpFilterLabel = `Search: "${filters.search}"`;
+  }
+  if (filters.vendor) {
+    activeEpVendor = filters.vendor;
+    activeEpFilterLabel = `Manufacturer: ${filters.vendor}`;
+  }
+  updateActiveFilterBanner();
+  currentEpPage = 1;
+}
+
+export async function renderEndpoints(subtabName = '', filterParam = '') {
   initEndpointsFilters();
+  await loadEndpointsKpisAndCharts();
+  if (filterParam) {
+    applyEndpointFilterState(filterParam);
+  }
+  await loadEndpointsGrid();
 }
 
 async function loadEndpointsKpisAndCharts() {
   try {
     const summary = await itomApi.getIntuneSummary();
     const metrics = summary.metrics || {};
-    const total = metrics.total_managed_devices || 27412;
-    const compliant = metrics.compliant_devices || 22735;
-    const compRate = metrics.compliance_rate_pct !== undefined ? metrics.compliance_rate_pct : 82.9;
+    const available = summary.data_available !== false && metrics.total_managed_devices != null;
+    const total = metrics.total_managed_devices ?? 0;
+    const compliant = metrics.compliant_devices ?? 0;
+    const compRate = metrics.compliance_rate_pct;
 
     cachedTotalRecords = total;
 
@@ -42,24 +105,23 @@ async function loadEndpointsKpisAndCharts() {
     const osDivEl = document.getElementById('epOsDiversityVal');
     const zeroTrustEl = document.getElementById('epZeroTrustVal');
 
-    if (totalEl) totalEl.textContent = formatNumber(total);
-    if (totalSub) totalSub.textContent = `${formatNumber(compliant)} Compliant Fleet`;
-    if (compEl) compEl.textContent = `${compRate.toFixed(1)}%`;
-    if (compSub) compSub.textContent = `Target: 95.0% SLA`;
-    if (osDivEl) osDivEl.textContent = `Windows / macOS / Linux`;
-    if (zeroTrustEl) zeroTrustEl.textContent = `94.2% BitLocker`;
+    if (totalEl) totalEl.textContent = available ? formatNumber(total) : 'Unavailable';
+    if (totalSub) totalSub.textContent = available ? `${formatNumber(compliant)} compliant` : 'No current Intune data';
+    if (compEl) compEl.textContent = compRate != null ? `${Number(compRate).toFixed(1)}%` : 'Unavailable';
+    if (compSub) compSub.textContent = 'Calculated from current device status';
+    if (osDivEl) osDivEl.textContent = Object.keys(summary.os_distribution || summary.os_breakdown || {}).join(' / ') || 'Unavailable';
+    if (zeroTrustEl) zeroTrustEl.textContent = 'Coming soon';
 
     // 1. OS Distribution (with click filtering)
-    renderOsChart(summary.os_distribution || summary.os_breakdown || { Windows: 26357, macOS: 891, 'Linux (ubuntu)': 123, Endpoint: 36, Other: 5 });
+    renderOsChart(summary.os_distribution || summary.os_breakdown || {});
 
     // 2. Compliance Chart (with click filtering)
-    renderComplianceChart(summary.compliance_breakdown || { Compliant: 22735, Noncompliant: 3774, ConfigManager: 903 });
+    renderComplianceChart(summary.compliance_breakdown || {});
 
     // 3. Manufacturer Chart (with click filtering)
-    renderMfgChart(summary.vendor_distribution || summary.manufacturer_breakdown || { 'Dell': 16383, 'HP': 8938, 'Lenovo': 1061, 'Apple': 893, 'Microsoft': 48, 'Other': 89 });
+    renderMfgChart(summary.vendor_distribution || summary.manufacturer_breakdown || {});
 
     // 4. Inactivity & Modernization Widgets
-    renderAgingAndModernizationWidgets(total);
 
   } catch (err) {
     console.error('Failed to load endpoints summary:', err);
@@ -222,10 +284,10 @@ function renderMfgChart(mfgData) {
         if (elements && elements.length > 0) {
           const idx = elements[0].index;
           const selectedMfg = labels[idx];
-          activeEpSearch = selectedMfg;
+          activeEpVendor = selectedMfg;
           activeEpFilterLabel = `Manufacturer: ${selectedMfg}`;
           const searchInput = document.getElementById('epSearchInput');
-          if (searchInput) searchInput.value = selectedMfg;
+          if (searchInput) searchInput.value = '';
           updateActiveFilterBanner();
           currentEpPage = 1;
           loadEndpointsGrid();
@@ -235,15 +297,6 @@ function renderMfgChart(mfgData) {
   });
 }
 
-function renderAgingAndModernizationWidgets(total) {
-  const aging7 = document.getElementById('epAging7Val');
-  const aging30 = document.getElementById('epAging30Val');
-  const agingStale = document.getElementById('epAgingStaleVal');
-
-  if (aging7) aging7.textContent = formatNumber(Math.round(total * 0.88));
-  if (aging30) aging30.textContent = formatNumber(Math.round(total * 0.09));
-  if (agingStale) agingStale.textContent = formatNumber(Math.round(total * 0.03));
-}
 
 async function loadEndpointsGrid() {
   const tbody = document.getElementById('epDeviceTableBody');
@@ -258,6 +311,7 @@ async function loadEndpointsGrid() {
       page_size: currentEpPageSize,
       ...(activeEpSearch ? { search: activeEpSearch } : {}),
       ...(activeEpStatus ? { status: activeEpStatus } : {}),
+      ...(activeEpVendor ? { vendor: activeEpVendor } : {}),
     };
 
     const res = await itomApi.getIntuneDevices(params);
@@ -269,46 +323,44 @@ async function loadEndpointsGrid() {
     const totalPages = Math.max(1, Math.ceil(totalRecords / currentEpPageSize));
 
     currentEpPage = Math.min(currentEpPage, totalPages);
-    const startRecord = totalRecords ? (currentEpPage - 1) * currentEpPageSize + 1 : 0;
-    const endRecord = Math.min(startRecord + allFetchedDevices.length - 1, totalRecords);
+    const startRecord = totalRecords > 0 ? (currentEpPage - 1) * currentEpPageSize + 1 : 0;
+    const endRecord = totalRecords > 0 ? Math.min(startRecord + allFetchedDevices.length - 1, totalRecords) : 0;
 
     if (recordCountEl) {
       recordCountEl.textContent = `Showing ${formatNumber(startRecord)}–${formatNumber(endRecord)} of ${formatNumber(totalRecords)} Managed Devices`;
     }
 
     if (!allFetchedDevices.length) {
-      tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding: 32px; color: #6B7280;">No devices match the active search or filter criteria.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding: 32px; color: #6B7280;">No devices match the active search or filter criteria.</td></tr>`;
       if (paginationControls) paginationControls.innerHTML = '';
       return;
     }
 
-    tbody.innerHTML = allFetchedDevices.map(dev => {
+    tbody.innerHTML = allFetchedDevices.map((dev, idx) => {
       const isCompliant = (dev.status || '').toLowerCase() === 'compliant';
       const statusClass = isCompliant ? 'healthy' : (dev.status || '').toLowerCase() === 'noncompliant' ? 'critical' : 'warning';
 
       return `
         <tr>
-          <td><strong>${escapeHtml(dev.name)}</strong></td>
-          <td>${escapeHtml(dev.attributes?.user_principal_name || dev.attributes?.primary_user || 'Enterprise User')}</td>
-          <td>${escapeHtml(dev.operating_system || dev.ci_type || 'Windows')}</td>
-          <td>${escapeHtml(dev.vendor || 'Generic')}</td>
-          <td><span class="status-pill status-${statusClass}">${escapeHtml(dev.status || 'Compliant')}</span></td>
+          <td><strong class="ci-name-link" data-ep-idx="${idx}" style="cursor: pointer; color: #60A5FA;" title="Open device details drawer">${escapeHtml(dev.name)}</strong></td>
+          <td>${escapeHtml(dev.attributes?.user_principal_name || dev.attributes?.primary_user || 'Unavailable')}</td>
+          <td>${escapeHtml(dev.operating_system || dev.ci_type || 'Unavailable')}</td>
+          <td>${escapeHtml(dev.vendor || 'Unavailable')}</td>
+          <td><span class="status-pill status-${statusClass}">${escapeHtml(dev.status || 'Unknown')}</span></td>
           <td class="font-mono">${escapeHtml(dev.serial_number || 'N/A')}</td>
-          <td>
-            <button class="btn-action btn-inspect-ep" data-id="${escapeHtml(dev.id || '')}" style="height: 28px; padding: 0 10px; font-size: 11px;">
-              Inspect
-            </button>
-          </td>
         </tr>
       `;
     }).join('');
 
-    tbody.querySelectorAll('.btn-inspect-ep').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const found = allFetchedDevices.find(d => (d.id || '') === btn.dataset.id);
-        if (found) openCiDrawer(found);
+    tbody.querySelectorAll('.ci-name-link').forEach(link => {
+      link.addEventListener('click', () => {
+        const idx = parseInt(link.dataset.epIdx, 10);
+        if (allFetchedDevices[idx]) {
+          openCiDrawer(allFetchedDevices[idx]);
+        }
       });
     });
+
 
     // Reset table scroll on page changes
     if (tableContainer) tableContainer.scrollTop = 0;
@@ -321,11 +373,14 @@ async function loadEndpointsGrid() {
 
   } catch (err) {
     console.error('Failed to load endpoints grid:', err);
-    tbody.innerHTML = `<tr><td colspan="7" class="inline-error">Unable to fetch endpoint devices. Upstream Graph API offline.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6" class="inline-error">Unable to fetch endpoint devices. Upstream Graph API offline.</td></tr>`;
   }
 }
 
 function initEndpointsFilters() {
+  if (endpointsFiltersInitialized) return;
+  endpointsFiltersInitialized = true;
+
   const searchInput = document.getElementById('epSearchInput');
   const statusSelect = document.getElementById('epFilterStatus');
   const pageSizeSelect = document.getElementById('epPageSizeSelect');
@@ -375,6 +430,7 @@ function initEndpointsFilters() {
     if (statusSelect) statusSelect.value = '';
     activeEpSearch = '';
     activeEpStatus = '';
+    activeEpVendor = '';
     activeEpFilterLabel = '';
     updateActiveFilterBanner();
     currentEpPage = 1;
@@ -385,8 +441,18 @@ function initEndpointsFilters() {
   if (clearFilterBtn) clearFilterBtn.addEventListener('click', clearAllFilters);
 
   if (exportBtn) {
-    exportBtn.addEventListener('click', () => {
-      if (!allFetchedDevices.length) return;
+    exportBtn.addEventListener('click', async () => {
+      const originalText = exportBtn.innerHTML;
+      exportBtn.disabled = true;
+      exportBtn.textContent = 'Preparing CSV…';
+      try {
+      const filters = {
+        ...(activeEpSearch ? { search: activeEpSearch } : {}),
+        ...(activeEpStatus ? { status: activeEpStatus } : {}),
+        ...(activeEpVendor ? { vendor: activeEpVendor } : {}),
+      };
+      const exportDevices = await fetchAllFilteredRows(params => itomApi.getIntuneDevices(params), filters);
+      if (!exportDevices.length) { window.alert('No devices match the active filters.'); return; }
       const headers = [
         { label: 'Device Name', key: 'name' },
         { label: 'Primary User', key: 'user' },
@@ -395,15 +461,22 @@ function initEndpointsFilters() {
         { label: 'Compliance', key: 'status' },
         { label: 'Serial Number', key: 'serial_number' }
       ];
-      const rows = allFetchedDevices.map(d => ({
+      const rows = exportDevices.map(d => ({
         name: d.name,
-        user: d.attributes?.user_principal_name || d.attributes?.primary_user || 'Enterprise User',
-        os: d.operating_system || d.ci_type || 'Windows',
-        vendor: d.vendor || 'Generic',
-        status: d.status || 'Compliant',
+        user: d.attributes?.user_principal_name || d.attributes?.primary_user || 'Unavailable',
+        os: d.operating_system || d.ci_type || 'Unavailable',
+        vendor: d.vendor || 'Unavailable',
+        status: d.status || 'Unknown',
         serial_number: d.serial_number || 'N/A'
       }));
-      exportToCsv(`Intune_Endpoints_Page_${currentEpPage}`, headers, rows);
+      exportToCsv('Intune_Endpoints_Filtered', headers, rows);
+      } catch (error) {
+        console.error('Intune CSV export failed:', error);
+        window.alert(`CSV export failed: ${error.message}`);
+      } finally {
+        exportBtn.disabled = false;
+        exportBtn.innerHTML = originalText;
+      }
     });
   }
 }

@@ -45,7 +45,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
-from sqlalchemy import text
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
@@ -138,15 +138,12 @@ class SyncService:
 
         if dialect == "postgresql":
             try:
-                await self.session.execute(
-                    text(f"SELECT pg_advisory_xact_lock({self.ADVISORY_LOCK_ID})")
-                )
-                return True
+                return bool((await self.session.execute(
+                    text("SELECT pg_try_advisory_xact_lock(:key)"),
+                    {"key": self.ADVISORY_LOCK_ID},
+                )).scalar())
             except Exception as exc:
-                logger.warning(
-                    "PostgreSQL advisory lock unavailable (%s); falling back to in-process lock.",
-                    exc,
-                )
+                raise RuntimeError("PostgreSQL sync lock unavailable") from exc
 
         if _in_memory_locked:
             return False
@@ -248,25 +245,40 @@ class SyncService:
                 history_written += 1
                 continue
 
-            if existing.state_hash == new_hash:
-                # Same operational state: refresh the sync timestamp only.
+            if existing.state_hash == new_hash and existing.is_active:
+                # A stable health state does not imply stable inventory fields.
+                current = {
+                    "name": name, "ci_type": ci_type, "ip_address": ip,
+                    "vendor": vendor, "model": model, "serial_number": serial,
+                    "operating_system": os_ver, "location": location,
+                    "attributes": attrs,
+                }
+                changed = any(getattr(existing, key) != value for key, value in current.items())
+                for key, value in current.items():
+                    setattr(existing, key, value)
+                if changed:
+                    existing.updated_at = now
+                    updated += 1
+                else:
+                    unchanged += 1
                 existing.last_sync_time = now
-                unchanged += 1
                 continue
 
             old_status = existing.status
             old_health = existing.health_tier
 
             existing.status = status
+            existing.is_active = True
+            existing.retired_at = None
             existing.health_tier = health
             existing.name = name
             existing.ci_type = ci_type or existing.ci_type
-            existing.ip_address = ip or existing.ip_address
+            existing.ip_address = ip
             existing.vendor = vendor or existing.vendor
             existing.model = model or existing.model
             existing.serial_number = serial or existing.serial_number
             existing.operating_system = os_ver or existing.operating_system
-            existing.location = location or existing.location
+            existing.location = location
             existing.state_hash = new_hash
             existing.last_sync_time = now
             existing.updated_at = now
@@ -319,6 +331,29 @@ class SyncService:
         """Run a synchronous client in a worker thread so the loop stays free."""
         return await asyncio.to_thread(source.fetch)
 
+    async def retire_missing(self, source_name, items):
+        """Soft retire only after the caller validates a complete source snapshot."""
+        seen = {str(item["external_id"]) for item in items}
+        rows = (await self.session.execute(
+            select(ConfigurationItem).where(ConfigurationItem.source_system == source_name)
+        )).scalars().all()
+        now = datetime.now(timezone.utc)
+        retired = 0
+        for ci in rows:
+            if ci.source_id not in seen and ci.is_active:
+                ci.is_active = False
+                ci.retired_at = now
+                ci.updated_at = now
+                self.session.add(CIStatusHistory(
+                    id=uuid.uuid4(), ci_id=ci.id, status=ci.status,
+                    health_tier=ci.health_tier, previous_status=ci.status,
+                    previous_health_tier=ci.health_tier, recorded_at=now,
+                    changed_attributes={"event": "RETIRED", "reason": "Absent from complete snapshot"},
+                ))
+                retired += 1
+        await self.session.flush()
+        return retired
+
     async def sync_single_source(
         self,
         source: TelemetrySource,
@@ -350,11 +385,22 @@ class SyncService:
                     f"extraction rather than an empty fleet."
                 )
 
-            results = await self.ingest_telemetry_batch(items, source.name)
+            keys = [str(item.get("external_id") or item.get("source_id") or item.get("id") or "").strip() for item in items]
+            if any(not key for key in keys) or len(set(keys)) != len(keys):
+                raise SourceUnavailableError("Missing or duplicate normalized source identifiers")
+            # A savepoint rolls inventory and retirement back together on failure.
+            async with self.session.begin_nested():
+                results = await self.ingest_telemetry_batch(items, source.name)
+                retired = 0
+                if telemetry_items is None and getattr(source, "snapshot_complete", False):
+                    retired = await self.retire_missing(source.name, items)
 
             completed_at = datetime.now(timezone.utc)
             sync_run.status = "SUCCESS"
             sync_run.items_extracted = len(items)
+            sync_run.items_normalized = len(items)
+            sync_run.records_retired = retired
+            sync_run.records_failed = 0
             sync_run.items_persisted = results["persisted"]
             sync_run.records_updated = results["updated"]
             sync_run.records_unchanged = results["unchanged"]
@@ -373,6 +419,9 @@ class SyncService:
                 "status": "SUCCESS",
                 "run_id": str(run_id),
                 "items_extracted": len(items),
+                "items_normalized": len(items),
+                "items_retired": retired,
+                "items_failed": 0,
                 "items_persisted": results["persisted"],
                 "items_updated": results["updated"],
                 "items_unchanged": results["unchanged"],
@@ -400,8 +449,8 @@ class SyncService:
                     id=uuid.uuid4(),
                     sync_run_id=run_id,
                     error_code=exc.__class__.__name__,
-                    error_message=str(exc),
-                    stack_trace=traceback.format_exc(),
+                    error_message=f"{type(exc).__name__}: source synchronization failed; inventory changes rolled back.",
+                    stack_trace=None,
                     context_data={"source_system": source.name.upper()},
                     occurred_at=completed_at,
                 )

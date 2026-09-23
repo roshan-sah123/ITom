@@ -100,6 +100,25 @@ class SourceUnavailableError(RuntimeError):
     """
 
 
+def validated_snapshot(raw, normalizer):
+    """Reject incomplete/malformed identity sets before authorizing retirement."""
+    if not isinstance(raw, list) or not raw:
+        raise SourceUnavailableError("Empty or invalid source snapshot")
+    items = []
+    seen = set()
+    for row in raw:
+        if not isinstance(row, dict):
+            raise SourceUnavailableError("Malformed source row")
+        item = normalizer(row)
+        if not item or not item.get("external_id"):
+            raise SourceUnavailableError("Source record lacks a valid identifier")
+        if item["external_id"] in seen:
+            raise SourceUnavailableError("Duplicate source identifier")
+        seen.add(item["external_id"])
+        items.append(item)
+    return items
+
+
 def _num(value: Any) -> Optional[float]:
     """Coerce to a non-negative float, or None if the value is unusable."""
     if isinstance(value, bool) or not isinstance(value, (int, float)):
@@ -221,6 +240,9 @@ def normalize_solarwinds_node(node: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     cpu = _num(node.get("CPULoad"))
     ram = _num(node.get("PercentMemoryUsed"))
     latency = _num(node.get("AvgResponseTime"))
+    city = str(node.get("City") or "").strip()
+    itsm_location = str(node.get("ITSM_Location") or "").strip()
+    location = city or itsm_location or None
 
     return {
         "external_id": f"SW-NODE-{node_id}",
@@ -236,7 +258,7 @@ def normalize_solarwinds_node(node: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         "cpu_load": cpu,
         "ram_used": ram,
         "latency_ms": latency,
-        "location": node.get("City"),
+        "location": location,
         "attributes": {
             "orion_status_code": status_code,
             "status_description": node.get("StatusDescription"),
@@ -246,7 +268,8 @@ def normalize_solarwinds_node(node: Dict[str, Any]) -> Optional[Dict[str, Any]]:
             "system_uptime": node.get("SystemUpTime"),
             "node_description": node.get("NodeDescription"),
             "contact": node.get("Contact"),
-            "city": node.get("City"),
+            "city": city or None,
+            "itsm_location": itsm_location or None,
         },
     }
 
@@ -290,6 +313,7 @@ class IntuneSource:
 
     def fetch(self) -> List[Dict[str, Any]]:
         client = self._resolve_client()
+        self.snapshot_complete = False
         try:
             devices = client.fetch_managed_devices(max_devices=self.max_devices)
         except Exception as exc:
@@ -297,8 +321,9 @@ class IntuneSource:
             # must surface - a failed extraction is never a successful sync.
             raise SourceUnavailableError(f"Intune extraction failed: {exc}") from exc
 
-        normalised = [normalize_intune_device(d) for d in devices or []]
-        items = [item for item in normalised if item is not None]
+        self.fetched_count = len(devices)
+        items = validated_snapshot(devices, normalize_intune_device)
+        self.snapshot_complete = self.max_devices is None
         logger.info("Intune source produced %d CI records from %d raw devices.",
                     len(items), len(devices or []))
         return items
@@ -324,13 +349,15 @@ class SolarWindsSource:
 
     def fetch(self) -> List[Dict[str, Any]]:
         client = self._resolve_client()
+        self.snapshot_complete = False
         try:
             nodes = client.fetch_nodes()
         except Exception as exc:
             raise SourceUnavailableError(f"SolarWinds extraction failed: {exc}") from exc
 
-        normalised = [normalize_solarwinds_node(n) for n in nodes or []]
-        items = [item for item in normalised if item is not None]
+        self.fetched_count = len(nodes)
+        items = validated_snapshot(nodes, normalize_solarwinds_node)
+        self.snapshot_complete = True
         logger.info("SolarWinds source produced %d CI records from %d raw nodes.",
                     len(items), len(nodes or []))
         return items
