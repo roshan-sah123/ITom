@@ -1266,7 +1266,8 @@ h1, h2, h3, h4, h5, h6 {
 .module-card-v2[data-target-view="infrastructure"] { --module-accent: #5eead4; --module-bg: #102322; --module-border: #28524d; }
 .module-card-v2[data-target-view="endpoints"] { --module-accent: #93c5fd; --module-bg: #142033; --module-border: #304c70; }
 .module-card-v2[data-target-view="cmdb"] { --module-accent: #fcd34d; --module-bg: #282216; --module-border: #62502a; }
-.module-card-v2[data-target-view="automation"] { --module-accent: #c4b5fd; --module-bg: #211c30; --module-border: #514169; }
+.module-card-v2[data-target-view="knowledge"] { --module-accent: #b45309; --module-bg: #fff7ed; --module-border: #fed7aa; }
+.module-card-v2[data-target-view="automations"] { --module-accent: #6d28d9; --module-bg: #f5f3ff; --module-border: #ddd6fe; }
 .module-card-v2 { min-height: 188px; padding: 22px; display: flex; flex-direction: column; align-items: flex-start; text-align: left; background: var(--module-bg); border: 1px solid var(--module-border); border-radius: 10px; color: #f4f4f5; cursor: pointer; transition: border-color .16s ease, transform .16s ease; }
 .module-card-v2:hover { border-color: var(--module-accent); transform: translateY(-2px); }
 .module-card-v2:focus-visible { outline: 2px solid var(--module-accent); outline-offset: 4px; }
@@ -1409,3 +1410,41 @@ html,body { background:var(--bg-canvas); color:var(--text-primary); }
   color: var(--text-primary);
   outline: none;
 }
+
+/* Keep sync controls available without occupying primary navigation. */
+.global-footer { min-height: var(--footer-h); height: auto; gap: 12px; flex-wrap: wrap; padding-block: 10px; }
+.footer-right { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 12px; }
+.footer-operations { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; padding-right: 14px; border-right: 1px solid var(--border-subtle); }
+.footer-operations-label { color: #64748B; font-weight: 600; }
+.footer-link { border: 0; padding: 5px 2px; background: transparent; color: #526170; font: inherit; text-decoration: none; cursor: pointer; }
+.footer-link:hover { color: #1D4ED8; }
+.footer-link:focus-visible, .nav-tab:focus-visible, .workspace-links button:focus-visible { outline: 2px solid #2563EB; outline-offset: 3px; }
+.attention-item:not(button) { cursor: default; }
+@media (max-width: 720px) {
+  .global-footer { align-items: flex-start; }
+  .footer-right { justify-content: flex-start; }
+}
+@media (max-width: 600px) {
+  .global-footer { padding: 12px 14px; }
+  .footer-right { width: 100%; justify-content: flex-start; gap: 8px 12px; }
+  .footer-operations { width: 100%; padding: 0 0 8px; border-right: 0; border-bottom: 1px solid var(--border-subtle); }
+}
+
+/* Endpoint storage panel: live metrics when present, explicit demo fallback otherwise. */
+.storage-panel { min-width: 0; }
+.storage-data-badge { padding: 4px 8px; border: 1px solid #CBD5E1; border-radius: 999px; color: #64748B; background: #F8FAFC; font-size: 10px; font-weight: 700; letter-spacing: .04em; white-space: nowrap; }
+.storage-data-badge[data-mode="live"] { color: #166534; border-color: #BBF7D0; background: #F0FDF4; }
+.storage-data-badge[data-mode="demo"] { color: #92400E; border-color: #FCD34D; background: #FFFBEB; }
+.storage-panel-content { display: flex; flex-direction: column; justify-content: center; gap: 22px; min-height: 230px; padding: 20px 22px; }
+.storage-meter-label { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 9px; color: #526170; font-size: 12px; }
+.storage-meter-label strong { color: #15202B; font: 600 16px var(--font-mono); white-space: nowrap; }
+.storage-meter-track { height: 10px; overflow: hidden; border-radius: 999px; background: #E8EEF5; }
+.storage-meter-track span { display: block; height: 100%; border-radius: inherit; background: #2563EB; }
+.storage-note { margin: 0; padding-top: 14px; border-top: 1px solid #E5EAF0; color: #64748B; font-size: 11px; line-height: 1.55; }
+.storage-demo-note { color: #92400E; }
+.storage-message { margin: 0; color: #64748B; font-size: 12px; }
+.provenance-status { margin: 8px 0 0; color: #64748B; font-size: 11px; line-height: 1.45; }
+
+/* Keep the live CMDB provenance view visible while hiding the stale static engine card. */
+#view-cmdb > .charts-grid-2 { display: grid; grid-template-columns: 1fr; }
+#view-cmdb > .charts-grid-2 > .chart-card:nth-child(2) { display: none; }

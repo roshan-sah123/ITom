@@ -16,7 +16,7 @@
   
   <!-- Master Obsidian Design System & Favicon -->
   <link rel="icon" type="image/png" href="logo.png?v=2">
-  <link rel="stylesheet" href="css/style.css?v=10">
+  <link rel="stylesheet" href="css/style.css?v=11">
 </head>
 <body>
   <div class="app-container">
@@ -41,12 +41,12 @@
     </header>
 
     <nav class="module-nav" aria-label="Primary navigation">
-      <button class="nav-tab active" type="button" data-view="home">Overview</button>
+      <button class="nav-tab active" type="button" data-view="home" aria-current="page">Overview</button>
       <button class="nav-tab" type="button" data-view="infrastructure">Infrastructure</button>
       <button class="nav-tab" type="button" data-view="endpoints">Endpoints</button>
       <button class="nav-tab" type="button" data-view="cmdb">CMDB</button>
-      <button class="nav-tab" type="button" data-view="sync">Sync runs</button>
-      <button class="nav-tab" type="button" data-view="automation">Sync &amp; schedule</button>
+      <button class="nav-tab" type="button" data-view="knowledge">Knowledge Centre</button>
+      <button class="nav-tab" type="button" data-view="automations">Automations</button>
     </nav>
 
     <!-- 3. Main Workspace Viewport -->
@@ -86,11 +86,17 @@
               <span>SolarWinds-derived asset inventory and configuration reporting.</span>
               <em>Open reports</em>
             </button>
-            <button class="module-card-v2" data-target-view="automation" data-search="sync schedule automatic ingestion data freshness solarwinds intune">
-              <span class="module-code">SYNC</span>
-              <strong>Sync &amp; schedule</strong>
-              <span>Scheduled source refreshes, latest outcomes, and data freshness.</span>
-              <em>Review sync status</em>
+            <button class="module-card-v2" data-target-view="knowledge" data-search="knowledge centre onboarding training guides recorded videos">
+              <span class="module-code">LEARN</span>
+              <strong>Knowledge Centre</strong>
+              <span>Onboarding, ITOM guides, and recorded training.</span>
+              <em>Explore learning</em>
+            </button>
+            <button class="module-card-v2" data-target-view="automations" data-search="automations workflows operations">
+              <span class="module-code">AUTO</span>
+              <strong>Automations</strong>
+              <span>Future operational workflows for the ITOM team.</span>
+              <em>View roadmap</em>
             </button>
           </div>
           <div class="portal-operations" aria-label="Data freshness status">
@@ -201,29 +207,6 @@
             </div>
           </div>
 
-          <!-- Module 4: Ingestion & Sync Ledger -->
-          <div class="home-module-card">
-            <div>
-              <div class="card-top-meta">
-                <div class="module-icon-wrap" style="color: #06B6D4;">⚡</div>
-                <span class="module-pill pill-active">600s Cadence</span>
-              </div>
-              <div class="card-body-content">
-                <h3>Telemetry Ingestion & Sync Ledger</h3>
-                <p>APScheduler automated ingestion engine running every 10 minutes. Full audit history of sync execution durations, record counts, and health diagnostics.</p>
-              </div>
-            </div>
-            <div>
-              <div class="card-telemetry-row" id="homeCardSyncStat">
-                <span style="color: var(--text-muted);">Engine: <strong style="color: var(--status-healthy);">ONLINE</strong></span>
-                <span style="color: var(--text-muted);">Cadence: <strong style="color: var(--text-primary);">600s</strong></span>
-              </div>
-              <button class="btn-card-launch" data-target-view="sync">
-                View Audit Ledger →
-              </button>
-            </div>
-          </div>
-
           <!-- Module 5: AIOps & Automated Remediation (Pipeline) -->
           <div class="home-module-card pipeline-card">
             <div>
@@ -232,17 +215,16 @@
                 <span class="module-pill pill-pipeline">Phase 2 Pipeline</span>
               </div>
               <div class="card-body-content">
-                <h3>AIOps & Automated Remediation</h3>
-                <p>Machine learning anomaly correlation, predictive disk exhaustion forecasting, and autonomous runbook executions across hybrid clusters.</p>
+                <h3>Automations</h3>
+                <p>Future approved operational workflows to reduce repetitive manual work across the ITOM team.</p>
               </div>
             </div>
             <div>
               <div class="card-telemetry-row">
-                <span style="color: var(--text-muted);">Status: <strong>Under Engineering</strong></span>
-                <span style="color: var(--text-muted);">Target: <strong>Q4 2026</strong></span>
+                <span style="color: var(--text-muted);">Status: <strong>Planned</strong></span>
               </div>
-              <button class="btn-card-launch" disabled style="opacity: 0.5; cursor: not-allowed;">
-                Coming Soon
+              <button class="btn-card-launch" data-target-view="automations">
+                View Automations
               </button>
             </div>
           </div>
@@ -255,8 +237,8 @@
                 <span class="module-pill pill-pipeline">Phase 2 Pipeline</span>
               </div>
               <div class="card-body-content">
-                <h3>Enterprise Knowledge Center</h3>
-                <p>Authoritative NOC runbooks, network topology diagrams, carrier circuit escalation matrices, and infrastructure disaster recovery procedures.</p>
+                <h3>Knowledge Centre</h3>
+                <p>New-joiner onboarding, practical guides to our ITOM work, and pre-recorded training videos.</p>
               </div>
             </div>
             <div>
@@ -264,8 +246,8 @@
                 <span style="color: var(--text-muted);">Status: <strong>Under Engineering</strong></span>
                 <span style="color: var(--text-muted);">Target: <strong>Q4 2026</strong></span>
               </div>
-              <button class="btn-card-launch" disabled style="opacity: 0.5; cursor: not-allowed;">
-                Coming Soon
+              <button class="btn-card-launch" data-target-view="knowledge">
+                Explore Knowledge Centre
               </button>
             </div>
           </div>
@@ -285,7 +267,7 @@
           
           <div class="category-card-tab active" data-subtab="servers">
             <div class="cat-header">
-              <span>HYBRID ENTERPRISE SERVERS</span>
+              <span>CLASSIFIED SERVERS</span>
               <span>🖥️</span>
             </div>
             <div class="cat-value" id="catServersVal">—</div>
@@ -322,7 +304,7 @@
         </div>
 
         <!-- ===================================================================
-             SUBVIEW 1: HYBRID ENTERPRISE SERVERS
+             SUBVIEW 1: SOLARWINDS NODE INVENTORY
              =================================================================== -->
         <div id="subview-servers" class="infra-subview-panel">
           
@@ -330,7 +312,7 @@
           <div class="kpi-grid">
             <div class="kpi-card">
               <div class="kpi-header">
-                <span>TOTAL SERVER NODES</span>
+                <span>TOTAL SOLARWINDS NODES</span>
                 <div class="kpi-icon">🖥️</div>
               </div>
               <div class="kpi-value" id="swTotalNodesVal">—</div>
@@ -476,7 +458,7 @@
 
             <!-- Zone 3: 3-Part Footer Controller -->
             <div class="grid-footer">
-              <div class="footer-count" id="swRecordCount">Showing 1–25 of 1,572 Server Nodes</div>
+              <div class="footer-count" id="swRecordCount">SolarWinds node count unavailable</div>
               <div class="footer-page-size">
                 <label for="swPageSizeSelect">Rows per page:</label>
                 <select class="select-page-size" id="swPageSizeSelect">
@@ -658,8 +640,8 @@
               <span>TOTAL MANAGED ENDPOINTS</span>
               <div class="kpi-icon">💻</div>
             </div>
-            <div class="kpi-value" id="epTotalVal">27,412</div>
-            <div class="kpi-footer" id="epTotalSub">22,735 Compliant Fleet</div>
+            <div class="kpi-value" id="epTotalVal">Unavailable</div>
+            <div class="kpi-footer" id="epTotalSub">Waiting for Intune data</div>
           </div>
 
           <div class="kpi-card">
@@ -667,8 +649,8 @@
               <span>COMPLIANCE POSTURE RATE</span>
               <div class="kpi-icon">🛡️</div>
             </div>
-            <div class="kpi-value text-healthy" id="epCompRateVal">82.9%</div>
-            <div class="kpi-footer" id="epCompRateSub">Calculated from current device status</div>
+            <div class="kpi-value text-healthy" id="epCompRateVal">Unavailable</div>
+            <div class="kpi-footer" id="epCompRateSub">Waiting for Intune data</div>
           </div>
 
           <div class="kpi-card">
@@ -676,8 +658,8 @@
               <span>OS DISTRIBUTION</span>
               <div class="kpi-icon">🖥️</div>
             </div>
-            <div class="kpi-value" style="font-size: 16px; margin-top: 6px;" id="epOsDiversityVal">Windows / macOS / Linux</div>
-            <div class="kpi-footer">Cross-Platform Fleet</div>
+            <div class="kpi-value" style="font-size: 16px; margin-top: 6px;" id="epOsDiversityVal">Unavailable</div>
+            <div class="kpi-footer" id="epOsDiversitySub">Waiting for Intune data</div>
           </div>
 
           <div class="kpi-card">
@@ -722,7 +704,15 @@
               <canvas id="epMfgChart"></canvas>
             </div>
           </div>
-
+          <section class="chart-card storage-panel" id="epStoragePanel" aria-labelledby="epStorageTitle">
+            <div class="chart-header">
+              <span class="chart-title" id="epStorageTitle">Storage utilization</span>
+              <span class="storage-data-badge" id="epStorageBadge" data-mode="loading">Loading</span>
+            </div>
+            <div class="storage-panel-content" id="epStorageContent" aria-live="polite">
+              <p class="storage-message">Checking Intune storage metrics…</p>
+            </div>
+          </section>
 
         </div>
 
@@ -778,7 +768,7 @@
 
           <!-- Zone 3: 3-Part Footer Controller -->
           <div class="grid-footer">
-            <div class="footer-count" id="epRecordCount">Showing 1–25 of 27,412 Managed Devices</div>
+            <div class="footer-count" id="epRecordCount">Intune device count unavailable</div>
             <div class="footer-page-size">
               <label for="epPageSizeSelect">Rows per page:</label>
               <select class="select-page-size" id="epPageSizeSelect">
@@ -852,14 +842,15 @@
               <span class="chart-subtitle" style="color: var(--accent-cmdb);">Multi-Domain Reconciliation</span>
             </div>
             <div class="provenance-bar-container">
-              <div class="provenance-bar">
-                <div class="bar-intune" style="width: 94.6%;"></div>
-                <div class="bar-solarwinds" style="width: 5.4%;"></div>
+              <div class="provenance-bar" id="cmdbProvenanceBar" role="img" aria-label="Loading source distribution">
+                <div class="bar-intune" id="cmdbProvenanceIntuneBar" style="width: 0%;"></div>
+                <div class="bar-solarwinds" id="cmdbProvenanceSolarWindsBar" style="width: 0%;"></div>
               </div>
               <div class="provenance-legend">
-                <span><span class="legend-dot" style="background: #3B82F6;"></span> Microsoft Intune: 27,412 CIs (94.6%)</span>
-                <span><span class="legend-dot" style="background: #F59E0B;"></span> SolarWinds Orion: 1,572 CIs (5.4%)</span>
+                <span><span class="legend-dot" style="background: #3B82F6;"></span> <span id="cmdbProvenanceIntuneLabel">Loading Intune source data…</span></span>
+                <span><span class="legend-dot" style="background: #F59E0B;"></span> <span id="cmdbProvenanceSolarWindsLabel">Loading SolarWinds source data…</span></span>
               </div>
+              <p class="provenance-status" id="cmdbProvenanceStatus" role="status" aria-live="polite">Loading source distribution…</p>
             </div>
             <div style="margin-top: 16px; font-size: 11px; color: var(--text-muted);">
               Inventory reporting is derived from the currently available SolarWinds source data.
@@ -969,10 +960,32 @@
       </section>
 
 
+      <section id="view-knowledge" class="view-section">
+        <button class="module-back-button" type="button" data-back-home>← Back to portal home</button>
+        <section class="coming-soon-panel" aria-labelledby="knowledgeTitle">
+          <p class="eyebrow">Learning and onboarding</p>
+          <h1 id="knowledgeTitle">Knowledge Centre</h1>
+          <p>This space will help new joiners learn how our ITOM work is done and give the team one place to revisit key procedures.</p>
+          <p>Planned content includes onboarding guides, practical system and workflow references, and pre-recorded training videos.</p>
+          <span>Coming soon</span>
+        </section>
+      </section>
+
+      <section id="view-automations" class="view-section">
+        <button class="module-back-button" type="button" data-back-home>← Back to portal home</button>
+        <section class="coming-soon-panel" aria-labelledby="automationsTitle">
+          <p class="eyebrow">Future capability</p>
+          <h1 id="automationsTitle">Automations</h1>
+          <p>This workspace is planned for approved operational workflows that help the ITOM team reduce repetitive manual work.</p>
+          <p>No automation workflows are available to run yet.</p>
+          <span>Coming soon</span>
+        </section>
+      </section>
+
       <!-- =========================================================================
-           VIEW 4: BACKGROUND TELEMETRY INGESTION & SYNC LEDGER
+           VIEW: BACKGROUND TELEMETRY INGESTION & SYNC SCHEDULE
            ========================================================================= -->
-      <section id="view-automation" class="view-section">
+      <section id="view-sync-schedule" class="view-section">
         <button class="module-back-button" type="button" data-back-home>← Back to portal home</button>
         <div class="sync-workspace" id="syncScheduleWorkspace" aria-live="polite">
           <header class="sync-workspace-heading">
@@ -1054,6 +1067,11 @@
         <strong>Coforge IT Operations Intelligence</strong> © 2026
       </div>
       <div class="footer-right">
+        <nav class="footer-operations" aria-label="Operations">
+          <span class="footer-operations-label">Operations</span>
+          <button class="footer-link footer-operation-link" type="button" data-target-view="sync">Sync runs</button>
+          <button class="footer-link footer-operation-link" type="button" data-target-view="sync-schedule">Sync &amp; schedule</button>
+        </nav>
         <a href="http://localhost:8000/docs" target="_blank" class="footer-link">FastAPI Docs</a>
         <a href="http://localhost:8000/redoc" target="_blank" class="footer-link">ReDoc</a>
         <a href="#top" class="footer-link">Back to Top</a>
@@ -1100,6 +1118,6 @@
   </aside>
 
   <!-- Master ES6 Application Bootstrap -->
-  <script type="module" src="js/app.js?v=13"></script>
+  <script type="module" src="js/app.js?v=14"></script>
 </body>
 </html>

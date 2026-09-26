@@ -70,6 +70,34 @@ AVAILABLE_STATUSES: Set[str] = {"up"}
 # Statuses meaning "this node is not actively monitored by Orion".
 UNMONITORED_STATUSES: Set[str] = {"unmanaged", "unknown"}
 
+SOLARWINDS_NETWORK_VENDOR_TERMS = (
+    "cisco", "juniper", "arista", "fortinet", "palo alto", "check point",
+    "extreme", "hpe aruba", "ubiquiti", "f5", "mikrotik",
+)
+SOLARWINDS_NETWORK_TYPE_TERMS = (
+    "switch", "router", "firewall", "wireless", "wlc", "access point",
+    "network", "catalyst", "asa", "nexus", "fortigate", "palo alto",
+)
+SOLARWINDS_SERVER_TYPE_TERMS = (
+    "server", "linux", "ubuntu", "redhat", "centos", "esx", "hyper-v",
+    "nutanix", "freebsd",
+)
+
+
+def _solarwinds_role(vendor: Optional[str], ci_type: Optional[str]) -> str:
+    """Classify a SolarWinds CI using the same precedence as fleet summaries."""
+    vendor_value = (vendor or "").strip().lower()
+    type_value = (ci_type or "").strip().lower()
+    is_network = (
+        any(term in vendor_value for term in SOLARWINDS_NETWORK_VENDOR_TERMS)
+        or any(term in type_value for term in SOLARWINDS_NETWORK_TYPE_TERMS)
+    )
+    if is_network:
+        return "network"
+    if any(term in type_value for term in SOLARWINDS_SERVER_TYPE_TERMS):
+        return "server"
+    return "unclassified"
+
 
 class EmptyDatasetError(RuntimeError):
     """Raised when a source system has no Configuration Items persisted.
@@ -656,19 +684,6 @@ class SummaryRepository:
         monitored = _sum_excluding(status_breakdown, UNMONITORED_STATUSES)
 
         # Canonical category classification across SolarWinds nodes
-        NETWORK_VENDORS = {
-            "cisco", "juniper", "arista", "fortinet", "palo alto", "check point",
-            "extreme", "hpe aruba", "ubiquiti", "f5", "mikrotik",
-        }
-        NETWORK_TYPE_TERMS = (
-            "switch", "router", "firewall", "wireless", "wlc", "access point",
-            "network", "catalyst", "asa", "nexus", "fortigate", "palo alto",
-        )
-        SERVER_TERMS = (
-            "server", "linux", "ubuntu", "redhat", "centos", "esx", "hyper-v",
-            "nutanix", "freebsd",
-        )
-
         sw_cats_stmt = (
             select(
                 ConfigurationItem.vendor,
@@ -684,12 +699,11 @@ class SummaryRepository:
         sw_srv = 0
         sw_uncl = 0
         for v, t, count in sw_cats_res.all():
-            v_low = (v or "").strip().lower()
-            t_low = (t or "").strip().lower()
             c = int(count)
-            if any(nv in v_low for nv in NETWORK_VENDORS) or any(nt in t_low for nt in NETWORK_TYPE_TERMS):
+            role = _solarwinds_role(v, t)
+            if role == "network":
                 sw_net += c
-            elif any(st in t_low for st in SERVER_TERMS):
+            elif role == "server":
                 sw_srv += c
             else:
                 sw_uncl += c
@@ -713,6 +727,9 @@ class SummaryRepository:
         saturated_candidates: List[Dict[str, Any]] = []
 
         for row in sat_res.all():
+            if _solarwinds_role(row.vendor, row.ci_type) != "server":
+                continue
+
             attrs = row.attributes or {}
             cpu = attrs.get("cpu_load")
             if cpu is None:

@@ -1,6 +1,6 @@
 /**
  * Module 1: Infrastructure Analytics Unified Workspace
- * 4 Primary Category Cards (Servers, Networks, Campus Sites, CMDB Baseline),
+ * 4 Primary Category Cards (classified servers, networks, campus sites, CMDB baseline),
  * Sub-tab switching, location-wise filtration, interactive chart slicing, and full pagination.
  */
 import { itomApi } from '../api.js?v=6';
@@ -173,7 +173,10 @@ async function loadInfraCategoryMetrics() {
       itomApi.getSolarWindsNetworkDevices({ page: 1, page_size: 10 }).catch(() => ({ total: null })),
     ]);
     const metrics = swSum.metrics || {};
-    const totalServers = metrics.total_server_nodes;
+    const totalNodes = metrics.total_server_nodes;
+    const totalServers = metrics.server_nodes_count;
+    const totalNetworkDevices = metrics.network_devices_count;
+    const unclassifiedNodes = metrics.unclassified_nodes_count;
     const highHealthPct = metrics.high_health_pct;
     const sites = sitesResponse.data?.items || sitesResponse.items || [];
 
@@ -189,7 +192,9 @@ async function loadInfraCategoryMetrics() {
     const catBaseSub = document.getElementById('catBaselineSub');
 
     if (catServVal) catServVal.textContent = totalServers != null ? formatNumber(totalServers) : 'Unavailable';
-    if (catServSub) catServSub.textContent = highHealthPct != null ? `${Number(highHealthPct).toFixed(1)}% high health` : 'No current SolarWinds data';
+    if (catServSub) catServSub.textContent = totalNodes != null
+      ? `Classified servers of ${formatNumber(totalNodes)} SolarWinds nodes`
+      : 'No current SolarWinds data';
     if (catNetVal) catNetVal.textContent = networkResponse.total != null ? formatNumber(networkResponse.total) : 'Unavailable';
     if (catNetSub) catNetSub.textContent = networkResponse.total != null ? 'SolarWinds node inventory' : 'Network inventory unavailable';
     if (catSitesVal) catSitesVal.textContent = formatNumber(sites.length);
@@ -203,7 +208,7 @@ async function loadInfraCategoryMetrics() {
 }
 
 /* =========================================================================
-   SUB-VIEW 1: HYBRID ENTERPRISE SERVERS
+   SUB-VIEW 1: SOLARWINDS NODE INVENTORY
    ========================================================================= */
 
 async function loadServerKpisAndCharts() {
@@ -211,6 +216,9 @@ async function loadServerKpisAndCharts() {
     const summary = await itomApi.getSolarWindsSummary();
     const metrics = summary.metrics || {};
     const total = metrics.total_server_nodes;
+    const serverCount = metrics.server_nodes_count;
+    const networkCount = metrics.network_devices_count;
+    const unclassifiedCount = metrics.unclassified_nodes_count;
     const active = metrics.active_monitored_nodes;
     const highHealth = metrics.high_health_pct;
     const avail = metrics.availability_pct;
@@ -224,7 +232,9 @@ async function loadServerKpisAndCharts() {
     const osEl = document.getElementById('swOsVal');
 
     if (totalEl) totalEl.textContent = total != null ? formatNumber(total) : 'Unavailable';
-    if (totalSub) totalSub.textContent = active != null ? `${formatNumber(active)} monitored` : 'No current data';
+    if (totalSub) totalSub.textContent = total != null
+      ? `${formatNumber(active ?? 0)} actively monitored · ${formatNumber(serverCount ?? 0)} servers · ${formatNumber(networkCount ?? 0)} network · ${formatNumber(unclassifiedCount ?? 0)} unclassified`
+      : 'No current data';
     if (slaEl) slaEl.textContent = highHealth != null ? `${Number(highHealth).toFixed(1)}%` : 'Unavailable';
     if (availSub) availSub.textContent = avail != null ? `${Number(avail).toFixed(1)}%` : 'Unavailable';
     if (alertsEl) alertsEl.textContent = metrics.status_counts ? formatNumber(alerts) : 'Unavailable';
@@ -485,11 +495,11 @@ async function loadServerGrid() {
     const endRecord = totalRecords > 0 ? Math.min(startRecord + allFetchedNodes.length - 1, totalRecords) : 0;
 
     if (recordCountEl) {
-      recordCountEl.textContent = `Showing ${formatNumber(startRecord)}–${formatNumber(endRecord)} of ${formatNumber(totalRecords)} Server Nodes`;
+      recordCountEl.textContent = `Showing ${formatNumber(startRecord)}–${formatNumber(endRecord)} of ${formatNumber(totalRecords)} SolarWinds Nodes`;
     }
 
     if (!allFetchedNodes.length) {
-      tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding: 32px; color: #6B7280;">No server nodes match the specified search or filter criteria.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding: 32px; color: #6B7280;">No SolarWinds nodes match the specified search or filter criteria.</td></tr>`;
       if (paginationControls) paginationControls.innerHTML = '';
       return;
     }
@@ -533,8 +543,8 @@ async function loadServerGrid() {
     });
 
   } catch (err) {
-    console.error('Failed to load server nodes grid:', err);
-    tbody.innerHTML = `<tr><td colspan="9" class="inline-error">Unable to query SolarWinds server nodes. SWIS API offline.</td></tr>`;
+    console.error('Failed to load SolarWinds nodes grid:', err);
+    tbody.innerHTML = `<tr><td colspan="9" class="inline-error">Unable to query SolarWinds nodes. The inventory API may be unavailable.</td></tr>`;
   }
 }
 
@@ -638,7 +648,7 @@ function initServerFilters() {
         ...(activeSwLocation ? { location: activeSwLocation } : {}),
       };
       const exportNodes = await fetchAllFilteredRows(params => itomApi.getSolarWindsNodes(params), filters);
-      if (!exportNodes.length) { window.alert('No server nodes match the active filters.'); return; }
+      if (!exportNodes.length) { window.alert('No SolarWinds nodes match the active filters.'); return; }
       const headers = [
         { label: 'Node Name', key: 'name' },
         { label: 'IP Address', key: 'ip' },

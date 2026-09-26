@@ -59,13 +59,13 @@ async def test_saturation_telemetry_returns_saturated_nodes(session):
 
     assert "top_saturated_servers" in summary
     sat = summary["top_saturated_servers"]
-    assert len(sat) == 2
+    assert len(sat) == 1
     names = [s["name"] for s in sat]
-    assert "SAT-RAM-NODE" in names
     assert "SAT-CPU-NODE" in names
+    assert "SAT-RAM-NODE" not in names  # Saturated network gear is not a server triage item.
     assert "HEALTHY-NODE" not in names
     assert "RETIRED-SAT-NODE" not in names
-    assert summary["total_saturated_nodes"] == 2
+    assert summary["total_saturated_nodes"] == 1
 
 
 @pytest.mark.asyncio

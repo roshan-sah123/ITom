@@ -11,7 +11,7 @@ export async function renderSyncSchedule() {
   if (!pollStarted) {
     pollStarted = true;
     window.setInterval(() => {
-      if (document.getElementById('view-automation')?.classList.contains('active')) renderSyncSchedule();
+      if (document.getElementById('view-sync-schedule')?.classList.contains('active')) renderSyncSchedule();
     }, 30000);
   }
   const button = document.getElementById('runSyncNow');

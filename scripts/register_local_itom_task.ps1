@@ -33,4 +33,4 @@ Start-ScheduledTask -TaskName $taskName
 Start-Sleep -Seconds 3
 $info = Get-ScheduledTaskInfo -TaskName $taskName
 Write-Host "Registered and started '$taskName'. Task last result: $($info.LastTaskResult)"
-Write-Host 'Portal: http://localhost:8080/ (API: http://localhost:8000/)'
+Write-Host 'Portal and API: http://localhost:8080/'

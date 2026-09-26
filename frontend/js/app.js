@@ -5,9 +5,9 @@ import { initHeader } from './components/header.js?v=4';
 import { initModal } from './components/modal.js';
 import { initDrawer } from './components/drawer.js';
 import { renderHome } from './components/home.js?v=6';
-import { renderInfrastructureWorkspace } from './components/infraWorkspace.js?v=10';
-import { renderEndpoints } from './components/endpoints.js?v=9';
-import { renderCmdb } from './components/cmdb.js?v=8';
+import { renderInfrastructureWorkspace } from './components/infraWorkspace.js?v=11';
+import { renderEndpoints } from './components/endpoints.js?v=10';
+import { renderCmdb } from './components/cmdb.js?v=9';
 import { renderSyncLedger } from './components/syncLedger.js?v=3';
 import { renderSyncSchedule } from './components/syncSchedule.js?v=1';
 
@@ -18,23 +18,28 @@ const workspaceLabels = {
   infrastructure: 'Infrastructure',
   endpoints: 'Endpoints',
   cmdb: 'CMDB',
+  knowledge: 'Knowledge Centre',
+  automations: 'Automations',
   sync: 'Sync runs',
-  automation: 'Sync & schedule'
+  'sync-schedule': 'Sync & schedule'
 };
 
 // Expose global navigation helper for cards and buttons
 window.navigateToView = function(viewName, subtabName = '', filterParam = '') {
+  const targetSec = document.getElementById(`view-${viewName}`);
+  if (!targetSec) return;
+
   const tabs = document.querySelectorAll('.nav-tab');
   const targetTab = document.querySelector(`.nav-tab[data-view="${viewName}"]`);
-  
-  if (targetTab) {
-    tabs.forEach(t => t.classList.remove('active'));
-    targetTab.classList.add('active');
-  }
+  tabs.forEach((tab) => {
+    const isActive = tab === targetTab;
+    tab.classList.toggle('active', isActive);
+    if (isActive) tab.setAttribute('aria-current', 'page');
+    else tab.removeAttribute('aria-current');
+  });
 
   document.querySelectorAll('.view-section').forEach(sec => sec.classList.remove('active'));
-  const targetSec = document.getElementById(`view-${viewName}`);
-  if (targetSec) targetSec.classList.add('active');
+  targetSec.classList.add('active');
 
   activeView = viewName;
   const workspaceLabel = document.getElementById('activeWorkspaceLabel');
@@ -73,28 +78,18 @@ document.addEventListener('DOMContentLoaded', () => {
     button.addEventListener('click', () => window.navigateToView('home'));
   });
 
-  document.getElementById('btnSyncLedger')?.addEventListener('click', () => {
-    window.navigateToView('sync');
-  });
-
   // Navigation tab routing
   const tabs = document.querySelectorAll('.nav-tab');
   tabs.forEach(tab => {
     tab.addEventListener('click', () => {
       const targetView = tab.dataset.view;
       if (!targetView || targetView === activeView) return;
-
-      tabs.forEach(t => t.classList.remove('active'));
-      tab.classList.add('active');
-
-      document.querySelectorAll('.view-section').forEach(sec => sec.classList.remove('active'));
-      const targetSec = document.getElementById(`view-${targetView}`);
-      if (targetSec) targetSec.classList.add('active');
-
-      activeView = targetView;
-      loadViewData(targetView);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      window.navigateToView(targetView);
     });
+  });
+
+  document.querySelectorAll('.footer-operation-link').forEach((button) => {
+    button.addEventListener('click', () => window.navigateToView(button.dataset.targetView));
   });
 
   // Initial load: Portal Home Page
@@ -115,10 +110,13 @@ function loadViewData(view, subtabName = '', filterParam = '') {
     case 'cmdb':
       renderCmdb();
       break;
+    case 'knowledge':
+    case 'automations':
+      break;
     case 'sync':
       renderSyncLedger();
       break;
-    case 'automation':
+    case 'sync-schedule':
       renderSyncSchedule();
       break;
   }

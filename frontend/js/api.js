@@ -1,13 +1,10 @@
 /**
  * Coforge ITOM Portal - Central REST API Client
- * Connects to live FastAPI backend at http://localhost:8000/api/v1
+ * Connects to the same-origin FastAPI backend by default.
  * Enforces Zero-Hallucination telemetry contracts with graceful degradation
  */
 
-const API_BASE = window.ITOM_API_BASE
-  || ((window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') && ['8080', '8081'].includes(window.location.port)
-    ? 'http://127.0.0.1:8000/api/v1'
-    : '/api/v1');
+const API_BASE = window.ITOM_API_BASE || '/api/v1';
 
 async function fetchJson(endpoint, options = {}) {
   const url = endpoint.startsWith('http') ? endpoint : `${API_BASE}${endpoint}`;

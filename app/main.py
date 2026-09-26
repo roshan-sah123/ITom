@@ -6,11 +6,13 @@ load_dotenv()
 import logging
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import AsyncGenerator
 
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api.v1.endpoints import health
@@ -27,6 +29,7 @@ logging.basicConfig(
     format="[%(asctime)s] [%(levelname)s] [%(name)s]: %(message)s",
 )
 logger = logging.getLogger("itom.main")
+FRONTEND_DIR = Path(__file__).resolve().parents[1] / "frontend"
 
 
 @asynccontextmanager
@@ -137,12 +140,11 @@ app.include_router(api_router, prefix=settings.API_V1_STR)
 
 
 @app.get("/", tags=["Root"])
-async def root() -> dict:
-    """Root metadata probe."""
-    return {
-        "service": settings.PROJECT_NAME,
-        "version": settings.VERSION,
-        "status": "operational",
-        "docs": "/docs",
-        "api_v1": settings.API_V1_STR,
-    }
+async def root() -> FileResponse:
+    """Serve the portal shell on the same origin as its API."""
+    return FileResponse(FRONTEND_DIR / "index.html")
+
+
+# API routes are registered above the static catch-all so `/api/v1/*` and
+# health probes always remain authoritative.
+app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="portal")

@@ -43,6 +43,7 @@ function initCmdbGlobalSearch() {
 async function loadCmdbKpis() {
   try {
     const summary = await itomApi.getCmdbSummary();
+    renderCmdbProvenance(summary);
     const total = summary.total_cis ?? cachedTotalCis;
     const highHealth = summary.high_health_count ?? 0;
     const endpoints = summary.total_endpoints ?? 0;
@@ -62,7 +63,50 @@ async function loadCmdbKpis() {
 
   } catch (err) {
     console.error('Failed to load CMDB summary:', err);
+    renderCmdbProvenance(null);
   }
+}
+
+function renderCmdbProvenance(summary) {
+  const bar = document.getElementById('cmdbProvenanceBar');
+  const intuneBar = document.getElementById('cmdbProvenanceIntuneBar');
+  const solarWindsBar = document.getElementById('cmdbProvenanceSolarWindsBar');
+  const intuneLabel = document.getElementById('cmdbProvenanceIntuneLabel');
+  const solarWindsLabel = document.getElementById('cmdbProvenanceSolarWindsLabel');
+  const status = document.getElementById('cmdbProvenanceStatus');
+  if (!bar || !intuneBar || !solarWindsBar || !intuneLabel || !solarWindsLabel || !status) return;
+
+  const total = Number(summary?.total_cis);
+  const intuneCount = Number(summary?.total_endpoints);
+  const solarWindsCount = Number(summary?.total_servers)
+    + Number(summary?.total_network_devices)
+    + Number(summary?.total_unclassified);
+  const hasValidSources = summary?.data_available !== false
+    && Number.isFinite(total) && total > 0
+    && Number.isFinite(intuneCount) && intuneCount >= 0
+    && Number.isFinite(solarWindsCount) && solarWindsCount >= 0
+    && intuneCount + solarWindsCount === total;
+
+  if (!hasValidSources) {
+    bar.dataset.status = 'unavailable';
+    bar.setAttribute('aria-label', 'Source distribution unavailable');
+    intuneBar.style.width = '0%';
+    solarWindsBar.style.width = '0%';
+    intuneLabel.textContent = 'Microsoft Intune: Unavailable';
+    solarWindsLabel.textContent = 'SolarWinds Orion: Unavailable';
+    status.textContent = 'Source distribution is unavailable; no sample values are shown.';
+    return;
+  }
+
+  const intunePct = (intuneCount / total) * 100;
+  const solarWindsPct = (solarWindsCount / total) * 100;
+  bar.dataset.status = 'live';
+  bar.setAttribute('aria-label', `Live source distribution: ${formatNumber(total)} configuration items`);
+  intuneBar.style.width = `${intunePct}%`;
+  solarWindsBar.style.width = `${solarWindsPct}%`;
+  intuneLabel.textContent = `Microsoft Intune: ${formatNumber(intuneCount)} CIs (${formatPercent(intunePct, 1)})`;
+  solarWindsLabel.textContent = `SolarWinds Orion: ${formatNumber(solarWindsCount)} CIs (${formatPercent(solarWindsPct, 1)})`;
+  status.textContent = `Live distribution across ${formatNumber(total)} active configuration items.`;
 }
 
 function updateCmdbFilterBanner() {

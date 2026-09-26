@@ -97,19 +97,26 @@ async function loadEndpointsKpisAndCharts() {
     const compRate = metrics.compliance_rate_pct;
 
     cachedTotalRecords = total;
+    if (!available) {
+      renderEndpointsUnavailable();
+      return;
+    }
+    renderStoragePanel(metrics, total, available);
 
     const totalEl = document.getElementById('epTotalVal');
     const totalSub = document.getElementById('epTotalSub');
     const compEl = document.getElementById('epCompRateVal');
     const compSub = document.getElementById('epCompRateSub');
     const osDivEl = document.getElementById('epOsDiversityVal');
+    const osSubEl = document.getElementById('epOsDiversitySub');
     const zeroTrustEl = document.getElementById('epZeroTrustVal');
 
     if (totalEl) totalEl.textContent = available ? formatNumber(total) : 'Unavailable';
     if (totalSub) totalSub.textContent = available ? `${formatNumber(compliant)} compliant` : 'No current Intune data';
     if (compEl) compEl.textContent = compRate != null ? `${Number(compRate).toFixed(1)}%` : 'Unavailable';
-    if (compSub) compSub.textContent = 'Calculated from current device status';
+    if (compSub) compSub.textContent = compRate != null ? 'Calculated from current device status' : 'No current compliance metric';
     if (osDivEl) osDivEl.textContent = Object.keys(summary.os_distribution || summary.os_breakdown || {}).join(' / ') || 'Unavailable';
+    if (osSubEl) osSubEl.textContent = Object.keys(summary.os_distribution || summary.os_breakdown || {}).length ? 'Current Intune device types' : 'No current Intune data';
     if (zeroTrustEl) zeroTrustEl.textContent = 'Coming soon';
 
     // 1. OS Distribution (with click filtering)
@@ -125,7 +132,75 @@ async function loadEndpointsKpisAndCharts() {
 
   } catch (err) {
     console.error('Failed to load endpoints summary:', err);
+    renderEndpointsUnavailable();
   }
+}
+
+function renderEndpointsUnavailable() {
+  cachedTotalRecords = 0;
+  allFetchedDevices = [];
+  const unavailableValues = ['epTotalVal', 'epCompRateVal', 'epOsDiversityVal'];
+  unavailableValues.forEach((id) => {
+    const element = document.getElementById(id);
+    if (element) element.textContent = 'Unavailable';
+  });
+  const totalSub = document.getElementById('epTotalSub');
+  const compSub = document.getElementById('epCompRateSub');
+  const osSub = document.getElementById('epOsDiversitySub');
+  if (totalSub) totalSub.textContent = 'Intune data is unavailable';
+  if (compSub) compSub.textContent = 'Intune data is unavailable';
+  if (osSub) osSub.textContent = 'Intune data is unavailable';
+
+  renderStorageDemo();
+  renderOsChart({});
+  renderComplianceChart({});
+  renderMfgChart({});
+}
+
+function renderStoragePanel(metrics, total, sourceAvailable) {
+  const badge = document.getElementById('epStorageBadge');
+  const content = document.getElementById('epStorageContent');
+  if (!badge || !content) return;
+
+  const median = Number(metrics.median_device_storage_used_pct);
+  const capacity = Number(metrics.fleet_capacity_used_pct ?? metrics.avg_storage_used_pct);
+  const sample = Number(metrics.storage_sample_size);
+  const hasLiveStorage = sourceAvailable && total > 0 && sample > 0
+    && Number.isFinite(median) && median >= 0 && median <= 100
+    && Number.isFinite(capacity) && capacity >= 0 && capacity <= 100;
+
+  if (!hasLiveStorage) {
+    renderStorageDemo();
+    return;
+  }
+
+  badge.textContent = 'Live Intune data';
+  badge.dataset.mode = 'live';
+  content.innerHTML = `${renderStorageMeter('Median per-device usage', median)}
+    ${renderStorageMeter('Fleet capacity used', capacity)}
+    <p class="storage-note">Based on ${formatNumber(sample)} devices with storage data (${formatPercent((sample / total) * 100, 1)} of the managed fleet). Fleet capacity is weighted by disk size.</p>`;
+}
+
+function renderStorageDemo() {
+  const badge = document.getElementById('epStorageBadge');
+  const content = document.getElementById('epStorageContent');
+  if (!badge || !content) return;
+
+  badge.textContent = 'DEMO DATA';
+  badge.dataset.mode = 'demo';
+  content.innerHTML = `${renderStorageMeter('Median per-device usage (demo)', 68)}
+    ${renderStorageMeter('Fleet capacity used (demo)', 41)}
+    <p class="storage-note storage-demo-note">Example values only — not live device measurements. Intune storage metrics are unavailable.</p>`;
+}
+
+function renderStorageMeter(label, value) {
+  const safeValue = Math.max(0, Math.min(100, value));
+  return `<div class="storage-meter">
+      <div class="storage-meter-label"><span>${label}</span><strong>${formatPercent(safeValue, 1)}</strong></div>
+      <div class="storage-meter-track" role="progressbar" aria-label="${label}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${safeValue}">
+        <span style="width:${safeValue}%"></span>
+      </div>
+    </div>`;
 }
 
 function updateActiveFilterBanner() {
@@ -373,6 +448,8 @@ async function loadEndpointsGrid() {
 
   } catch (err) {
     console.error('Failed to load endpoints grid:', err);
+    if (recordCountEl) recordCountEl.textContent = 'Intune device count unavailable';
+    if (paginationControls) paginationControls.innerHTML = '';
     tbody.innerHTML = `<tr><td colspan="6" class="inline-error">Unable to fetch endpoint devices. Upstream Graph API offline.</td></tr>`;
   }
 }
