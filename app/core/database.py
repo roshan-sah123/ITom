@@ -3,6 +3,7 @@
 import logging
 import os
 from collections.abc import AsyncGenerator
+from pathlib import Path
 from typing import Optional
 from sqlalchemy import event
 from sqlalchemy.orm import Session, with_loader_criteria
@@ -38,7 +39,17 @@ def _find_project_root() -> str:
     return os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 PROJECT_ROOT = _find_project_root()
-SQLITE_FALLBACK_URL = f"sqlite+aiosqlite:///{os.path.join(PROJECT_ROOT, 'data', 'itom.db').replace(chr(92), '/')}"
+
+
+def _sqlite_fallback_url(project_root: Optional[str] = None) -> str:
+    """Build the SQLite fallback URL from the configured database path."""
+    configured_path = Path(settings.SQLITE_DB_PATH).expanduser()
+    if not configured_path.is_absolute():
+        configured_path = Path(project_root or PROJECT_ROOT) / configured_path
+    return f"sqlite+aiosqlite:///{configured_path.resolve().as_posix()}"
+
+
+SQLITE_FALLBACK_URL = _sqlite_fallback_url()
 
 
 def _is_db_reachable(db_url: str) -> bool:

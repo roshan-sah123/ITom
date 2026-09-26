@@ -3,6 +3,8 @@
 from fastapi.testclient import TestClient
 
 from app.main import app
+from app.core import database
+from app.core.config import settings
 
 
 def test_fastapi_serves_portal_and_assets_from_root():
@@ -26,3 +28,14 @@ def test_readiness_and_dashboard_are_available_on_same_origin():
     assert dashboard.status_code == 200
     assert readiness.status_code == 200
     assert readiness.json()["status"] == "ok"
+
+
+def test_sqlite_fallback_uses_configured_database_path(monkeypatch):
+    from pathlib import Path
+
+    database_path = Path("C:/main-project/data/itom.db")
+    monkeypatch.setattr(settings, "SQLITE_DB_PATH", str(database_path))
+
+    fallback_url = database._sqlite_fallback_url("C:/worktree")
+
+    assert fallback_url == f"sqlite+aiosqlite:///{database_path.as_posix()}"
