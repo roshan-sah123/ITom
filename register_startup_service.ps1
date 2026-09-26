@@ -21,7 +21,7 @@ param(
 
 $TaskName = "ITOM_Portal_Server"
 $WorkspaceDir = $PSScriptRoot
-$ScriptPath = Join-Path $WorkspaceDir "scripts\start_server.py"
+$ScriptPath = Join-Path $WorkspaceDir "scripts\local_itom_supervisor.py"
 
 # Handle Status check
 if ($Status) {
@@ -85,7 +85,7 @@ Write-Host "[*] Workspace Directory: $WorkspaceDir" -ForegroundColor Gray
 Write-Host "[*] Target Script:       $ScriptPath" -ForegroundColor Gray
 
 if (-not (Test-Path $ScriptPath)) {
-    Write-Error "Could not locate start_server.py at expected path: $ScriptPath"
+    Write-Error "Could not locate local_itom_supervisor.py at expected path: $ScriptPath"
     exit 1
 }
 

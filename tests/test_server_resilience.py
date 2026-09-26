@@ -52,18 +52,14 @@ def test_systemd_service_file_specifications():
 
 
 def test_start_itom_service_bat_content():
-    """Verify start_itom_service.bat contains necessary supervisor and options."""
+    """Verify the Windows entry point manages the canonical local services."""
     bat_path = os.path.join(PROJECT_ROOT, "start_itom_service.bat")
     assert os.path.exists(bat_path), "start_itom_service.bat file must exist"
     
     with open(bat_path, "r", encoding="utf-8") as f:
         content = f.read()
 
-    assert "scripts\\start_server.py" in content
-    assert "--background" in content
-    assert "--status" in content
-    assert "--stop" in content
-    assert "8080" in content
+    assert "scripts\\local_itom_supervisor.py" in content
 
 
 def test_register_startup_service_ps1_content():
@@ -76,8 +72,7 @@ def test_register_startup_service_ps1_content():
 
     # Dynamic path handling
     assert "$PSScriptRoot" in content
-    assert "start_server.py" in content
-    assert "ITOM_Portal_Server" in content
+    assert "local_itom_supervisor.py" in content
     
     # Task resilience settings
     assert "AllowStartIfOnBatteries" in content

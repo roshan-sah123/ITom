@@ -24,7 +24,7 @@ This runbook describes the deployment architectures, procedures, security harden
 ### 2.1 Quick Interactive Launch
 For ad-hoc or development use, start the foreground supervisor:
 ```cmd
-start_server.bat
+start_itom_service.bat --open-browser
 ```
 
 ### 2.2 Background Service Supervisor (`start_itom_service.bat`)
@@ -33,7 +33,7 @@ To run the server in the background as a detached process:
 :: Start in background
 start_itom_service.bat --background
 
-:: Check runtime status and listening ports
+:: Check API, database, frontend, and data freshness
 start_itom_service.bat --status
 
 :: Stop background server
@@ -43,8 +43,8 @@ start_itom_service.bat --stop
 start_itom_service.bat --restart
 ```
 
-### 2.3 Persistent 24/7 Windows Scheduled Task (`register_startup_service.ps1`)
-To ensure the server starts automatically on system boot without user logon:
+### 2.3 Local Windows Scheduled Task (`register_startup_service.ps1`)
+To start the local FastAPI, SQLite, and frontend supervisor when the signed-in user logs on:
 ```powershell
 # Open PowerShell as Administrator and run:
 powershell -ExecutionPolicy Bypass -File .\register_startup_service.ps1

@@ -2,6 +2,7 @@
 .env
 .env.*
 !.env.example
+.vm-credential.xml
 
 # Python Caches & Bytecode
 __pycache__/
