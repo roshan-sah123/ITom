@@ -21,13 +21,32 @@ This runbook describes the deployment architectures, procedures, security harden
 
 ## 2. Model 1: Windows Server / Workstation Deployment
 
-### 2.1 Quick Interactive Launch
+### 2.1 First-Time VM Setup
+Run these commands from the cloned repository in PowerShell. The venv keeps the app's pinned Python packages separate from system Python:
+```powershell
+py -3.12 -m venv .venv
+& .\.venv\Scripts\python.exe -m pip install -r requirements.txt
+if (-not (Test-Path .env)) { Copy-Item .env.example .env }
+notepad .env
+```
+
+Set the VM's Graph and SolarWinds credentials in `.env`; do not commit that file. Keep `SCHEDULER_ENABLED=True` and set `SYNC_INTERVAL_SECONDS=600` for the 10-minute VM sync. The default database is the local SQLite file at `data/itom.db`; set `DATABASE_URL` only if this VM is meant to use another configured database.
+
+Apply the schema and run one live sync to validate the VM's credentials and source connectivity:
+```powershell
+& .\.venv\Scripts\python.exe -m alembic upgrade head
+& .\.venv\Scripts\python.exe scripts\run_live_sync.py --source all
+```
+
+The live sync writes the returned inventory into the configured CMDB database. If source access fails, inspect the per-source result before treating the VM as synchronized. Once the initial sync succeeds, the app's APScheduler runs every 600 seconds while the app process is running.
+
+### 2.2 Quick Interactive Launch
 For ad-hoc or development use, start the foreground supervisor:
 ```cmd
 start_itom_service.bat --open-browser
 ```
 
-### 2.2 Background Service Supervisor (`start_itom_service.bat`)
+### 2.3 Background Service Supervisor (`start_itom_service.bat`)
 To run the server in the background as a detached process:
 ```cmd
 :: Start in background
@@ -43,18 +62,20 @@ start_itom_service.bat --stop
 start_itom_service.bat --restart
 ```
 
-### 2.3 Local Windows Scheduled Task (`register_startup_service.ps1`)
+### 2.4 Local Windows Scheduled Task (`scripts/register_local_itom_task.ps1`)
 To start the local FastAPI, SQLite, and frontend supervisor when the signed-in user logs on:
 ```powershell
-# Open PowerShell as Administrator and run:
-powershell -ExecutionPolicy Bypass -File .\register_startup_service.ps1
+# Run from the repository root after the venv and .env are ready:
+powershell -ExecutionPolicy Bypass -File .\scripts\register_local_itom_task.ps1
 
 # Verify task status:
-powershell -ExecutionPolicy Bypass -File .\register_startup_service.ps1 -Status
+powershell -ExecutionPolicy Bypass -File .\scripts\register_local_itom_task.ps1 -Status
 
 # To remove the task:
-powershell -ExecutionPolicy Bypass -File .\register_startup_service.ps1 -Uninstall
+powershell -ExecutionPolicy Bypass -File .\scripts\register_local_itom_task.ps1 -Remove
 ```
+
+The task starts the app and its sync worker at interactive sign-in; the VM must remain powered on and connected to the required source networks. The supplied local supervisor binds to loopback (`127.0.0.1`) so the portal is available on the VM itself. Internal-network sharing requires a separately reviewed deployment with authentication, a network listener/reverse proxy, TLS, and firewall rules.
 
 ---
 

@@ -20,7 +20,10 @@ if ($Status) {
     exit 0
 }
 
-$python = (Get-Command python.exe -ErrorAction Stop).Source
+$python = Join-Path $root '.venv\Scripts\python.exe'
+if (-not (Test-Path $python)) {
+    $python = (Get-Command python.exe -ErrorAction Stop).Source
+}
 $pythonw = Join-Path (Split-Path $python) 'pythonw.exe'
 if (Test-Path $pythonw) { $python = $pythonw }
 $script = Join-Path $root 'scripts\local_itom_supervisor.py'

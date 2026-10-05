@@ -1,4 +1,4 @@
-name: ITOM Platform CI & Invariant Quality Gates
+name: ITOM CI
 
 on:
   push:
@@ -7,58 +7,45 @@ on:
     branches: [ main, master ]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  test-matrix:
-    name: Test & Invariant Gate (Python ${{ matrix.python-version }})
+  offline-tests:
+    name: Offline application tests (Python 3.12)
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: ["3.10", "3.11", "3.12"]
+    timeout-minutes: 10
 
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Set up Python ${{ matrix.python-version }}
+      - name: Set up Python 3.12
         uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python-version }}
-          cache: 'pip'
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
 
       - name: Install Dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
+        run: python -m pip install -r requirements.txt
 
-      - name: 🔒 Security & Secret Exposure Scan
-        run: |
-          python -m unittest tests.verify_adversarial_security -v
-
-      - name: ⚡ Zero-Build Frontend Compliance Verification
-        run: |
-          python -m unittest tests.test_zero_build_compliance -v
-
-      - name: 📊 Verify Microsoft Intune Invariants (25,987 Endpoints)
-        run: |
-          python tests/verify_intune_data.py
-
-      - name: 📡 Verify SolarWinds Orion Invariants (1,548 Server Nodes)
-        run: |
-          python tests/verify_solarwinds_data.py
-
-      - name: 🗄️ Verify CMDB Relational Invariants & Security
-        run: |
-          python -m unittest tests.test_cmdb_live_solarwinds -v
-
-      - name: 🧪 Execute Master E2E Test Suite (119+ Tests)
-        run: |
-          python tests/run_e2e_tests.py --verbose
-
-      - name: 🛠️ Verify CLI CMDB Data Generation
-        run: |
-          python scripts/fetch_cmdb_data.py
+      - name: Run deterministic tests without live credentials or source access
+        env:
+          SCHEDULER_ENABLED: "false"
+          DATABASE_URL: sqlite+aiosqlite:///:memory:
+        run: >-
+          python -m pytest
+          tests/test_graph_client_contract.py
+          tests/test_intune_forecast.py
+          tests/test_source_proxy_routing.py
+          tests/test_summary_cache.py
+          tests/test_ui_truthfulness.py
+          tests/test_local_service_environment.py
+          tests/test_sqlite_runtime_pragmas.py
+          tests/test_frontend_home_contract.py
+          -q

@@ -1,51 +1,28 @@
 ---
 name: itom-telemetry-sync
-description: Standard operating procedure for extracting, validating, and publishing multi-domain telemetry from Microsoft Intune and SolarWinds Orion into Cloud Firestore and the ITOM Portal.
+description: Verify and operate ITOM Microsoft Graph and SolarWinds SWIS ingestion into its configured SQLite or PostgreSQL CMDB.
 ---
 
-# ITOM Multi-Domain Telemetry & Quality Gate Skill
+# ITOM Telemetry Sync
 
-## 1. Scope & Standards
-This skill enforces enterprise multi-domain telemetry hygiene, zero-hallucination metric reconciliation, and atomic releases across the ITOM Portal platform.
+## Current architecture
 
-### Authoritative Telemetry Invariants & Dynamic Reconciliation
-Telemetry figures update dynamically with every recurring synchronization cycle (`APScheduler` 10-minute sync, `sync_runs`). Metrics rendered on the dashboard and exposed via REST APIs must reconcile with the latest successful sync run. The baseline reference invariants established during initial forensic extraction are:
+- Microsoft Intune data is read from Microsoft Graph; SolarWinds data is read from Orion SWIS.
+- `app.services.sync_service.SyncService` normalizes and persists records into the database selected by `DATABASE_URL`.
+- The active portal and versioned APIs read the database-backed repositories and summaries.
+- When `SCHEDULER_ENABLED=True`, the FastAPI process runs APScheduler at `SYNC_INTERVAL_SECONDS` (default 600 seconds). Sync runs only while the app process is running.
+- SQLite is the local VM default. PostgreSQL is used only when `DATABASE_URL` explicitly configures it.
+- GitHub Actions runs code checks only. Live telemetry sync belongs to the configured ITOM runtime, not an ephemeral GitHub-hosted runner.
 
-* **Microsoft Intune (Baseline Reference: ~25,987 Endpoints)**:
-  * **OS Distribution Baseline**: Windows (25,334), macOS (602), Linux (24), iOS (2), Android (1).
-  * **Compliance Baseline**: Compliant (21,589), Non-Compliant (3,422), ConfigManager (935), Unknown (31), InGracePeriod (10).
-  * **Fleet Storage Utilization Baseline**: 37.4% average disk utilization across fleet (~9,761.55 TB total).
-* **SolarWinds Orion (Baseline Reference: ~1,548 Server Nodes)**:
-  * **Health Tiers Baseline**: High Health (1,357), Medium Health (150), Low/Critical (41).
-  * **Status Breakdown Baseline**: Up (1,370), Warning (25), Critical (35), Down (6), Unmanaged/Unknown (112).
-  * **Performance Metrics Baseline**: Fleet CPU (16.2%), RAM (22.6%), Network Latency (42.5 ms).
+## Safe operational checks
 
-*Note: In production and live environments, exact counts fluctuate as endpoints enroll/retire and nodes transition state. Data freshness headers (`last_synchronized_at`, `data_age_seconds`, `sync_status`) indicate the active synchronization state.*
+1. Check `/api/v1/health`, `/ready`, `/api/v1/system/freshness`, and recent sync-run records before interpreting dashboard values.
+2. Reconcile source counts against the latest successful run and active CI rows for that source. Never compare against historical counts embedded in old docs or tests.
+3. For read-only extraction checks, use `scripts/run_live_sync.py --source intune --dry-run` or `--source solarwinds --dry-run`. These contact the configured source but do not persist CI records.
+4. To intentionally persist a live sync, use `scripts/run_live_sync.py --source intune`, `--source solarwinds`, or `--source all`. Confirm the target database and credentials first; this updates the configured CMDB.
+5. Compare extracted, normalized, rejected, persisted, and active-row counts. A failed or partial run must not advance freshness or retire source records.
+6. Never print `.env` values in logs or reports. Keep secret-bearing environment files out of Git.
 
----
+## Legacy artifacts
 
-## 2. Ingestion & Quality Gate Runbook
-
-### Step 1: Execute Multi-Domain Extraction
-```bash
-# Extract & structure Intune Graph Telemetry
-python scripts/fetch_intune_data.py
-
-# Extract & structure SolarWinds SWIS Telemetry
-python scripts/fetch_solarwinds_data.py
-```
-
-### Step 2: Run Verification Test Suites
-```bash
-# Validate Intune Invariants (25,987 devices)
-python tests/verify_intune_data.py
-
-# Validate SolarWinds Invariants (1,548 nodes)
-python tests/verify_solarwinds_data.py
-```
-
-### Step 3: Production Deployment
-```bash
-# Deploy to Google Firebase Hosting
-npx -y firebase-tools deploy --only hosting --project itom-portal-roshan
-```
+`scripts/run_sync.py`, `data/*.json` payload checks, Firestore references, Firebase deployment steps, and fixed historical fleet baselines are legacy workflows. They are not authoritative for the current FastAPI + repository + SQLite/PostgreSQL application. Do not reintroduce them into the active sync schedule without an explicit architecture decision.
