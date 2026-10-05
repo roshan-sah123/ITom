@@ -5,7 +5,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
-from sqlalchemy import case, desc, func, or_, select
+from sqlalchemy import and_, case, desc, func, not_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.ci import CIRelationship, ConfigurationItem
@@ -22,6 +22,7 @@ NETWORK_TYPE_TERMS = (
     "switch", "router", "firewall", "wireless", "wlc", "access point",
     "network", "catalyst", "asa", "nexus", "fortigate", "palo alto",
 )
+SERVER_TYPE_TERMS = ("server", "linux", "ubuntu", "redhat", "centos", "esx", "hyper-v", "nutanix", "freebsd")
 SORTABLE_CI_COLUMNS = {
     "name", "source_system", "ci_type", "status", "health_tier", "vendor",
     "location", "last_sync_time", "updated_at",
@@ -79,6 +80,7 @@ class CIRepository(BaseRepository[ConfigurationItem]):
         status: Optional[str] = None,
         location: Optional[str] = None,
         network_only: bool = False,
+        server_only: bool = False,
         sort_by: Optional[str] = "name",
         sort_order: Optional[str] = "asc",
     ) -> Tuple[List[Any], int]:
@@ -124,6 +126,11 @@ class CIRepository(BaseRepository[ConfigurationItem]):
                         *type_filters,
                     )
                 )
+            if server_only:
+                network_terms = [func.lower(ConfigurationItem.ci_type).like(f"%{term}%") for term in NETWORK_TYPE_TERMS]
+                server_terms = [func.lower(ConfigurationItem.ci_type).like(f"%{term}%") for term in SERVER_TYPE_TERMS]
+                is_network = or_(ConfigurationItem.vendor.in_(NETWORK_VENDORS), *network_terms)
+                filters.append(and_(not_(is_network), or_(*server_terms)))
 
             if search and search.strip():
                 s = f"%{search.strip()}%"
@@ -203,6 +210,10 @@ class CIRepository(BaseRepository[ConfigurationItem]):
             sort_by=sort_by,
             sort_order=sort_order,
         )
+
+    async def get_server_devices(self, **kwargs) -> Tuple[List[Any], int]:
+        """Return only classified SolarWinds servers, excluding network/unknown roles."""
+        return await self.get_cis_paginated(source_system="SOLARWINDS", server_only=True, **kwargs)
 
     async def get_cmdb_summary(self) -> Dict[str, Any]:
         """Aggregate fleet metrics, vendor distributions, and health tier breakdown."""
@@ -308,13 +319,13 @@ class CIRepository(BaseRepository[ConfigurationItem]):
             med_health = health_breakdown.get("Medium", 0)
             low_health = health_breakdown.get("Low", 0)
 
-            comp_count = status_breakdown.get("Compliant", 0)
-            intune_total = sum(
-                count
-                for s, count in status_breakdown.items()
-                if s in ["Compliant", "Noncompliant", "Configmanager", "Unknown", "Ingraceperiod"]
+            # Compliance belongs to Intune; every Intune device is in the denominator.
+            compliant_stmt = select(func.count(ConfigurationItem.id)).where(
+                ConfigurationItem.source_system == "INTUNE",
+                func.lower(func.trim(ConfigurationItem.status)) == "compliant",
             )
-            comp_rate = round((comp_count / intune_total) * 100.0, 2) if intune_total > 0 else 0.0
+            comp_count = (await self.session.execute(compliant_stmt)).scalar_one()
+            comp_rate = round((comp_count / endpoints) * 100.0, 2) if endpoints > 0 else 0.0
 
             return {
                 "data_available": True,

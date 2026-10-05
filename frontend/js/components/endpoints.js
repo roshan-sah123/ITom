@@ -88,6 +88,7 @@ export async function renderEndpoints(subtabName = '', filterParam = '') {
 }
 
 async function loadEndpointsKpisAndCharts() {
+  loadIntuneDeviceCountForecast();
   try {
     const summary = await itomApi.getIntuneSummary();
     const metrics = summary.metrics || {};
@@ -115,8 +116,9 @@ async function loadEndpointsKpisAndCharts() {
     if (totalSub) totalSub.textContent = available ? `${formatNumber(compliant)} compliant` : 'No current Intune data';
     if (compEl) compEl.textContent = compRate != null ? `${Number(compRate).toFixed(1)}%` : 'Unavailable';
     if (compSub) compSub.textContent = compRate != null ? 'Calculated from current device status' : 'No current compliance metric';
-    if (osDivEl) osDivEl.textContent = Object.keys(summary.os_distribution || summary.os_breakdown || {}).join(' / ') || 'Unavailable';
-    if (osSubEl) osSubEl.textContent = Object.keys(summary.os_distribution || summary.os_breakdown || {}).length ? 'Current Intune device types' : 'No current Intune data';
+    const osFamilies = summary.os_distribution || summary.os_breakdown || {};
+    if (osDivEl) osDivEl.textContent = String(Object.keys(osFamilies).length || 0);
+    if (osSubEl) osSubEl.textContent = Object.keys(osFamilies).length ? 'Detected OS families' : 'No current Intune data';
     if (zeroTrustEl) zeroTrustEl.textContent = 'Coming soon';
 
     // 1. OS Distribution (with click filtering)
@@ -136,6 +138,29 @@ async function loadEndpointsKpisAndCharts() {
   }
 }
 
+async function loadIntuneDeviceCountForecast() {
+  const badge = document.getElementById('epForecastBadge');
+  const content = document.getElementById('epForecastContent');
+  if (!badge || !content) return;
+  try {
+    const forecast = await itomApi.getIntuneForecast();
+    if (!forecast.forecast_available) {
+      badge.textContent = 'Building history';
+      badge.dataset.mode = 'unavailable';
+      content.textContent = forecast.reason || 'Not enough successful daily sync history to estimate a trend.';
+      return;
+    }
+    badge.textContent = '7-day trend estimate';
+    badge.dataset.mode = 'live';
+    const direction = forecast.change_count > 0 ? 'increase' : forecast.change_count < 0 ? 'decrease' : 'no change';
+    content.textContent = `Current: ${formatNumber(forecast.current_count)} devices. Estimated in ${forecast.horizon_days} days: ${formatNumber(forecast.forecast_count)} (${direction} of ${formatNumber(Math.abs(forecast.change_count))}). Trend: ${formatNumber(forecast.trend_per_day)} devices per day, based on ${forecast.observed_days} daily syncs through ${forecast.observed_through}. ${forecast.notice}`;
+  } catch (err) {
+    badge.textContent = 'Unavailable';
+    badge.dataset.mode = 'unavailable';
+    content.textContent = 'The Intune inventory forecast is unavailable right now.';
+  }
+}
+
 function renderEndpointsUnavailable() {
   cachedTotalRecords = 0;
   allFetchedDevices = [];
@@ -151,7 +176,7 @@ function renderEndpointsUnavailable() {
   if (compSub) compSub.textContent = 'Intune data is unavailable';
   if (osSub) osSub.textContent = 'Intune data is unavailable';
 
-  renderStorageDemo();
+  renderStorageUnavailable();
   renderOsChart({});
   renderComplianceChart({});
   renderMfgChart({});
@@ -170,7 +195,7 @@ function renderStoragePanel(metrics, total, sourceAvailable) {
     && Number.isFinite(capacity) && capacity >= 0 && capacity <= 100;
 
   if (!hasLiveStorage) {
-    renderStorageDemo();
+    renderStorageUnavailable();
     return;
   }
 
@@ -181,16 +206,14 @@ function renderStoragePanel(metrics, total, sourceAvailable) {
     <p class="storage-note">Based on ${formatNumber(sample)} devices with storage data (${formatPercent((sample / total) * 100, 1)} of the managed fleet). Fleet capacity is weighted by disk size.</p>`;
 }
 
-function renderStorageDemo() {
+function renderStorageUnavailable() {
   const badge = document.getElementById('epStorageBadge');
   const content = document.getElementById('epStorageContent');
   if (!badge || !content) return;
 
-  badge.textContent = 'DEMO DATA';
-  badge.dataset.mode = 'demo';
-  content.innerHTML = `${renderStorageMeter('Median per-device usage (demo)', 68)}
-    ${renderStorageMeter('Fleet capacity used (demo)', 41)}
-    <p class="storage-note storage-demo-note">Example values only — not live device measurements. Intune storage metrics are unavailable.</p>`;
+  badge.textContent = 'Unavailable';
+  badge.dataset.mode = 'unavailable';
+  content.innerHTML = '<p class="storage-note" role="status">Storage metrics are unavailable because valid source measurements are missing.</p>';
 }
 
 function renderStorageMeter(label, value) {

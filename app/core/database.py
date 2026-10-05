@@ -41,15 +41,15 @@ def _find_project_root() -> str:
 PROJECT_ROOT = _find_project_root()
 
 
-def _sqlite_fallback_url(project_root: Optional[str] = None) -> str:
-    """Build the SQLite fallback URL from the configured database path."""
+def _sqlite_url(project_root: Optional[str] = None) -> str:
+    """Resolve the explicitly configured SQLite database path."""
     configured_path = Path(settings.SQLITE_DB_PATH).expanduser()
     if not configured_path.is_absolute():
         configured_path = Path(project_root or PROJECT_ROOT) / configured_path
     return f"sqlite+aiosqlite:///{configured_path.resolve().as_posix()}"
 
 
-SQLITE_FALLBACK_URL = _sqlite_fallback_url()
+SQLITE_URL = _sqlite_url()
 
 
 def _is_db_reachable(db_url: str) -> bool:
@@ -83,6 +83,7 @@ def _create_sqlite_engine(url: str) -> AsyncEngine:
             cursor.execute("PRAGMA journal_mode=WAL")
             cursor.execute("PRAGMA synchronous=NORMAL")
             cursor.execute("PRAGMA busy_timeout=30000")
+            cursor.execute("PRAGMA foreign_keys=ON")
         finally:
             cursor.close()
 
@@ -90,33 +91,12 @@ def _create_sqlite_engine(url: str) -> AsyncEngine:
 
 
 def create_engine_for_url(db_url: Optional[str] = None) -> AsyncEngine:
-    """Create an AsyncEngine optimized for the target database dialect with resilient fallbacks."""
+    """Create an AsyncEngine for the configured datastore without engine fallback."""
     url = db_url or settings.async_database_url
-    local_mode = settings.ENVIRONMENT.lower() in {"development", "local", "demo", "test"}
-    if not local_mode and not url.startswith(("postgresql", "postgres:")):
-        raise RuntimeError("PostgreSQL is required outside explicit local/demo/development/test mode.")
-
-    if "postgresql" in url and not _is_db_reachable(url):
-        if not local_mode:
-            raise RuntimeError(
-                "Configured PostgreSQL server is unreachable; SQLite fallback is disabled in production."
-            )
-        logger.warning(
-            "Configured PostgreSQL server is unreachable; activating local SQLite fallback: %s",
-            SQLITE_FALLBACK_URL,
-        )
-        url = SQLITE_FALLBACK_URL
-
     if "sqlite" in url:
-        if "./data/itom.db" in url or "data/itom.db" in url:
-            url = SQLITE_FALLBACK_URL
-        try:
-            return _create_sqlite_engine(url)
-        except (ModuleNotFoundError, Exception) as exc:
-            logger.warning("SQLite async driver error (%s); initializing fallback mock async engine", exc)
-
-    try:
-        return create_async_engine(
+        url = SQLITE_URL if ("./data/itom.db" in url or "data/itom.db" in url) else url
+        return _create_sqlite_engine(url)
+    return create_async_engine(
             url,
             pool_size=settings.DB_POOL_SIZE,
             max_overflow=settings.DB_MAX_OVERFLOW,
@@ -125,16 +105,6 @@ def create_engine_for_url(db_url: Optional[str] = None) -> AsyncEngine:
             pool_pre_ping=True,
             echo=settings.DB_ECHO,
         )
-    except (ModuleNotFoundError, Exception) as exc:
-        if not local_mode:
-            raise RuntimeError("PostgreSQL engine initialization failed; fallback is disabled.") from exc
-        logger.warning("PostgreSQL async engine creation fallback triggered (%s)", exc)
-        try:
-            return _create_sqlite_engine(SQLITE_FALLBACK_URL)
-        except (ModuleNotFoundError, Exception) as fallback_exc:
-            logger.warning("aiosqlite driver not installed; running in decoupled testing mode (%s)", fallback_exc)
-            # Create in-memory mock engine placeholder
-            return None  # type: ignore
 
 
 def get_sessionmaker(engine_instance: Optional[AsyncEngine] = None) -> Optional[async_sessionmaker[AsyncSession]]:
@@ -159,8 +129,7 @@ AsyncSessionLocal: Optional[async_sessionmaker[AsyncSession]] = get_sessionmaker
 async def get_db() -> AsyncGenerator[Optional[AsyncSession], None]:
     """FastAPI async dependency yielding an isolated database session with auto-commit/rollback."""
     if AsyncSessionLocal is None:
-        yield None
-        return
+        raise RuntimeError("Configured database session is unavailable")
 
     async with AsyncSessionLocal() as session:
         try:

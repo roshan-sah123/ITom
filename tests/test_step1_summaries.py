@@ -184,7 +184,11 @@ async def test_solarwinds_summary_includes_every_status(session: AsyncSession):
     assert metrics["total_server_nodes"] == 6
     assert metrics["available_nodes"] == 2
     assert metrics["unavailable_nodes"] == 4
-    assert metrics["availability_pct"] == 33.33
+    assert metrics["availability_pct"] == 40.0
+    assert metrics["total_fleet_availability_pct"] == 33.33
+    assert metrics["total_nodes"] == 6
+    assert metrics["server_nodes_count"] == 0
+    assert summary["api_aliases"]["total_server_nodes"]
 
     # Critical and Unmanaged must survive as distinct statuses - they used to be
     # collapsed into "Down" by the ingestion mapping.
@@ -295,3 +299,15 @@ def test_service_module_contains_no_fleet_literals():
         assert literal not in source, (
             f"Hardcoded literal {literal} is still present in ci_service.py"
         )
+
+
+@pytest.mark.asyncio
+async def test_cmdb_compliance_uses_all_intune_devices_only(session):
+    statuses = ["Compliant", "NonCompliant", "ConfigManager", "Unknown", "InGracePeriod", "FutureStatus"]
+    for i, status in enumerate(statuses):
+        session.add(_ci("INTUNE", f"compliance-{i}", status, "High"))
+    session.add(_ci("SOLARWINDS", "unrelated-unknown", "Unknown", "Medium"))
+    session.add(_ci("SOLARWINDS", "unrelated-compliant", "Compliant", "High"))
+    await session.commit()
+    result = await CIRepository(session).get_cmdb_summary()
+    assert result["compliance_rate_pct"] == 16.67

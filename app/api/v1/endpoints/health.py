@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.database import get_db
+from app.core.database import engine
 
 router = APIRouter(tags=["System Probes"])
 
@@ -22,6 +23,8 @@ async def liveness_probe() -> dict:
         "status": "ok",
         "version": settings.VERSION,
         "environment": settings.ENVIRONMENT,
+        "configured_database_engine": settings.database_engine,
+        "active_database_engine": engine.dialect.name if engine is not None else None,
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
@@ -31,7 +34,16 @@ async def readiness_probe(
     response: Response, session: AsyncSession = Depends(get_db)
 ) -> dict:
     """Readiness probe validating relational database connectivity."""
+    configured_engine = settings.database_engine
+    active_engine = engine.dialect.name if engine is not None else None
+    database_path = None
+    if configured_engine == "sqlite":
+        from app.core.database import SQLITE_URL
+        database_path = SQLITE_URL.rsplit("/", 1)[-1]
     try:
+        if session is None:
+            raise RuntimeError("Database session unavailable")
+        await session.execute(text("SELECT 1"))
         await session.execute(text("SELECT 1"))
         root = Path(__file__).resolve().parents[4]
         config = Config(str(root / "alembic.ini"))
@@ -39,13 +51,21 @@ async def readiness_probe(
         expected = set(ScriptDirectory.from_config(config).get_heads())
         revisions = set((await session.execute(text("SELECT version_num FROM alembic_version"))).scalars())
         dialect = session.bind.dialect.name
-        ready = revisions == expected and (settings.ENVIRONMENT.lower() != "production" or dialect == "postgresql")
+        # Readiness checks query and perform a harmless transactional write.
+        await session.execute(text("SAVEPOINT readiness_write"))
+        await session.execute(text("RELEASE SAVEPOINT readiness_write"))
+        ready = revisions == expected and dialect == configured_engine
         if not ready:
             response.status_code = 503
         return {
             "status": "ready" if ready else "not_ready",
             "database": "connected",
             "database_engine": dialect,
+            "configured_database_engine": configured_engine,
+            "active_database_engine": dialect,
+            "database_status": "connected" if ready else "migration_mismatch",
+            "database_path": database_path,
+            "connection_verified": True,
             "migration_head": revisions == expected,
             "timestamp": datetime.now(timezone.utc).isoformat(),
         }
@@ -54,6 +74,11 @@ async def readiness_probe(
         return {
             "status": "unhealthy",
             "database": "disconnected",
+            "configured_database_engine": configured_engine,
+            "active_database_engine": active_engine,
+            "database_status": "unavailable",
+            "database_path": database_path,
+            "connection_verified": False,
             "detail": f"Readiness check failed: {type(exc).__name__}",
             "timestamp": datetime.now(timezone.utc).isoformat(),
         }

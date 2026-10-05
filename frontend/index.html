@@ -113,11 +113,11 @@
         <div class="home-banner">
           <div class="home-banner-left">
             <h2>Enterprise Command & Infrastructure Core</h2>
-            <p>Unified real-time telemetry reconciled across Microsoft Intune Graph, SolarWinds Orion SWIS, and PostgreSQL 16 CMDB.</p>
+            <p>Telemetry from Microsoft Intune Graph, SolarWinds Orion SWIS, and the configured SQLite CMDB.</p>
           </div>
           <div class="home-banner-stats">
             <div class="banner-stat-item">
-              <div class="banner-stat-val" id="homeStatEndpoints" style="color: var(--accent-intune);">27,412</div>
+              <div class="banner-stat-val" id="homeStatEndpoints" style="color: var(--accent-intune);">Unavailable</div>
               <div class="banner-stat-label">Workplace Devices</div>
             </div>
             <div class="banner-stat-item">
@@ -170,7 +170,7 @@
               </div>
               <div class="card-body-content">
                 <h3>Digital Workplace Experience</h3>
-                <p>Full fleet compliance posture, OS breakdown, hardware manufacturer matrix, and BitLocker encryption across 27,412 Microsoft Intune endpoints.</p>
+                <p>Intune compliance posture, OS families, manufacturer distribution, and available device security fields.</p>
               </div>
             </div>
             <div>
@@ -193,12 +193,12 @@
               </div>
               <div class="card-body-content">
                 <h3>Enterprise CMDB Repository</h3>
-                <p>Pure asset accounting and configuration baseline in PostgreSQL 16. Multi-domain discovery provenance (Intune vs SolarWinds) with zero operational noise.</p>
+                <p>Asset accounting and configuration baseline in SQLite, with Intune and SolarWinds discovery provenance.</p>
               </div>
             </div>
             <div>
               <div class="card-telemetry-row" id="homeCardCmdbStat">
-                <span style="color: var(--text-muted);">Duplicates: <strong style="color: var(--status-healthy);">0%</strong></span>
+                <span style="color: var(--text-muted);">Duplicates: <strong style="color: var(--text-muted);">Unavailable</strong></span>
                 <span style="color: var(--text-muted);">Provenance: <strong style="color: var(--accent-cmdb);">Multi-Domain</strong></span>
               </div>
               <button class="btn-card-launch" data-target-view="cmdb">
@@ -339,7 +339,7 @@
 
             <div class="kpi-card">
               <div class="kpi-header">
-                <span>CORE OS FOOTPRINT</span>
+                <span>VENDOR FOOTPRINT</span>
                 <div class="kpi-icon">🕹️</div>
               </div>
               <div class="kpi-value" style="font-size: 16px; margin-top: 6px;" id="swOsVal">—</div>
@@ -592,7 +592,7 @@
           <div class="home-banner" style="margin-bottom: var(--space-6);">
             <div class="home-banner-left">
               <h2>Infrastructure Configuration & Compliance Baseline</h2>
-              <p>Reconciled SolarWinds Orion node baselines against enterprise hardware standards in PostgreSQL 16.</p>
+              <p>SolarWinds Orion node baselines reconciled against recorded hardware attributes.</p>
             </div>
             <div class="home-banner-stats">
               <div class="banner-stat-item">
@@ -715,6 +715,16 @@
           </section>
 
         </div>
+
+        <section class="chart-card forecast-panel" id="epForecastPanel" aria-labelledby="epForecastTitle">
+          <div class="chart-header">
+            <span class="chart-title" id="epForecastTitle">Intune device count forecast</span>
+            <span class="storage-data-badge" id="epForecastBadge" data-mode="loading">Loading</span>
+          </div>
+          <div class="forecast-content" id="epForecastContent" aria-live="polite">
+            <p class="storage-note">Checking recent successful Intune sync history…</p>
+          </div>
+        </section>
 
         <!-- Active Filter Banner for Endpoints -->
         <div class="active-filter-banner" id="epActiveFilterBanner" style="display: none;">
@@ -865,7 +875,7 @@
             <div style="font-size: 12px; line-height: 2;">
               <div style="display: flex; justify-content: space-between; border-bottom: 1px solid var(--border-subtle); padding: 6px 0;">
                 <span style="color: var(--text-muted);">Primary Storage:</span>
-                <span class="font-mono"><strong>PostgreSQL 16 @ 127.0.0.1:5432</strong></span>
+                <span class="font-mono"><strong id="databaseEngineLabel">Checking database</strong></span>
               </div>
               <div style="display: flex; justify-content: space-between; border-bottom: 1px solid var(--border-subtle); padding: 6px 0;">
                 <span style="color: var(--text-muted);">De-duplication Key:</span>
@@ -974,11 +984,14 @@
       <section id="view-automations" class="view-section">
         <button class="module-back-button" type="button" data-back-home>← Back to portal home</button>
         <section class="coming-soon-panel" aria-labelledby="automationsTitle">
-          <p class="eyebrow">Future capability</p>
+          <p class="eyebrow">Operations tool</p>
           <h1 id="automationsTitle">Automations</h1>
-          <p>This workspace is planned for approved operational workflows that help the ITOM team reduce repetitive manual work.</p>
-          <p>No automation workflows are available to run yet.</p>
-          <span>Coming soon</span>
+          <a class="module-card-v2" data-target-view="automations" href="https://techadmin.coforge.com/" target="_blank" rel="noopener noreferrer">
+            <span class="module-code">TOOL</span>
+            <strong>TechAdmin</strong>
+            <span>Open the TechAdmin portal.</span>
+            <em>Open TechAdmin ↗</em>
+          </a>
         </section>
       </section>
 
@@ -1118,6 +1131,6 @@
   </aside>
 
   <!-- Master ES6 Application Bootstrap -->
-  <script type="module" src="js/app.js?v=14"></script>
+    <script type="module" src="js/app.js?v=17"></script>
 </body>
 </html>

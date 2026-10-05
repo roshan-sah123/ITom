@@ -38,7 +38,7 @@ Column semantics assumed (established by the ingestion mapping):
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Set
 
 from sqlalchemy import func, select
@@ -53,10 +53,10 @@ logger = logging.getLogger("itom.summary")
 # reporting yesterday is an incident; one that stopped six months ago is a
 # records-cleanup task. The dashboard should be able to tell them apart.
 STALE_AGE_BUCKETS = [
-    ("0-1 days", 0, 1),
-    ("2-7 days", 1, 7),
-    ("8-30 days", 7, 30),
-    ("31-90 days", 30, 90),
+    ("0-1 days", 0, 2),
+    ("2-7 days", 2, 8),
+    ("8-30 days", 8, 31),
+    ("31-90 days", 31, 90),
     ("90+ days", 90, None),
 ]
 
@@ -149,6 +149,79 @@ class SummaryRepository:
     def __init__(self, session: Optional[AsyncSession]) -> None:
         self.session = session
 
+    async def get_intune_device_count_forecast(
+        self, window_days: int = 14, horizon_days: int = 7, min_observations: int = 7
+    ) -> Dict[str, Any]:
+        """Project the Intune inventory count from the latest successful daily syncs."""
+        now = datetime.now(timezone.utc)
+        window_start = now.date() - timedelta(days=window_days - 1)
+        response: Dict[str, Any] = {
+            "forecast_available": False,
+            "source_system": "INTUNE",
+            "metric": "managed_device_count",
+            "horizon_days": horizon_days,
+            "window_days": window_days,
+            "minimum_observations": min_observations,
+            "observed_days": 0,
+            "method": "linear trend of latest successful sync count per UTC day",
+            "notice": "This is a simple trend estimate, not a machine-learning prediction. Onboarding, retirement, or sync gaps can change the result.",
+        }
+        if self.session is None:
+            response["reason"] = "Database is unavailable."
+            return response
+
+        statement = select(SyncRun.completed_at, SyncRun.records_processed).where(
+            SyncRun.source_system == "INTUNE",
+            SyncRun.status == "SUCCESS",
+            SyncRun.completed_at.is_not(None),
+            SyncRun.completed_at >= datetime.combine(
+                window_start, datetime.min.time(), tzinfo=timezone.utc
+            ),
+        )
+        result = await self.session.execute(statement)
+        daily_latest: Dict[Any, tuple[datetime, int]] = {}
+        for completed_at, count in result.all():
+            completed_utc = _as_utc(completed_at)
+            if completed_utc is None or completed_utc.date() > now.date():
+                continue
+            day = completed_utc.date()
+            if day not in daily_latest or completed_utc > daily_latest[day][0]:
+                daily_latest[day] = (completed_utc, max(0, int(count or 0)))
+
+        observations = sorted(daily_latest.items())
+        response["observed_days"] = len(observations)
+        if len(observations) < min_observations:
+            response["reason"] = (
+                f"Need {min_observations} successful daily observations; "
+                f"found {len(observations)} in the last {window_days} days."
+            )
+            return response
+
+        first_day = observations[0][0]
+        x_values = [(day - first_day).days for day, _ in observations]
+        y_values = [value for _, (_, value) in observations]
+        x_mean = sum(x_values) / len(x_values)
+        y_mean = sum(y_values) / len(y_values)
+        variance = sum((x - x_mean) ** 2 for x in x_values)
+        slope = (
+            sum((x - x_mean) * (y - y_mean) for x, y in zip(x_values, y_values)) / variance
+            if variance else 0.0
+        )
+        latest_day, (latest_at, latest_count) = observations[-1]
+        target_x = (latest_day + timedelta(days=horizon_days) - first_day).days
+        forecast_count = max(0, round(y_mean + slope * (target_x - x_mean)))
+        response.update({
+            "forecast_available": True,
+            "current_count": latest_count,
+            "forecast_count": forecast_count,
+            "change_count": forecast_count - latest_count,
+            "trend_per_day": round(slope, 2),
+            "observed_from": observations[0][0].isoformat(),
+            "observed_through": latest_day.isoformat(),
+            "as_of": latest_at.isoformat(),
+        })
+        return response
+
     # ------------------------------------------------------------------ #
     # Low-level aggregate helpers
     # ------------------------------------------------------------------ #
@@ -188,11 +261,13 @@ class SummaryRepository:
         whether the percentage is representative.
         """
         empty = {
-            "avg_storage_used_pct": 0.0,
-            "fleet_capacity_used_pct": 0.0,
-            "median_device_storage_used_pct": 0.0,
+            "avg_storage_used_pct": None,
+            "fleet_capacity_used_pct": None,
+            "median_device_storage_used_pct": None,
             "storage_sample_size": 0,
             "storage_coverage_pct": 0.0,
+            "missing_storage_record_count": 0,
+            "invalid_storage_record_count": 0,
         }
         if self.session is None:
             return empty
@@ -210,6 +285,8 @@ class SummaryRepository:
         total_bytes = 0.0
         free_bytes = 0.0
         per_device_pct: list = []
+        missing_count = 0
+        invalid_count = 0
 
         for attrs in rows:
             if not isinstance(attrs, dict):
@@ -217,19 +294,20 @@ class SummaryRepository:
             raw_total = attrs.get("total_storage_bytes")
             raw_free = attrs.get("free_storage_bytes")
 
-            if not isinstance(raw_total, (int, float)) or isinstance(raw_total, bool):
+            if raw_total is None or raw_free is None:
+                missing_count += 1
+                continue
+            if (not isinstance(raw_total, (int, float)) or isinstance(raw_total, bool)
+                    or not isinstance(raw_free, (int, float))
+                    or isinstance(raw_free, bool) or raw_free < 0 or raw_free > raw_total):
+                invalid_count += 1
                 continue
             if raw_total <= 0:
+                invalid_count += 1
                 continue
 
             tot = float(raw_total)
-            if isinstance(raw_free, (int, float)) and not isinstance(raw_free, bool) and raw_free >= 0:
-                free = float(raw_free)
-            else:
-                free = 0.0
-
-            # Guard against a source reporting free > total.
-            free = max(0.0, min(free, tot))
+            free = float(raw_free)
 
             total_bytes += tot
             free_bytes += free
@@ -237,7 +315,8 @@ class SummaryRepository:
 
         sample = len(per_device_pct)
         if sample == 0 or total_bytes <= 0:
-            return empty
+            return {**empty, "missing_storage_record_count": missing_count,
+                    "invalid_storage_record_count": invalid_count, "storage_coverage_pct": 0.0}
 
         capacity_used_pct = round(((total_bytes - free_bytes) / total_bytes) * 100, 1)
 
@@ -254,6 +333,8 @@ class SummaryRepository:
             "median_device_storage_used_pct": round(median_pct, 1),
             "storage_sample_size": sample,
             "storage_coverage_pct": _pct(sample, len(rows)),
+            "missing_storage_record_count": missing_count,
+            "invalid_storage_record_count": invalid_count,
         }
 
     async def _last_successful_sync_start(self, source_system: str) -> Optional[datetime]:
@@ -666,6 +747,13 @@ class SummaryRepository:
             }
         )
         payload["metrics"].update(await self._storage_metrics("INTUNE"))
+        owner_counts: Dict[str, int] = {}
+        owners = await self.session.execute(select(ConfigurationItem.attributes).where(ConfigurationItem.source_system == "INTUNE"))
+        for attrs in owners.scalars().all():
+            owner = attrs.get("managed_device_owner_type") if isinstance(attrs, dict) else None
+            owner = str(owner or "Unknown").strip() or "Unknown"
+            owner_counts[owner] = owner_counts.get(owner, 0) + 1
+        payload["ownership_distribution"] = owner_counts
         os_distribution = payload.pop("_type_distribution")
         payload["os_distribution"] = os_distribution
         # Legacy aliases - same live dictionaries under their older key names.
@@ -771,8 +859,11 @@ class SummaryRepository:
 
         metrics.update(
             {
-                "total_server_nodes": total,  # Preserved for backward compatibility
-                "total_monitored_nodes": total,
+                "total_nodes": total,
+                # Legacy alias retained for existing consumers; use total_nodes
+                # for inventory and server_nodes_count for classified servers.
+                "total_server_nodes": total,
+                "total_monitored_nodes": monitored,
                 "server_nodes_count": sw_srv,
                 "network_devices_count": sw_net,
                 "unclassified_nodes_count": sw_uncl,
@@ -783,7 +874,10 @@ class SummaryRepository:
                 },
                 "available_nodes": available,
                 "unavailable_nodes": total - available,
-                "availability_pct": _pct(available, total),
+                "unmonitored_nodes": _sum_matching(status_breakdown, UNMONITORED_STATUSES),
+                "availability_pct": _pct(available, monitored),
+                "monitored_availability_pct": _pct(available, monitored),
+                "total_fleet_availability_pct": _pct(available, total),
                 "active_monitored_nodes": monitored,
                 # Legacy aliases - same computed values, older key names.
                 # High + Medium + Low always equals total_server_nodes.
@@ -811,4 +905,5 @@ class SummaryRepository:
         payload["node_type_breakdown"] = type_distribution
         payload["top_saturated_servers"] = saturated_candidates[:10]
         payload["total_saturated_nodes"] = len(saturated_candidates)
+        payload["api_aliases"] = {"total_server_nodes": "legacy alias of total_nodes; not a server-only count"}
         return payload

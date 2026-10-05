@@ -42,6 +42,7 @@ export const itomApi = {
 
   // Microsoft Intune (Digital Workplace Endpoints)
   getIntuneSummary: () => fetchJson('/intune/summary'),
+  getIntuneForecast: () => fetchJson('/intune/forecast'),
   getIntuneDevices: (params = {}) => {
     const query = new URLSearchParams(params).toString();
     return fetchJson(`/intune/devices?${query}`);
@@ -61,5 +62,6 @@ export const itomApi = {
   getSyncScheduler: () => fetchJson('/sync/scheduler'),
   triggerSync: () => fetchJson('/sync/trigger?source_system=ALL', { method: 'POST' }),
   getFreshness: () => fetchJson('/system/freshness'),
+  getReadiness: () => fetchJson('/ready'),
   getSyncRuns: (page = 1, pageSize = 25) => fetchJson(`/sync/runs?page=${page}&page_size=${pageSize}`),
 };

@@ -8,13 +8,14 @@ Microsoft Graph API (`/deviceManagement/managedDevices`).
 
 import json
 import logging
-import os
 import time
 from urllib.parse import urlparse
 from typing import Any, Dict, List, Optional
 import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
+from app.core.config import Settings, settings
+from src.sync.source_transport import proxy_request_options, proxy_diagnostics
 
 # Configure module logger
 logger = logging.getLogger(__name__)
@@ -42,6 +43,7 @@ DEFAULT_SELECT_FIELDS = [
     "lastSyncDateTime",
     "totalStorageSpaceInBytes",
     "freeStorageSpaceInBytes",
+    "managedDeviceOwnerType",
 ]
 
 
@@ -78,6 +80,7 @@ class GraphClient:
         timeout: int = 30,
         max_retries: int = 3,
         backoff_factor: float = 0.5,
+        config: Settings = settings,
     ) -> None:
         """Initialize the Microsoft Graph API client.
 
@@ -90,13 +93,14 @@ class GraphClient:
             max_retries: Maximum number of retry attempts on transient network/rate errors.
             backoff_factor: Exponential backoff factor for retries.
         """
-        self.tenant_id = tenant_id if tenant_id is not None else os.getenv("AZURE_TENANT_ID", "")
-        self.client_id = client_id if client_id is not None else os.getenv("AZURE_CLIENT_ID", "")
-        self.client_secret = client_secret if client_secret is not None else os.getenv("AZURE_CLIENT_SECRET", "")
+        self.tenant_id = tenant_id if tenant_id is not None else (config.AZURE_TENANT_ID or "")
+        self.client_id = client_id if client_id is not None else (config.AZURE_CLIENT_ID or "")
+        self.client_secret = client_secret if client_secret is not None else (config.AZURE_CLIENT_SECRET or "")
         self.scope = scope
         self.timeout = timeout
         self.max_retries = max_retries
         self.backoff_factor = backoff_factor
+        self.config = config
 
         self._access_token: Optional[str] = None
         self._token_expires_at: float = 0.0
@@ -109,6 +113,15 @@ class GraphClient:
             Configured `requests.Session` instance.
         """
         session = requests.Session()
+        session.trust_env = bool(self.config.SOURCE_PROXY_INHERIT and self.config.SOURCE_PROXY_MODE == "inherit")
+        proxies = {}
+        if self.config.SOURCE_HTTP_PROXY:
+            proxies["http"] = self.config.SOURCE_HTTP_PROXY
+        if self.config.SOURCE_HTTPS_PROXY:
+            proxies["https"] = self.config.SOURCE_HTTPS_PROXY
+        if proxies:
+            session.proxies.update(proxies)
+        logger.info("Graph transport: %s", proxy_diagnostics(DEFAULT_GRAPH_BASE_URL, self.config))
         retry_strategy = Retry(
             total=self.max_retries,
             backoff_factor=self.backoff_factor,
@@ -156,7 +169,8 @@ class GraphClient:
 
         logger.info("Requesting OAuth client-credentials token from Microsoft Entra.")
         try:
-            response = self._session.post(token_url, headers=headers, data=payload, timeout=self.timeout)
+            response = self._session.post(token_url, headers=headers, data=payload, timeout=self.timeout,
+                                          **proxy_request_options(token_url, self.config))
             if response.status_code != 200:
                 error_details = "Token endpoint rejected authentication"
                 logger.error("OAuth token request failed (%d): %s", response.status_code, error_details)
@@ -174,7 +188,7 @@ class GraphClient:
     def fetch_managed_devices(
         self,
         select_fields: Optional[List[str]] = None,
-        top: int = 100,
+        top: int = 999,
         max_devices: Optional[int] = None,
     ) -> List[Dict[str, Any]]:
         """Fetch managed devices from Microsoft Intune via Microsoft Graph API.
@@ -193,8 +207,16 @@ class GraphClient:
         Raises:
             GraphApiError: If Microsoft Graph API returns an error response.
         """
+        if max_devices is not None and (isinstance(max_devices, bool) or not isinstance(max_devices, int)):
+            raise ValueError("max_devices must be an integer or None")
+        if max_devices is not None and max_devices < 0:
+            raise ValueError("max_devices must be non-negative")
+        if max_devices == 0:
+            return []
+
         token = self.get_access_token()
         fields = select_fields or DEFAULT_SELECT_FIELDS
+        top = max(1, min(top, max_devices)) if max_devices is not None else top
         query_params = f"?$select={','.join(fields)}&$top={top}"
         endpoint: Optional[str] = f"{DEFAULT_MANAGED_DEVICES_ENDPOINT}{query_params}"
 
@@ -215,13 +237,15 @@ class GraphClient:
                 raise GraphApiError("Invalid or repeated Graph pagination URL")
             visited.add(endpoint)
             try:
-                response = self._session.get(endpoint, headers=headers, timeout=self.timeout)
+                response = self._session.get(endpoint, headers=headers, timeout=self.timeout,
+                                             **proxy_request_options(endpoint, self.config))
                 if response.status_code == 401:
                     # Token might have expired mid-pagination; refresh and retry once
                     logger.warning("Received 401 Unauthorized; refreshing token and retrying...")
                     token = self.get_access_token(force_refresh=True)
                     headers["Authorization"] = f"Bearer {token}"
-                    response = self._session.get(endpoint, headers=headers, timeout=self.timeout)
+                    response = self._session.get(endpoint, headers=headers, timeout=self.timeout,
+                                                 **proxy_request_options(endpoint, self.config))
 
                 if response.status_code != 200:
                     error_msg = f"Graph API request failed on page {page_num} (HTTP {response.status_code})"
@@ -235,7 +259,7 @@ class GraphClient:
                 devices.extend(page_items)
                 logger.info("Page %d: fetched %d devices (total so far: %d)", page_num, len(page_items), len(devices))
 
-                if max_devices and len(devices) >= max_devices:
+                if max_devices is not None and len(devices) >= max_devices:
                     devices = devices[:max_devices]
                     break
 

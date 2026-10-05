@@ -1,10 +1,12 @@
-# Environment & Secret Configurations
+# Environment and credentials
 .env
 .env.*
 !.env.example
 .vm-credential.xml
 
-# Python Caches & Bytecode
+# Python environments, caches, and coverage
+.venv/
+venv/
 __pycache__/
 *.py[cod]
 *$py.class
@@ -12,40 +14,33 @@ __pycache__/
 .coverage
 htmlcov/
 
-# Node & Package Managers
+# Node package and runtime artifacts
 node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# Server Logs & Runtime Output
+# Runtime logs
+logs/
 *.log
-itom_cron.log
-itom_server.log
 
-# Cloud & Temporary Build Artifacts
+# Build outputs
 .firebase/
 dist/
 build/
 *.egg-info/
+*.bak
+*.tmp
 
-# Telemetry Datasets & CSV Exports
+# Generated telemetry and local databases
 data/*.json
 !data/.gitkeep
-exports/*.csv
-frontend/exports/*.csv
-frontend/exports/
-
-
-# Build artefacts
-__pycache__/
-*.pyc
-.pytest_cache/
-*.bak
-*.log
-
-# Local database - never commit
 data/*.db
 data/*.sqlite
 data/*.db-journal
 data/*.db-*
+
+# Local exports and database backups
+exports/*.csv
+frontend/exports/
+backups/

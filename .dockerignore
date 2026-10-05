@@ -1,35 +1,38 @@
-# Secrets & Environment Configurations
-.env
-.env.*
-!.env.example
-
-# Version Control & Metadata
+# Keep the API image build context small and free of local/private data.
 .git/
 .github/
 .agents/
+.env
+.env.*
+.vm-credential.xml
 
-# Test Suites & Quality Harnesses
-tests/
+# Local development and generated data
+.venv/
+venv/
+node_modules/
+__pycache__/
 .pytest_cache/
 .coverage
 htmlcov/
-
-# Logs & Temporary Files
-*.log
-itom_cron.log
-itom_server.log
-
-# Caches & Bytecode
-__pycache__/
 *.py[cod]
-node_modules/
+*$py.class
+*.log
 
-# Telemetry Datasets & CSV Exports
+# Tests and documentation are not required by the runtime image
+tests/
+docs/
+HANDOVER/
+scratch/
+
+# Local databases, snapshots, and exports (Compose bind mounts remain unaffected)
+backups/
+logs/
+exports/
+data/*.db
+data/*.sqlite
+data/*.db-journal
+data/*.db-*
 data/*.json
-!data/.gitkeep
-exports/*.csv
 
-# Infrastructure & Service Configurations
-systemd/
-Dockerfile
-docker-compose.yml
+# UI previews are design artifacts, not deployed assets
+frontend/demo_previews/

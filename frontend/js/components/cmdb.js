@@ -207,6 +207,7 @@ async function loadCmdbGrid() {
 function initCmdbFilters() {
   const sourceSelect = document.getElementById('cmdbFilterSource');
   const healthSelect = document.getElementById('cmdbFilterHealth');
+  const searchInput = document.getElementById('cmdbSearchInput');
   const locationSelect = document.getElementById('cmdbLocationSelect');
   const pageSizeSelect = document.getElementById('cmdbPageSizeSelect');
   const resetBtn = document.getElementById('cmdbResetFilters');

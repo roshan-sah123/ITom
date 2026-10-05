@@ -29,13 +29,23 @@ class Settings(BaseSettings):
     SECRET_KEY: Optional[str] = None
 
     # Database Persistence
-    DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/itom_db"
+    DATABASE_URL: str = "sqlite+aiosqlite:///./data/itom.db"
     SQLITE_DB_PATH: str = "./data/itom.db"
     DB_POOL_SIZE: int = 20
     DB_MAX_OVERFLOW: int = 10
     DB_POOL_TIMEOUT: int = 30
     DB_POOL_RECYCLE: int = 1800
     DB_ECHO: bool = False
+
+    # Source-specific HTTP transport. Inheritance follows requests' standard
+    # environment proxy handling unless explicitly disabled here.
+    SOURCE_PROXY_INHERIT: bool = True
+    SOURCE_ALLOW_DIRECT: bool = False
+    SOURCE_PROXY_MODE: str = "inherit"  # inherit | explicit | direct
+    SOURCE_HTTP_PROXY: Optional[str] = None
+    SOURCE_HTTPS_PROXY: Optional[str] = None
+    SOURCE_NO_PROXY: str = ""
+    SOLARWINDS_VERIFY_SSL: bool = True
 
     # Microsoft Intune / Microsoft Graph API Configuration
     AZURE_TENANT_ID: Optional[str] = None
@@ -246,6 +256,10 @@ class Settings(BaseSettings):
         if url.startswith("sqlite:///"):
             return url.replace("sqlite:///", "sqlite+aiosqlite:///", 1)
         return url
+
+    @property
+    def database_engine(self) -> str:
+        return "sqlite" if self.async_database_url.startswith("sqlite") else "postgresql"
 
 
 settings = Settings()

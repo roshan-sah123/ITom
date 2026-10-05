@@ -215,7 +215,7 @@ async function loadServerKpisAndCharts() {
   try {
     const summary = await itomApi.getSolarWindsSummary();
     const metrics = summary.metrics || {};
-    const total = metrics.total_server_nodes;
+    const total = metrics.total_nodes ?? metrics.total_server_nodes;
     const serverCount = metrics.server_nodes_count;
     const networkCount = metrics.network_devices_count;
     const unclassifiedCount = metrics.unclassified_nodes_count;

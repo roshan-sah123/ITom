@@ -32,6 +32,7 @@ class SyncRun(Base, UUIDPrimaryKeyMixin):
     records_failed: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
     items_normalized: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
     items_extracted: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    items_rejected: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
     items_persisted: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     duration_ms: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     started_at: Mapped[datetime] = mapped_column(
@@ -51,6 +52,7 @@ class SyncRun(Base, UUIDPrimaryKeyMixin):
     __table_args__ = (
         Index("ix_sync_runs_source_completed", "source_system", "completed_at"),
         Index("ix_sync_runs_status", "status"),
+        Index("ix_sync_runs_started_at", "started_at"),
     )
 
     def to_dict(self) -> Dict[str, Any]:
@@ -75,6 +77,7 @@ class SyncRun(Base, UUIDPrimaryKeyMixin):
             "records_failed": self.records_failed,
             "items_normalized": self.items_normalized,
             "items_extracted": self.items_extracted,
+            "items_rejected": self.items_rejected,
             "items_persisted": self.items_persisted,
             "duration_ms": self.duration_ms,
             "started_at": utc_iso(self.started_at),

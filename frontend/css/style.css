@@ -1432,6 +1432,8 @@ html,body { background:var(--bg-canvas); color:var(--text-primary); }
 
 /* Endpoint storage panel: live metrics when present, explicit demo fallback otherwise. */
 .storage-panel { min-width: 0; }
+.forecast-panel { min-height: 150px; margin-bottom: var(--space-6); }
+.forecast-content { min-height: 74px; padding: 14px 0; color: var(--text-secondary); font-size: 13px; line-height: 1.6; }
 .storage-data-badge { padding: 4px 8px; border: 1px solid #CBD5E1; border-radius: 999px; color: #64748B; background: #F8FAFC; font-size: 10px; font-weight: 700; letter-spacing: .04em; white-space: nowrap; }
 .storage-data-badge[data-mode="live"] { color: #166534; border-color: #BBF7D0; background: #F0FDF4; }
 .storage-data-badge[data-mode="demo"] { color: #92400E; border-color: #FCD34D; background: #FFFBEB; }

@@ -82,6 +82,8 @@ class ConfigurationItem(Base, UUIDPrimaryKeyMixin, TimestampMixin):
         Index("ix_ci_source_id", "source_id"),
         Index("ix_ci_ci_type", "ci_type"),
         Index("ix_ci_status", "status"),
+        Index("ix_ci_location", "location"),
+        Index("ix_ci_last_sync_time", "last_sync_time"),
     )
 
     def to_dict(self) -> Dict[str, Any]:

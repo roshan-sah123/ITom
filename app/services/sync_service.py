@@ -54,6 +54,7 @@ from app.models.history import CIStatusHistory
 from app.models.sync import SyncErrorLog, SyncRun
 from app.repositories.ci_repository import CIRepository
 from app.repositories.sync_repository import SyncRepository
+from app.services.summary_cache import invalidate_summaries_for_sources
 from app.services.telemetry_sources import (
     SourceUnavailableError,
     TelemetrySource,
@@ -182,12 +183,12 @@ class SyncService:
             # these values never apply to real Graph or SWIS ingestion - they
             # exist only so a malformed record still produces a valid row
             # instead of failing the NOT NULL constraint and killing the batch.
-            status = item.get("status") or "ACTIVE"
-            health = item.get("health_tier") or "High"
-            name = item.get("name") or f"Node-{source_id}"
-            ci_type = item.get("ci_type") or "Server"
+            status = item.get("status") or "Unknown"
+            health = item.get("health_tier") or "Medium"
+            name = item.get("name") or "Unknown"
+            ci_type = item.get("ci_type") or "Unknown"
             ip = item.get("ip_address")
-            vendor = item.get("vendor") or item.get("manufacturer") or "Other"
+            vendor = item.get("vendor") or item.get("manufacturer") or "Unknown"
             model = item.get("model")
             serial = item.get("serial_number")
             os_ver = item.get("operating_system")
@@ -378,6 +379,7 @@ class SyncService:
 
         try:
             items = telemetry_items if telemetry_items is not None else await self._fetch_source(source)
+            extracted_count = len(items or [])
 
             if not items:
                 raise SourceUnavailableError(
@@ -397,8 +399,9 @@ class SyncService:
 
             completed_at = datetime.now(timezone.utc)
             sync_run.status = "SUCCESS"
-            sync_run.items_extracted = len(items)
+            sync_run.items_extracted = getattr(source, "fetched_count", len(items))
             sync_run.items_normalized = len(items)
+            sync_run.items_rejected = max(0, sync_run.items_extracted - sync_run.items_normalized)
             sync_run.records_retired = retired
             sync_run.records_failed = 0
             sync_run.items_persisted = results["persisted"]
@@ -418,7 +421,7 @@ class SyncService:
                 "source_system": source.name.upper(),
                 "status": "SUCCESS",
                 "run_id": str(run_id),
-                "items_extracted": len(items),
+                "items_extracted": getattr(source, "fetched_count", len(items)),
                 "items_normalized": len(items),
                 "items_retired": retired,
                 "items_failed": 0,
@@ -436,7 +439,10 @@ class SyncService:
             duration_ms = int((completed_at - started_at).total_seconds() * 1000)
 
             sync_run.status = "FAILED"
-            sync_run.items_extracted = 0
+            raw_count = getattr(source, "fetched_count", 0)
+            sync_run.items_extracted = raw_count or locals().get("extracted_count", 0)
+            sync_run.items_normalized = 0
+            sync_run.items_rejected = raw_count or locals().get("extracted_count", 0)
             sync_run.items_persisted = 0
             sync_run.records_updated = 0
             sync_run.records_unchanged = 0
@@ -464,7 +470,7 @@ class SyncService:
                 "status": "FAILED",
                 "run_id": str(run_id),
                 "error": str(exc),
-                "items_extracted": 0,
+                "items_extracted": raw_count or locals().get("extracted_count", 0),
                 "duration_ms": duration_ms,
                 "started_at": started_at.isoformat(),
                 "completed_at": completed_at.isoformat(),
@@ -515,9 +521,14 @@ class SyncService:
                 injected = telemetry_items if (telemetry_items is not None and len(sources) == 1) else None
                 results.append(await self.sync_single_source(source, telemetry_items=injected))
 
-            await self.session.commit()  # releases pg_advisory_xact_lock
-
             successes = [r for r in results if r["status"] == "SUCCESS"]
+            await self.session.commit()  # releases pg_advisory_xact_lock
+            if successes:
+                invalidate_summaries_for_sources(
+                    (result["source_system"] for result in successes),
+                    session=self.session,
+                )
+
             if len(successes) == len(results):
                 overall = "SUCCESS"
             elif successes:

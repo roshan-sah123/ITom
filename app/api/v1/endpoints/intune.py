@@ -19,6 +19,14 @@ async def get_intune_summary(
     return await ci_service.get_intune_summary()
 
 
+@router.get("/forecast", status_code=status.HTTP_200_OK)
+async def get_intune_device_count_forecast(
+    ci_service: CIService = Depends(get_ci_service),
+) -> Dict[str, Any]:
+    """Project the managed-device count from recent successful daily syncs."""
+    return await ci_service.get_intune_device_count_forecast()
+
+
 @router.get("/devices", status_code=status.HTTP_200_OK)
 async def list_intune_devices(
     page: int = Query(1, ge=1),

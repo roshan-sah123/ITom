@@ -1,24 +1,5 @@
-# UI & Visual Design Tokens
+# UI Design Direction
 
-## High-Contrast Obsidian Design System
-The ITOM Portal interface adheres to an enterprise dark obsidian visual hierarchy. Generic light modes, unstyled defaults, and low-contrast palettes are prohibited.
+The active ITOM Portal uses an evidence-first, light neutral operations workspace. The canonical visual tokens and responsive component styles live in `frontend/css/style.css`; use its current CSS custom properties instead of copying values from older mockups or screenshots.
 
-### Core Surface & Canvas Tokens
-- **Canvas / Root Background**: `#0B0B0B`
-- **Card & Container Surfaces**: `#141414`
-- **Elevated Headers & Modals**: `#16161A`
-- **Borders & Dividers**: `#222222` (or `rgba(255, 255, 255, 0.08)`)
-
-### Domain Semantic Accent Tokens
-- **Orange (Active Operations / Highlights)**: `#F97316`
-- **Emerald Green (High Health / Up / Compliant)**: `#10B981`
-- **Amber (Warning / Medium Health)**: `#F59E0B`
-- **Crimson Red (Critical / Down / Low Health)**: `#EF4444`
-- **Electric Blue (Intune Endpoint Telemetry)**: `#3B82F6`
-- **Purple (DEX Experience Metrics)**: `#A855F7`
-
-### Typography & Data Grids
-- **Primary Font**: `'Inter', -apple-system, BlinkMacSystemFont, sans-serif`
-- **Monospace Font (IPs, Hostnames, Serials)**: `'JetBrains Mono', 'Fira Code', monospace`
-- **Tabular Grids**: All high-scale asset tables must use the 3-Zone Enterprise Table Controller (Debounced Search Toolbar, Sticky Data Grid, 3-Part Footer Controller with Page Size Selector & Windowed Pagination).
-- **Accessibility**: Include `role="region"`, `aria-label`, and `aria-current="page"` on all interactive grid controllers.
+Keep surfaces and borders quiet, use the established blue accent for navigation and primary actions, and reserve semantic colors for real health and freshness states. Preserve the compact overview hierarchy, clear focus states, readable contrast, responsive layouts, and status cues that do not depend on color alone. Check the active CSS cascade because later rules may override earlier theme declarations.

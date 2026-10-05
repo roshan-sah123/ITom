@@ -86,7 +86,7 @@
     <div class="flex items-center space-x-3">
       <div class="hidden md:flex items-center space-x-2 px-3 py-1 rounded-full bg-slate-900/90 border border-slate-800">
         <div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
-        <span class="text-[11px] font-mono text-slate-300">Live Telemetry • <span class="text-emerald-400">Fresh &lt;1m</span></span>
+        <span class="text-[11px] font-mono text-slate-300">Telemetry • <span class="text-amber-400" id="infraFreshnessLabel">Checking freshness</span></span>
       </div>
       
       <button id="btn-sync-now" class="px-3 py-1 text-xs font-medium bg-slate-900 hover:bg-slate-800 text-orange-400 border border-orange-500/30 hover:border-orange-500/60 rounded-md transition flex items-center space-x-1.5 shadow-sm">
@@ -172,7 +172,7 @@
 
       <!-- Quick Search Indicator -->
       <div class="flex items-center text-slate-500 font-mono text-[11px]">
-        <span>Auto-refreshes every 10m via APScheduler • PostgreSQL 16</span>
+        <span id="infraDatabaseLabel">Auto-refresh schedule and database status loading</span>
       </div>
     </div>
 
@@ -424,7 +424,7 @@
           <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Avg Storage Used</span>
           <div class="my-2">
             <div id="intune-stat-avg-storage" class="text-2xl font-bold font-mono text-amber-400"><span class="animate-pulse text-slate-600">--</span></div>
-            <div class="text-[10px] text-slate-400 font-mono mt-0.5">Endpoint Disk Baseline</div>
+            <div class="text-[10px] text-slate-400 font-mono mt-0.5">Intune storage data</div>
           </div>
           <span class="text-[10px] text-slate-500">Healthy Headroom</span>
         </div>
@@ -444,7 +444,7 @@
             <div class="text-2xl font-bold font-mono text-emerald-400">Active</div>
             <div class="text-[10px] text-emerald-400 font-mono mt-0.5">BitLocker + Defender</div>
           </div>
-          <span class="text-[10px] text-slate-500">Zero-Trust Verified</span>
+          <span class="text-[10px] text-slate-500">Source data unavailable</span>
         </div>
       </div>
 
@@ -698,6 +698,6 @@
   <!-- =========================================================================
        3. APPLICATION SCRIPT LOADER
        ========================================================================= -->
-  <script src="js/infrastructure_analytics.js"></script>
+  <script type="module" src="js/infrastructure_analytics.js?v=15"></script>
 </body>
 </html>

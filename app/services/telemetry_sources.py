@@ -64,9 +64,9 @@ ORION_STATUS_MAP: Dict[int, str] = {
     4: "Shutdown",
     9: "Unmanaged",
     14: "Critical",
-    17: "Undefined",
-    19: "Unreachable",
-    22: "Inactive",
+    17: "Unknown",
+    19: "Unknown",
+    22: "Unknown",
 }
 
 # The old mapping only ever emitted "High" or "Medium", so health_tier="Low"
@@ -188,17 +188,24 @@ def normalize_intune_device(dev: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     if not device_id:
         return None
 
-    raw_os = str(dev.get("operatingSystem") or "Endpoint")
-    raw_compliance = str(dev.get("complianceState") or "unknown").lower()
+    raw_os = str(dev.get("operatingSystem") or "").strip()
+    os_key = raw_os.casefold()
+    os_family = ("Windows" if "windows" in os_key else
+                 "macOS" if os_key in {"macos", "mac os", "osx", "os x"} else
+                 "iOS" if os_key in {"ios", "iphone", "ipad"} else
+                 "Android" if "android" in os_key else
+                 "Linux" if any(term in os_key for term in ("linux", "ubuntu", "red hat", "redhat", "centos", "debian", "suse", "rocky", "oracle")) else
+                 "Unknown")
+    raw_compliance = str(dev.get("complianceState") or "unknown").strip()
+    compliance_key = raw_compliance.casefold()
+    compliance_names = {"compliant": "Compliant", "noncompliant": "NonCompliant",
+                        "ingraceperiod": "InGracePeriod", "configmanager": "ConfigManager",
+                        "unknown": "Unknown"}
+    status = compliance_names.get(compliance_key, raw_compliance or "Unknown")
     manufacturer = str(dev.get("manufacturer") or "Other")
     os_version = dev.get("osVersion")
 
-    if raw_compliance == "compliant":
-        status, health = "Compliant", "High"
-    elif raw_compliance == "noncompliant":
-        status, health = "Noncompliant", "Low"
-    else:
-        status, health = raw_compliance.capitalize(), "Medium"
+    health = "High" if status == "Compliant" else "Low" if status == "NonCompliant" else "Medium"
 
     total_storage = dev.get("totalStorageSpaceInBytes")
     free_storage = dev.get("freeStorageSpaceInBytes")
@@ -206,20 +213,22 @@ def normalize_intune_device(dev: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     return {
         "external_id": device_id,
         "name": str(dev.get("deviceName") or f"Device-{device_id[:8]}"),
-        "ci_type": raw_os or "Endpoint",
+        "ci_type": os_family,
         "status": status,
         "health_tier": health,
         "ip_address": None,
         "vendor": normalize_vendor(manufacturer),
         "model": dev.get("model"),
         "serial_number": dev.get("serialNumber"),
-        "operating_system": f"{raw_os} {os_version}".strip() if os_version else raw_os,
+        "operating_system": f"{os_family} {os_version}".strip() if os_version and os_family != "Unknown" else os_family,
         "storage_used": None,
         "attributes": {
             "user_principal_name": dev.get("userPrincipalName"),
+            "managed_device_owner_type": dev.get("managedDeviceOwnerType") or "Unknown",
             "total_storage_bytes": total_storage,
             "free_storage_bytes": free_storage,
             "raw_compliance_state": dev.get("complianceState"),
+            "unsupported_compliance_state": raw_compliance if compliance_key not in compliance_names else None,
             "raw_manufacturer": manufacturer,
             "os_version": os_version,
             "last_sync_date_time": dev.get("lastSyncDateTime"),

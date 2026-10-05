@@ -16,8 +16,10 @@ async def test_local_sqlite_uses_wal_and_busy_timeout():
         async with engine.connect() as connection:
             journal_mode = await connection.scalar(text("PRAGMA journal_mode"))
             busy_timeout = await connection.scalar(text("PRAGMA busy_timeout"))
+            foreign_keys = await connection.scalar(text("PRAGMA foreign_keys"))
         assert journal_mode.lower() == "wal"
         assert busy_timeout >= 30_000
+        assert foreign_keys == 1
     finally:
         await engine.dispose()
         for suffix in ("", "-wal", "-shm"):

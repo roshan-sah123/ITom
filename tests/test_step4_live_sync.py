@@ -138,8 +138,24 @@ def test_intune_device_normalisation_matches_seed_shape():
 
 def test_intune_noncompliant_maps_to_low_health():
     item = normalize_intune_device({"id": "x", "complianceState": "noncompliant"})
-    assert item["status"] == "Noncompliant"
+    assert item["status"] == "NonCompliant"
     assert item["health_tier"] == "Low"
+
+
+@pytest.mark.parametrize("source,expected", [(None, "Unknown"), ("Ubuntu Linux", "Linux"), ("macOS", "macOS"), ("iOS", "iOS")])
+def test_intune_os_families_are_canonical(source, expected):
+    item = normalize_intune_device({"id": "device", "operatingSystem": source})
+    assert item["ci_type"] == expected
+
+
+def test_intune_compliance_and_owner_mapping_are_explicit():
+    item = normalize_intune_device({"id": "device", "complianceState": "inGracePeriod", "managedDeviceOwnerType": "company"})
+    assert item["status"] == "InGracePeriod"
+    assert item["attributes"]["managed_device_owner_type"] == "company"
+
+
+def test_solarwinds_noncanonical_states_become_unknown():
+    assert normalize_solarwinds_node({"NodeID": 5, "Status": 19})["status"] == "Unknown"
 
 
 def test_device_without_id_is_skipped():

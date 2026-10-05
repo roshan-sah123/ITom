@@ -29,6 +29,7 @@ from app.models.history import CIStatusHistory
 from app.repositories.ci_repository import CIRepository
 from app.repositories.summary_repository import EmptyDatasetError, SummaryRepository
 from app.schemas.serializers import orm_list_to_dicts, orm_to_dict
+from app.services.summary_cache import summary_cache, summary_cache_key
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -117,7 +118,10 @@ class CIService:
 
     async def get_cmdb_summary(self) -> Dict[str, Any]:
         """Retrieve aggregated CMDB health and inventory metrics."""
-        return await self.ci_repo.get_cmdb_summary()
+        return await summary_cache.get_or_load(
+            summary_cache_key(getattr(self.ci_repo, "session", None), "cmdb"),
+            self.ci_repo.get_cmdb_summary,
+        )
 
     async def get_intune_summary(self) -> Dict[str, Any]:
         """Microsoft Intune telemetry and compliance metrics, computed from the database.
@@ -126,7 +130,14 @@ class CIService:
             EmptyDatasetError: If no Intune CIs have been ingested. The API layer
                 translates this into HTTP 503 rather than serving placeholder data.
         """
-        return await self.summary_repo.get_intune_summary()
+        return await summary_cache.get_or_load(
+            summary_cache_key(getattr(self.ci_repo, "session", None), "intune"),
+            self.summary_repo.get_intune_summary,
+        )
+
+    async def get_intune_device_count_forecast(self) -> Dict[str, Any]:
+        """Return the short-term Intune inventory trend estimate."""
+        return await self.summary_repo.get_intune_device_count_forecast()
 
     async def get_solarwinds_summary(self) -> Dict[str, Any]:
         """SolarWinds Orion node telemetry and health metrics, computed from the database.
@@ -134,7 +145,10 @@ class CIService:
         Raises:
             EmptyDatasetError: If no SolarWinds CIs have been ingested.
         """
-        return await self.summary_repo.get_solarwinds_summary()
+        return await summary_cache.get_or_load(
+            summary_cache_key(getattr(self.ci_repo, "session", None), "solarwinds"),
+            self.summary_repo.get_solarwinds_summary,
+        )
 
     async def get_solarwinds_sites(self) -> List[Dict[str, Any]]:
         """Return the site catalog used by the infrastructure dashboard."""

@@ -15,7 +15,8 @@ from typing import Any, Dict, List, Optional, Tuple
 import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
-import urllib3
+from app.core.config import Settings, settings
+from src.sync.source_transport import proxy_request_options, proxy_diagnostics
 
 from app.core.security import (
     ALLOWED_METHODS,
@@ -23,9 +24,6 @@ from app.core.security import (
     SolarWindsSecurityError,
     validate_swql_read_only,
 )
-
-# Suppress insecure HTTPS request warnings when connecting to internal servers with self-signed certs
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 logger = logging.getLogger(__name__)
 if not logger.handlers:
@@ -184,6 +182,7 @@ class SolarWindsClient:
         username: Optional[str] = None,
         password: Optional[str] = None,
         timeout: int = 30,
+        config: Settings = settings,
     ) -> None:
         """Initialize SolarWinds SWIS Client with runtime credentials.
 
@@ -194,12 +193,13 @@ class SolarWindsClient:
             password: SWIS API password (defaults to SOLARWINDS_PASSWORD env).
             timeout: HTTP request timeout in seconds.
         """
-        self.host = host or os.getenv("SOLARWINDS_HOST", "gnoc.coforge.com")
-        self.port = port or int(os.getenv("SOLARWINDS_PORT", "17774"))
-        self.username = username or os.getenv("SOLARWINDS_USERNAME", "")
-        self.password = password or os.getenv("SOLARWINDS_PASSWORD", "")
+        self.host = host or config.SOLARWINDS_HOST or ""
+        self.port = port or config.SOLARWINDS_PORT
+        self.username = username if username is not None else (config.SOLARWINDS_USERNAME or "")
+        self.password = password if password is not None else (config.SOLARWINDS_PASSWORD or "")
         self.timeout = timeout
-        self.verify_ssl = os.getenv("SOLARWINDS_VERIFY_SSL", "false").lower() in ("true", "1", "yes")
+        self.verify_ssl = bool(config.SOLARWINDS_VERIFY_SSL)
+        self.config = config
 
         self.base_url = f"https://{self.host}:{self.port}/SolarWinds/InformationService/v3/Json/Query"
         self._session = self._create_resilient_session()
@@ -207,6 +207,15 @@ class SolarWindsClient:
     def _create_resilient_session(self) -> requests.Session:
         """Create requests session with retry adapters and connection pooling."""
         session = requests.Session()
+        session.trust_env = bool(self.config.SOURCE_PROXY_INHERIT and self.config.SOURCE_PROXY_MODE == "inherit")
+        proxies = {}
+        if self.config.SOURCE_HTTP_PROXY:
+            proxies["http"] = self.config.SOURCE_HTTP_PROXY
+        if self.config.SOURCE_HTTPS_PROXY:
+            proxies["https"] = self.config.SOURCE_HTTPS_PROXY
+        if proxies:
+            session.proxies.update(proxies)
+        logger.info("SolarWinds transport: %s", proxy_diagnostics(self.base_url, self.config))
         session.auth = (self.username, self.password)
         retries = Retry(
             total=3,
@@ -258,6 +267,7 @@ class SolarWindsClient:
                 params=query_params,
                 timeout=self.timeout,
                 verify=self.verify_ssl,
+                **proxy_request_options(self.base_url, self.config),
             )
 
             if response.status_code == 200:
