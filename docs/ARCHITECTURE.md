@@ -31,7 +31,7 @@ The deployed frontend is `frontend/`, served directly without a bundler. It uses
 | `frontend/js/api.js` | Shared FastAPI client |
 | `frontend/css/style.css` | Current portal styling |
 
-The API client uses `/api/v1` behind a reverse proxy, or `http://127.0.0.1:8000/api/v1` for the local UI on ports 8080/8081. `window.ITOM_API_BASE` can override this selection. Failed requests propagate errors instead of silently substituting static JSON.
+The API client uses `/api/v1` on the current origin. `window.ITOM_API_BASE` can override this selection. Failed requests propagate errors instead of silently substituting static JSON.
 
 ## Backend request flow
 
@@ -89,7 +89,7 @@ CMDB means Configuration Management Database. A configuration item (CI) is a tra
 | `sync_runs` | Per-source outcomes, timestamps, duration, and record counts |
 | `sync_error_logs` | Sync failure details |
 
-PostgreSQL 16 is the production database. SQLAlchemy provides asynchronous sessions and queries. Alembic migrations live in `alembic/`; production schema changes must be applied before startup. Explicit development/local/demo/test modes support SQLite, including local PostgreSQL-unavailable fallback. Non-production startup can create missing tables.
+PostgreSQL 16 is the production database. SQLAlchemy provides asynchronous sessions and queries. Alembic migrations live in `alembic/`; production schema changes must be applied before startup. SQLite is supported for explicitly configured local and test databases; there is no automatic datastore fallback. Non-production startup can create missing tables.
 
 History is change-oriented; it is not a complete sample of every performance measurement.
 
@@ -98,7 +98,7 @@ History is change-oriented; it is not a complete sample of every performance mea
 | Mode | Frontend | Backend | Persistence |
 | --- | --- | --- | --- |
 | Docker Compose | NGINX serves `frontend/`, normally exposed on port 8080 | Internal FastAPI port 8000; NGINX forwards `/api/` | PostgreSQL 16 |
-| Local supervisor | Python static server serves `frontend/` on port 8080 | Uvicorn on port 8000 | SQLite supported in local mode |
+| Local supervisor | FastAPI serves `frontend/` on port 8080 | Same Uvicorn listener serves the API | SQLite supported in local mode |
 
 See `docker-compose.yml`, `nginx.conf`, and `scripts/local_itom_supervisor.py` for the actual wiring. Credentials and source connectivity are required for live extraction; the diagram does not imply that a running API has successfully synchronized.
 
@@ -106,11 +106,9 @@ See `docker-compose.yml`, `nginx.conf`, and `scripts/local_itom_supervisor.py` f
 
 `/api/v1/system/freshness` reports source data freshness. Middleware also adds freshness headers. A database may contain records while a source is unreachable, so availability and freshness must be shown separately. Failed extraction does not count as a successful refresh.
 
-## Compatibility code
+## Historical code
 
-Some root-level frontend assets, standalone pages, older domain modules, and `scripts/start_server.py` remain referenced by compatibility launchers or tests. Their presence does not make them the main portal entry point. New portal work should begin in `frontend/index.html` and `frontend/js/app.js`.
-
-Unreferenced HTML prototypes under `frontend/archive/previews/` and the standalone `frontend/preview_infra_with_pie_and_sites.html` were removed. Git history preserves those designs. See [cleanup report](cleanup-reports/CODE_CLEANUP_2026-09-23.md).
+Root-level frontend copies, the file-based HTTP server and the Firestore snapshot runner were retired. Current portal code lives in `frontend/`; historical specifications and reports are under `docs/archive/legacy-2026-09/`. Standalone infrastructure and CMDB pages in `frontend/` remain available.
 
 ## Suggested reading order
 

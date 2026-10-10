@@ -5,7 +5,6 @@ and synchronization services connecting Microsoft Graph API Intune telemetry
 to the ITOM Operations Analytics dashboard and persistence stores.
 """
 
-from src.sync.firestore_sync import FirestoreSyncService
 from src.sync.graph_client import GraphApiError, GraphAuthError, GraphClient
 from src.sync.payload_generator import (
     PayloadGenerator,
@@ -37,7 +36,6 @@ __all__ = [
     "GraphAuthError",
     "GraphApiError",
     "PayloadGenerator",
-    "FirestoreSyncService",
     "SolarWindsClient",
     "SolarWindsAuthError",
     "SolarWindsApiError",

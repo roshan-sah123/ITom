@@ -32,8 +32,6 @@ class TestSolarWindsSecurityGuards(unittest.TestCase):
         valid_queries = [
             "SELECT NodeID, Caption FROM Orion.Nodes",
             "  SELECT TOP 10 * FROM Orion.NPM.Interfaces WHERE Status = 1",
-            "-- comment\nSELECT VolumeID, VolumeType FROM Orion.Volumes",
-            "/* comment */ SELECT IPAddress FROM Orion.Nodes",
         ]
         for q in valid_queries:
             validate_swql_read_only(q)

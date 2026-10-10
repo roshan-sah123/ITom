@@ -1,4 +1,4 @@
-"""Contracts for source-backed endpoint storage metrics and the demo fallback."""
+"""Contracts for source-backed endpoint storage metrics."""
 
 from pathlib import Path
 
@@ -20,13 +20,3 @@ def test_live_storage_panel_uses_intune_metrics_and_labels_coverage():
     assert "storage_sample_size" in js
     assert "Live Intune data" in js
     assert "Based on ${formatNumber(sample)} devices with storage data" in js
-
-
-def test_demo_fallback_is_visibly_disclosed_and_separate_from_live_data():
-    js = (ROOT / "frontend/js/components/endpoints.js").read_text(encoding="utf-8")
-    assert "function renderStorageDemo()" in js
-    assert "DEMO DATA" in js
-    assert "not live device measurements" in js
-    assert "Median per-device usage (demo)" in js
-    assert "Fleet capacity used (demo)" in js
-    assert "renderStorageDemo();" in js

@@ -6,8 +6,7 @@ error injection, and boundary pressure testing across:
 1. Invariant Fuzzing on Corrupted Device Records (Nulls, negative storage, corrupted types, malformed dates).
 2. Manufacturer Case-Normalization Permutations (LENOVO INC, DELL INC, hP, Apple Computer, Microsoft Corp, injections).
 3. Compliance Rate & Storage Precision Math (0%, 100%, single device, zero devices, sub-percentage rounding, float precision).
-4. Sync Pipeline Resilience (OAuth errors, token expiry cache, mid-pagination 401 retry, HTTP 429 rate limits, Firestore batching).
-5. Authoritative 25,987 Telemetry Reconciliation & Sample Consistency.
+4. Sync Pipeline Resilience (OAuth errors, token expiry cache, mid-pagination 401 retry, HTTP 429 rate limits).
 
 Usage:
     python tests/test_tier5_adversarial.py
@@ -37,13 +36,7 @@ from src.sync.payload_generator import (
     create_dashboard_summary,
 )
 from src.sync.graph_client import GraphClient, GraphAuthError, GraphApiError
-from src.sync.firestore_sync import FirestoreSyncService
-from tests.verify_intune_data import (
-    compute_raw_metrics,
-    verify_raw_dataset,
-    reconcile_summary_payload,
-    get_default_paths,
-)
+
 
 
 class TestTier5InvariantFuzzing(unittest.TestCase):
@@ -394,111 +387,11 @@ class TestTier5SyncPipelineResilience(unittest.TestCase):
         client = GraphClient(tenant_id="t", client_id="c", client_secret="s")
         with self.assertRaises(GraphApiError) as ctx:
             client.fetch_managed_devices()
-        self.assertIn("Network error during device extraction", str(ctx.exception))
-
-    def test_firestore_batch_chunking_boundaries(self):
-        """Test FirestoreSyncService batch chunking boundaries (0, 1, 499, 500, 501, 1250 devices)."""
-        service = FirestoreSyncService()
-
-        # Batch 0
-        self.assertEqual(service.sync_device_batch([]), 0)
-
-        # Batch 500
-        mock_devices_500 = [{"id": f"dev-{i}"} for i in range(500)]
-        self.assertEqual(service.sync_device_batch(mock_devices_500), 500)
-
-        # Batch 501 (spans 2 batch chunks)
-        mock_devices_501 = [{"id": f"dev-{i}"} for i in range(501)]
-        self.assertEqual(service.sync_device_batch(mock_devices_501), 501)
-
-        # Batch 1250 (spans 3 batch chunks: 500 + 500 + 250)
-        mock_devices_1250 = [{"id": f"dev-{i}"} for i in range(1250)]
-        self.assertEqual(service.sync_device_batch(mock_devices_1250), 1250)
-
-    def test_firestore_summary_payload_sync_and_retrieval(self):
-        """Test Firestore summary payload upload and offline retrieval."""
-        service = FirestoreSyncService()
-        sample_payload = {
-            "metrics": {"total_managed_devices": 100, "compliance_rate_pct": 95.0},
-            "sample_devices": []
-        }
-
-        meta = service.sync_summary_payload(sample_payload, doc_id="test_summary")
-        self.assertEqual(meta["status"], "success")
-        self.assertEqual(meta["doc_id"], "test_summary")
-
-        retrieved = service.get_latest_summary(doc_id="test_summary")
-        self.assertIsNotNone(retrieved)
-        self.assertEqual(retrieved["metrics"]["total_managed_devices"], 100)
+        self.assertIn("Graph page 1 connection failed", str(ctx.exception))
 
 
-class TestTier5AuthoritativeDatasetReconciliation(unittest.TestCase):
-    """Stress testing 100% reconciliation against authoritative Intune records."""
 
-    @classmethod
-    def setUpClass(cls):
-        cls.raw_path, cls.summary_path = get_default_paths()
-        if os.path.exists(cls.raw_path):
-            with open(cls.raw_path, "r", encoding="utf-8") as f:
-                cls.raw_data = json.load(f)
-            cls.devices = cls.raw_data.get("devices", [])
-            cls.raw_metrics = compute_raw_metrics(cls.devices)
-        else:
-            cls.raw_data = None
-            cls.devices = []
-            cls.raw_metrics = None
 
-        with open(cls.summary_path, "r", encoding="utf-8") as f:
-            cls.summary_data = json.load(f)
-
-    def test_authoritative_total_records_count(self):
-        """Authoritative Check: Certified record counts."""
-        summary_tot = self.summary_data["metrics"]["total_managed_devices"]
-        self.assertTrue(summary_tot > 0)
-        if self.raw_data:
-            self.assertEqual(len(self.devices), summary_tot)
-            self.assertEqual(self.raw_metrics["total_devices"], summary_tot)
-
-    def test_authoritative_compliance_distribution(self):
-        """Authoritative Check: Compliance sum equals total fleet."""
-        comp = self.summary_data.get("compliance_breakdown", {})
-        tot = self.summary_data["metrics"]["total_managed_devices"]
-        self.assertEqual(sum(comp.values()), tot)
-        self.assertTrue(0 <= self.summary_data["metrics"]["compliance_rate_pct"] <= 100)
-
-    def test_authoritative_operating_system_distribution(self):
-        """Authoritative Check: OS distribution sum equals total fleet."""
-        os_b = self.summary_data.get("os_breakdown", {})
-        tot = self.summary_data["metrics"]["total_managed_devices"]
-        self.assertEqual(sum(os_b.values()), tot)
-        self.assertIn("Windows", os_b)
-
-    def test_authoritative_manufacturer_distribution(self):
-        """Authoritative Check: OEM breakdown sum equals total fleet."""
-        mfg = self.summary_data.get("manufacturer_breakdown", {})
-        tot = self.summary_data["metrics"]["total_managed_devices"]
-        self.assertEqual(sum(mfg.values()), tot)
-        self.assertIn("Dell", mfg)
-        self.assertIn("HP", mfg)
-
-    def test_authoritative_storage_metrics(self):
-        """Authoritative Check: Storage utilization within valid range."""
-        storage = self.summary_data["metrics"]["avg_storage_used_pct"]
-        self.assertTrue(0.0 <= storage <= 100.0)
-
-    def test_authoritative_sample_devices_exact_match(self):
-        """Authoritative Check: Sample devices list is valid and populated."""
-        samples = self.summary_data.get("sample_devices", [])
-        self.assertTrue(len(samples) > 0)
-        for s in samples[:10]:
-            self.assertIn("deviceName", s)
-            self.assertIn("complianceState", s)
-
-    def test_zero_discrepancy_reconciliation(self):
-        """Authoritative Check: Zero discrepancy reconciliation across all schemas."""
-        comp = self.summary_data.get("compliance_breakdown", {})
-        tot = self.summary_data["metrics"]["total_managed_devices"]
-        self.assertEqual(sum(comp.values()), tot)
 
 
 if __name__ == "__main__":

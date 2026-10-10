@@ -42,6 +42,10 @@ class ConfigurationItem(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     serial_number: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
     operating_system: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
     location: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    location_id: Mapped[Optional[str]] = mapped_column(ForeignKey('locations.id'), nullable=True, index=True)
+    location_rule_id: Mapped[Optional[str]] = mapped_column(ForeignKey('location_mapping_rules.id'), nullable=True)
+    location_resolution: Mapped[str] = mapped_column(String(32), nullable=False, default='unassigned', server_default='unassigned')
+    location_revision: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     last_sync_time: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
@@ -105,6 +109,10 @@ class ConfigurationItem(Base, UUIDPrimaryKeyMixin, TimestampMixin):
             "serial_number": self.serial_number,
             "operating_system": self.operating_system,
             "location": self.location,
+            "location_id": self.location_id,
+            "location_rule_id": self.location_rule_id,
+            "location_resolution": self.location_resolution,
+            "location_revision": self.location_revision,
             "attributes": self.attributes or {},
             "last_sync_time": self.last_sync_time.isoformat() if self.last_sync_time else None,
             "state_hash": self.state_hash,

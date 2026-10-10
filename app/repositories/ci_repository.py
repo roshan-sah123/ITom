@@ -5,7 +5,8 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
-from sqlalchemy import and_, case, desc, func, not_, or_, select
+from sqlalchemy import and_, case, desc, false, func, not_, or_, select
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.ci import CIRelationship, ConfigurationItem
@@ -27,6 +28,11 @@ SORTABLE_CI_COLUMNS = {
     "name", "source_system", "ci_type", "status", "health_tier", "vendor",
     "location", "last_sync_time", "updated_at",
 }
+
+
+class InventoryUnavailableError(RuntimeError):
+    """Inventory could not be read from its datastore."""
+
 
 class CIRepository(BaseRepository[ConfigurationItem]):
     """High-performance repository for Configuration Items and CMDB metadata."""
@@ -132,7 +138,11 @@ class CIRepository(BaseRepository[ConfigurationItem]):
                 is_network = or_(ConfigurationItem.vendor.in_(NETWORK_VENDORS), *network_terms)
                 filters.append(and_(not_(is_network), or_(*server_terms)))
 
-            if search and search.strip():
+            if search and "\x00" in search:
+                # SQLite LIKE truncates at NUL; never send a truncated pattern
+                # that can turn an invalid search into a fleet-wide match.
+                filters.append(false())
+            elif search and search.strip():
                 s = f"%{search.strip()}%"
                 filters.append(
                     or_(
@@ -173,9 +183,9 @@ class CIRepository(BaseRepository[ConfigurationItem]):
 
             return items, total
 
-        except Exception as exc:
-            logger.debug("Database query fallback triggered in get_cis_paginated: %s", exc)
-            return [], 0
+        except SQLAlchemyError as exc:
+            logger.exception("Inventory datastore query failed")
+            raise InventoryUnavailableError("Inventory datastore unavailable") from exc
 
     async def get_network_devices(
         self,

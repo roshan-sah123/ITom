@@ -55,14 +55,16 @@ def test_sync_pages_are_only_linked_from_operations_footer():
     assert "data-view=\"sync-schedule\"" not in (ROOT / "frontend/index.html").read_text(encoding="utf-8")
 
 
-def test_new_modules_have_clear_coming_soon_content():
+def test_knowledge_is_future_scope_and_automation_links_external_tool():
     parser = portal()
     knowledge = parser.sections["view-knowledge"].lower()
     automations = parser.sections["view-automations"].lower()
     assert "coming soon" in knowledge
     assert "onboarding" in knowledge and "recorded" in knowledge
-    assert "coming soon" in automations
-    assert "operational workflows" in automations
+    assert "techadmin" in automations
+    html = (ROOT / "frontend/index.html").read_text(encoding="utf-8")
+    assert 'href="https://techadmin.coforge.com/"' in html
+    assert 'target="_blank" rel="noopener noreferrer"' in html
 
 
 def test_home_workspace_links_to_new_modules_without_direct_sync_links():

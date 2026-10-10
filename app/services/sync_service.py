@@ -55,6 +55,7 @@ from app.models.sync import SyncErrorLog, SyncRun
 from app.repositories.ci_repository import CIRepository
 from app.repositories.sync_repository import SyncRepository
 from app.services.summary_cache import invalidate_summaries_for_sources
+from app.services.location_service import LocationService
 from app.services.telemetry_sources import (
     SourceUnavailableError,
     TelemetrySource,
@@ -167,6 +168,9 @@ class SyncService:
         persisted = updated = unchanged = history_written = 0
         now = datetime.now(timezone.utc)
 
+        # Load database location rules once for this batch, not once per device.
+        location_resolver = await LocationService(self.session).resolver(bootstrap=True)
+
         for item in telemetry_items:
             source_id = str(
                 item.get("external_id") or item.get("source_id") or item.get("id") or ""
@@ -194,6 +198,7 @@ class SyncService:
             os_ver = item.get("operating_system")
             location = item.get("location")
             attrs = item.get("attributes") or {}
+            assignment = location_resolver.resolve(source_system, name, location, attrs)
 
             # Metrics are coerced defensively: a single malformed value must
             # never abort the flush and discard the whole batch.
@@ -224,6 +229,7 @@ class SyncService:
                     updated_at=now,
                 )
                 self.session.add(ci)
+                LocationService.assign(ci, assignment)
                 await self.session.flush()
 
                 self.session.add(
@@ -247,6 +253,7 @@ class SyncService:
                 continue
 
             if existing.state_hash == new_hash and existing.is_active:
+                LocationService.assign(existing, assignment)
                 # A stable health state does not imply stable inventory fields.
                 current = {
                     "name": name, "ci_type": ci_type, "ip_address": ip,
@@ -280,6 +287,7 @@ class SyncService:
             existing.serial_number = serial or existing.serial_number
             existing.operating_system = os_ver or existing.operating_system
             existing.location = location
+            LocationService.assign(existing, assignment)
             existing.state_hash = new_hash
             existing.last_sync_time = now
             existing.updated_at = now
@@ -390,26 +398,31 @@ class SyncService:
             keys = [str(item.get("external_id") or item.get("source_id") or item.get("id") or "").strip() for item in items]
             if any(not key for key in keys) or len(set(keys)) != len(keys):
                 raise SourceUnavailableError("Missing or duplicate normalized source identifiers")
-            # A savepoint rolls inventory and retirement back together on failure.
+            # Inventory, retirement, source success and score observations are
+            # one atomic unit. A derived-history failure must not advance CIs
+            # while the audit claims the source failed and was rolled back.
             async with self.session.begin_nested():
                 results = await self.ingest_telemetry_batch(items, source.name)
                 retired = 0
                 if telemetry_items is None and getattr(source, "snapshot_complete", False):
                     retired = await self.retire_missing(source.name, items)
 
-            completed_at = datetime.now(timezone.utc)
-            sync_run.status = "SUCCESS"
-            sync_run.items_extracted = getattr(source, "fetched_count", len(items))
-            sync_run.items_normalized = len(items)
-            sync_run.items_rejected = max(0, sync_run.items_extracted - sync_run.items_normalized)
-            sync_run.records_retired = retired
-            sync_run.records_failed = 0
-            sync_run.items_persisted = results["persisted"]
-            sync_run.records_updated = results["updated"]
-            sync_run.records_unchanged = results["unchanged"]
-            sync_run.records_processed = len(items)
-            sync_run.duration_ms = int((completed_at - started_at).total_seconds() * 1000)
-            sync_run.completed_at = completed_at
+                completed_at = datetime.now(timezone.utc)
+                sync_run.status = "SUCCESS"
+                sync_run.items_extracted = getattr(source, "fetched_count", len(items))
+                sync_run.items_normalized = len(items)
+                sync_run.items_rejected = max(0, sync_run.items_extracted - sync_run.items_normalized)
+                sync_run.records_retired = retired
+                sync_run.records_failed = 0
+                sync_run.items_persisted = results["persisted"]
+                sync_run.records_updated = results["updated"]
+                sync_run.records_unchanged = results["unchanged"]
+                sync_run.records_processed = len(items)
+                sync_run.duration_ms = int((completed_at - started_at).total_seconds() * 1000)
+                sync_run.completed_at = completed_at
+
+                # Observations begin here; change-only CI history is not a site trend.
+                await LocationService(self.session).capture(sync_run.id)
 
             logger.info(
                 "%s sync SUCCESS: %d extracted, %d new, %d updated, %d unchanged (%d ms).",
@@ -446,6 +459,7 @@ class SyncService:
             sync_run.items_persisted = 0
             sync_run.records_updated = 0
             sync_run.records_unchanged = 0
+            sync_run.records_retired = 0
             sync_run.records_processed = 0
             sync_run.duration_ms = duration_ms
             sync_run.completed_at = completed_at

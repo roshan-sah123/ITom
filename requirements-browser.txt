@@ -1,0 +1,4 @@
+-r requirements-test.txt
+
+# Optional operator-journey tests; install Chromium separately.
+playwright==1.62.0

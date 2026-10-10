@@ -47,7 +47,7 @@ if ($Status) {
         Write-Host "[✓] Port 8080 is actively LISTENING (PID: $($port8080.OwningProcess[0]))." -ForegroundColor Green
         Write-Host "`nAccessible Endpoints:" -ForegroundColor Cyan
         Write-Host "  - Localhost Portal:     http://localhost:8080/" -ForegroundColor White
-        Write-Host "  - Localhost Analytics:  http://localhost:8080/ops_analytics.html" -ForegroundColor White
+        Write-Host "  - Localhost Analytics:  http://localhost:8080/index.html#endpoints" -ForegroundColor White
         Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.InterfaceAlias -notlike "*Loopback*" -and $_.IPAddress -notlike "169.254*" } | ForEach-Object {
             Write-Host "  - Network Access:       http://$($_.IPAddress):8080/" -ForegroundColor White
         }
@@ -182,10 +182,10 @@ Write-Host "`n================================================================" 
 Write-Host "  Verified Service Endpoints & Resilient Access:" -ForegroundColor Cyan
 Write-Host "================================================================" -ForegroundColor Cyan
 Write-Host "  Localhost Portal:     http://localhost:8080/" -ForegroundColor White
-Write-Host "  Localhost Analytics:  http://localhost:8080/ops_analytics.html" -ForegroundColor White
+Write-Host "  Localhost Analytics:  http://localhost:8080/index.html#endpoints" -ForegroundColor White
 
 Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.InterfaceAlias -notlike "*Loopback*" -and $_.IPAddress -notlike "169.254*" } | ForEach-Object {
     Write-Host "  Network Access:       http://$($_.IPAddress):8080/" -ForegroundColor White
-    Write-Host "  Network Analytics:    http://$($_.IPAddress):8080/ops_analytics.html" -ForegroundColor White
+    Write-Host "  Network Analytics:    http://$($_.IPAddress):8080/index.html#endpoints" -ForegroundColor White
 }
 Write-Host "================================================================" -ForegroundColor Cyan

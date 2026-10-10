@@ -16,7 +16,7 @@
   
   <!-- Master Obsidian Design System & Favicon -->
   <link rel="icon" type="image/png" href="logo.png?v=2">
-  <link rel="stylesheet" href="css/style.css?v=11">
+  <link rel="stylesheet" href="css/style.css?v=13">
 </head>
 <body>
   <div class="app-container">
@@ -289,7 +289,7 @@
               <span>🏢</span>
             </div>
             <div class="cat-value" id="catSitesVal">—</div>
-            <div class="cat-sub" id="catSitesSub">Find locations that need attention</div>
+            <div class="cat-sub" id="catSitesSub">Populated reporting groups · mixed levels</div>
           </div>
 
           <div class="category-card-tab" data-subtab="baseline">
@@ -545,43 +545,8 @@
              SUBVIEW 3: 71 CAMPUS FACILITIES TELEMETRY
              =================================================================== -->
         <div id="subview-sites" class="infra-subview-panel" style="display: none;">
+          <div id="locationScorecards" class="data-grid-card"></div>
           
-          <div class="data-grid-card location-health">
-            <div class="location-health-heading">
-              <div>
-                <h2>Location Health</h2>
-                <p>Find affected locations, then select a status count to see the devices.</p>
-              </div>
-              <span class="location-source-note">Latest synchronized SolarWinds inventory</span>
-            </div>
-            <div class="grid-toolbar">
-              <div class="toolbar-left">
-                <label class="location-search">
-                  <span class="sr-only">Search locations</span>
-                  <input class="filter-select" id="locationHealthSearch" type="search" placeholder="Search locations">
-                </label>
-                <label class="location-issues-toggle"><input type="checkbox" id="locationIssuesOnly"> Only locations with issues</label>
-                <button class="btn-filter-reset" id="locationHealthReset" type="button">Reset</button>
-              </div>
-            </div>
-            <p class="location-health-note" id="locationHealthSummary" role="status">Loading location health…</p>
-            <div class="grid-scroll">
-              <table class="itom-table">
-                <caption class="sr-only">Location inventory by operational status, ordered by critical and down devices</caption>
-                <thead><tr>
-                  <th scope="col">Location</th><th scope="col">Devices</th>
-                  <th scope="col">Up</th><th scope="col">Down</th>
-                  <th scope="col">Warning</th><th scope="col">Critical</th>
-                  <th scope="col">Other / Unmanaged</th>
-                </tr></thead>
-                <tbody id="ovCampusTableBody"></tbody>
-              </table>
-            </div>
-            <div class="grid-footer">
-              <div class="footer-count" id="ovCampusRecordCount" aria-live="polite">Loading locations</div>
-              <nav class="footer-pagination" id="ovCampusPagination" aria-label="Location pages"></nav>
-            </div>
-          </div>
         </div>
 
         <!-- ===================================================================
@@ -1131,6 +1096,6 @@
   </aside>
 
   <!-- Master ES6 Application Bootstrap -->
-    <script type="module" src="js/app.js?v=17"></script>
+    <script type="module" src="js/app.js?v=23"></script>
 </body>
 </html>

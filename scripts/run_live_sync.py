@@ -4,12 +4,8 @@ This runs the production ingestion path directly, with its own database session,
 and prints a full before/after reconciliation so the result is verifiable rather
 than merely asserted.
 
-Why a script rather than POST /api/v1/sync/trigger:
-    That endpoint schedules the work as a FastAPI BackgroundTask using a session
-    obtained via Depends(get_db). Since FastAPI 0.106, yield-dependencies are
-    torn down BEFORE background tasks execute, so the session may already be
-    closed when the sync runs. This script owns its session for the whole
-    operation, which removes that ambiguity and gives you immediate output.
+The runner owns its database session and prints reconciliation results directly.
+The HTTP sync trigger also owns a separate session, but returns before completion.
 
 Usage:
     python scripts/run_live_sync.py --source solarwinds

@@ -27,13 +27,13 @@ class TestSolarWindsDataInvariants(unittest.TestCase):
         if not os.path.exists(cls.summary_file):
             raise AssertionError(
                 f"Missing SolarWinds summary file at '{cls.summary_file}'. "
-                f"Please run 'python scripts/fetch_solarwinds_data.py' or 'python scripts/run_sync.py' to generate summary telemetry."
+                f"Please run 'python scripts/fetch_solarwinds_data.py' or 'python scripts/fetch_solarwinds_data.py' to generate summary telemetry."
             )
 
         if not os.path.exists(cls.nodes_file):
             raise AssertionError(
                 f"Missing SolarWinds raw dataset at '{cls.nodes_file}'. "
-                f"Please run 'python scripts/fetch_solarwinds_data.py' or 'python scripts/run_sync.py' to fetch and populate raw nodes."
+                f"Please run 'python scripts/fetch_solarwinds_data.py' or 'python scripts/fetch_solarwinds_data.py' to fetch and populate raw nodes."
             )
 
         with open(cls.nodes_file, "r", encoding="utf-8") as f:
@@ -48,12 +48,12 @@ class TestSolarWindsDataInvariants(unittest.TestCase):
         self.assertGreater(
             summary_total,
             0,
-            "Dataset must contain at least 1 server node. Please run 'python scripts/fetch_solarwinds_data.py' or 'python scripts/run_sync.py' to reconcile datasets."
+            "Dataset must contain at least 1 server node. Please run 'python scripts/fetch_solarwinds_data.py' or 'python scripts/fetch_solarwinds_data.py' to reconcile datasets."
         )
         if self.raw_data is None:
             raise AssertionError(
                 f"Missing SolarWinds raw dataset at '{self.nodes_file}'. "
-                f"Please run 'python scripts/fetch_solarwinds_data.py' or 'python scripts/run_sync.py' to fetch and populate raw nodes."
+                f"Please run 'python scripts/fetch_solarwinds_data.py' or 'python scripts/fetch_solarwinds_data.py' to fetch and populate raw nodes."
             )
 
         raw_nodes = self.raw_data.get("nodes", [])
@@ -62,13 +62,13 @@ class TestSolarWindsDataInvariants(unittest.TestCase):
             raise AssertionError(
                 f"Data pipeline drift detected: raw node records count ({len(raw_nodes)}) "
                 f"diverged from raw total_nodes count ({raw_total}). "
-                f"Please run 'python scripts/fetch_solarwinds_data.py' or 'python scripts/run_sync.py' to reconcile datasets."
+                f"Please run 'python scripts/fetch_solarwinds_data.py' or 'python scripts/fetch_solarwinds_data.py' to reconcile datasets."
             )
         if raw_total != summary_total:
             raise AssertionError(
                 f"Data pipeline drift detected: raw node dataset count ({raw_total}) "
                 f"diverged from summary payload count ({summary_total}). "
-                f"Please run 'python scripts/fetch_solarwinds_data.py' or 'python scripts/run_sync.py' to reconcile datasets."
+                f"Please run 'python scripts/fetch_solarwinds_data.py' or 'python scripts/fetch_solarwinds_data.py' to reconcile datasets."
             )
         self.assertEqual(len(raw_nodes), raw_total)
         self.assertEqual(raw_total, summary_total)
@@ -87,7 +87,7 @@ class TestSolarWindsDataInvariants(unittest.TestCase):
             raise AssertionError(
                 f"Data pipeline drift detected: sum of health classifications ({health_sum}) "
                 f"diverged from total server nodes ({total}). "
-                f"Please run 'python scripts/fetch_solarwinds_data.py' or 'python scripts/run_sync.py' to reconcile datasets."
+                f"Please run 'python scripts/fetch_solarwinds_data.py' or 'python scripts/fetch_solarwinds_data.py' to reconcile datasets."
             )
         self.assertEqual(health_sum, total)
         self.assertAlmostEqual(
@@ -106,7 +106,7 @@ class TestSolarWindsDataInvariants(unittest.TestCase):
             raise AssertionError(
                 f"Data pipeline drift detected: sum of status counts ({status_sum}) "
                 f"diverged from total server nodes ({total}). "
-                f"Please run 'python scripts/fetch_solarwinds_data.py' or 'python scripts/run_sync.py' to reconcile datasets."
+                f"Please run 'python scripts/fetch_solarwinds_data.py' or 'python scripts/fetch_solarwinds_data.py' to reconcile datasets."
             )
         self.assertEqual(status_sum, total)
 
@@ -120,7 +120,7 @@ class TestSolarWindsDataInvariants(unittest.TestCase):
             raise AssertionError(
                 f"Data pipeline drift detected: sum of vendor breakdown ({vendor_sum}) "
                 f"diverged from total server nodes ({total}). "
-                f"Please run 'python scripts/fetch_solarwinds_data.py' or 'python scripts/run_sync.py' to reconcile datasets."
+                f"Please run 'python scripts/fetch_solarwinds_data.py' or 'python scripts/fetch_solarwinds_data.py' to reconcile datasets."
             )
         self.assertEqual(vendor_sum, total)
         self.assertIn("Windows", vendor_breakdown)
@@ -141,7 +141,7 @@ class TestSolarWindsDataInvariants(unittest.TestCase):
         self.assertGreater(
             len(nodes_to_test),
             0,
-            "No node records found to validate. Please run 'python scripts/fetch_solarwinds_data.py' or 'python scripts/run_sync.py' to enrich node telemetry."
+            "No node records found to validate. Please run 'python scripts/fetch_solarwinds_data.py' or 'python scripts/fetch_solarwinds_data.py' to enrich node telemetry."
         )
 
         for node in nodes_to_test:
@@ -150,7 +150,7 @@ class TestSolarWindsDataInvariants(unittest.TestCase):
                     field,
                     node,
                     f"Node {node.get('NodeID')} missing required field '{field}'. "
-                    f"Please run 'python scripts/fetch_solarwinds_data.py' or 'python scripts/run_sync.py' to enrich node telemetry."
+                    f"Please run 'python scripts/fetch_solarwinds_data.py' or 'python scripts/fetch_solarwinds_data.py' to enrich node telemetry."
                 )
 
             computed_health = classify_node_health(node)
@@ -159,7 +159,7 @@ class TestSolarWindsDataInvariants(unittest.TestCase):
                 computed_health,
                 f"Health classification mismatch for node {node.get('NodeID')}: "
                 f"expected '{computed_health}', got '{node.get('HealthClassification')}'. "
-                f"Please run 'python scripts/fetch_solarwinds_data.py' or 'python scripts/run_sync.py' to enrich node telemetry."
+                f"Please run 'python scripts/fetch_solarwinds_data.py' or 'python scripts/fetch_solarwinds_data.py' to enrich node telemetry."
             )
 
 
@@ -170,7 +170,7 @@ class TestSolarWindsDataInvariants(unittest.TestCase):
         ram = metrics.get("avg_fleet_ram_used_pct")
         latency = metrics.get("avg_fleet_latency_ms")
 
-        error_remediation = "Please run 'python scripts/fetch_solarwinds_data.py' or 'python scripts/run_sync.py' to reconcile datasets."
+        error_remediation = "Please run 'python scripts/fetch_solarwinds_data.py' or 'python scripts/fetch_solarwinds_data.py' to reconcile datasets."
         self.assertIsNotNone(cpu, f"Missing avg_fleet_cpu_load_pct. {error_remediation}")
         self.assertIsNotNone(ram, f"Missing avg_fleet_ram_used_pct. {error_remediation}")
         self.assertIsNotNone(latency, f"Missing avg_fleet_latency_ms. {error_remediation}")

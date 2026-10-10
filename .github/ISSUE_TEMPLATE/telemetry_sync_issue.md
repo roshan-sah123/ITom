@@ -8,13 +8,13 @@ assignees: ''
 
 ## 📡 Telemetry Source & Pipeline
 - **Telemetry Domain**: [ ] Microsoft Intune (Graph API)  [ ] SolarWinds Orion (SWIS v3)  [ ] CMDB CIs  [ ] Executive Fleet Digest
-- **Execution Context**: [ ] Background Daemon (`scripts/start_server.py`)  [ ] Manual CLI (`scripts/run_sync.py`)  [ ] CI Workflow
+- **Execution Context**: [ ] Backend scheduler (`app/workers/scheduler.py`)  [ ] Manual CLI (`scripts/run_live_sync.py`)  [ ] CI Workflow
 - **Pipeline Stage**: [ ] Extraction / Authentication  [ ] Normalization  [ ] Invariant Verification Gate  [ ] Persistence
 
 ## 🚨 Invariant or Assertion Violated
 Describe the exact discrepancy or invariant failure.
-- **Expected Invariant Count / Metric**: [e.g. 25,987 Intune devices, 1,548 nodes, 100% CMDB relational mapping]
-- **Observed Extracted Count / Metric**: [e.g. 25,950 devices, 37 missing]
+- **Expected Invariant Count / Metric**: [source snapshot count and expected reconciliation]
+- **Observed Extracted Count / Metric**: [observed count and missing/rejected records]
 - **Assertion Failure Output**:
 ```text
 Paste exact python traceback or AssertionError here

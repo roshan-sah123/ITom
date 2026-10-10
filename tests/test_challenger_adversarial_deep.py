@@ -233,22 +233,18 @@ class TestEmpiricalSolarWindsHealthClassification(unittest.TestCase):
 class TestEmpiricalEtlPermutationInvariance(unittest.TestCase):
     """Stress test ETL invariance under input record permutation."""
 
-    def test_permutation_invariance_on_real_data(self):
-        raw_path = os.path.join(PROJECT_ROOT, "data", "intune_ops_analytics.json")
-        if not os.path.exists(raw_path):
-            self.skipTest("intune_ops_analytics.json not found")
-
-        with open(raw_path, "r", encoding="utf-8") as f:
-            raw_data = json.load(f)
-
-        devices = raw_data["devices"]
+    def test_permutation_invariance_on_deterministic_records(self):
+        devices = [
+            {"id": "one", "manufacturer": "Dell", "operatingSystem": "Windows", "complianceState": "compliant", "totalStorageSpaceInBytes": 100, "freeStorageSpaceInBytes": 50},
+            {"id": "two", "manufacturer": "Lenovo", "operatingSystem": "Linux", "complianceState": "noncompliant", "totalStorageSpaceInBytes": 200, "freeStorageSpaceInBytes": 50},
+            {"id": "three", "manufacturer": None, "operatingSystem": "macOS", "complianceState": "unknown"},
+        ]
         m1 = calculate_metrics(devices)
         os1, comp1, mfg1 = generate_breakdowns(devices)
 
         # Shuffle devices randomly
         shuffled = list(devices)
-        random.seed(12345)
-        random.shuffle(shuffled)
+        random.Random(12345).shuffle(shuffled)
 
         m2 = calculate_metrics(shuffled)
         os2, comp2, mfg2 = generate_breakdowns(shuffled)

@@ -3,9 +3,9 @@
  */
 import { initHeader } from './components/header.js?v=4';
 import { initModal } from './components/modal.js';
-import { initDrawer } from './components/drawer.js';
+import { initDrawer } from './components/drawer.js?v=2';
 import { renderHome } from './components/home.js?v=6';
-import { renderInfrastructureWorkspace } from './components/infraWorkspace.js?v=11';
+import { renderInfrastructureWorkspace } from './components/infraWorkspace.js?v=17';
 import { renderEndpoints } from './components/endpoints.js?v=10';
 import { renderCmdb } from './components/cmdb.js?v=10';
 import { renderSyncLedger } from './components/syncLedger.js?v=3';

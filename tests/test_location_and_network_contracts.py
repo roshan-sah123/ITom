@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from app.models.base import Base
 from app.repositories.ci_repository import CIRepository
 from app.services.telemetry_sources import normalize_solarwinds_node
-from tests.test_step1_summaries import _ci
+from tests.factories import make_ci as _ci
 
 
 @pytest_asyncio.fixture

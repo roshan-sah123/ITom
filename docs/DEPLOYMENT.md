@@ -1,231 +1,54 @@
-# ITOM Operations Analytics — Production Deployment Runbook
+# Deployment
 
-This runbook describes the deployment architectures, procedures, security hardening, and operational management for hosting the ITOM Operations Analytics portal across on-premise Windows servers, Linux virtual machines, containerized environments, and cloud CDNs.
+The supported runtime is `app.main:app`. It serves `frontend/` and the database-backed API on one listener. The former file-based HTTP daemon and its remote deployment script have been retired.
 
----
+## Windows local service
 
-## 1. Deployment Architecture Options
+Create `.venv`, install `requirements.txt`, and configure `.env` from `.env.example`. Apply schema migrations:
 
-```
-┌─────────────────────────────────────────────────────────────────────────────────┐
-│                           PRODUCTION DEPLOYMENT MODES                           │
-├──────────────────────┬──────────────────────┬───────────────────────────────────┤
-│ Model 1: Windows 24/7│ Model 2: Linux VM    │ Model 3: Docker Container         │
-│ • Task Scheduler     │ • systemd daemon     │ • Python 3.12-slim base           │
-│ • start_itom_service │ • scripts/deploy_to  │ • docker-compose.yml              │
-│ • Port 8080 / IIS    │ • Port 8080 / Nginx  │ • Port 8080 isolation             │
-└──────────────────────┴──────────────────────┴───────────────────────────────────┘
-```
-
----
-
-## 2. Model 1: Windows Server / Workstation Deployment
-
-### 2.1 First-Time VM Setup
-Run these commands from the cloned repository in PowerShell. The venv keeps the app's pinned Python packages separate from system Python:
 ```powershell
-py -3.12 -m venv .venv
-& .\.venv\Scripts\python.exe -m pip install -r requirements.txt
-if (-not (Test-Path .env)) { Copy-Item .env.example .env }
-notepad .env
+.venv\Scripts\python.exe -m alembic upgrade head
 ```
 
-Set the VM's Graph and SolarWinds credentials in `.env`; do not commit that file. Keep `SCHEDULER_ENABLED=True` and set `SYNC_INTERVAL_SECONDS=600` for the 10-minute VM sync. The default database is the local SQLite file at `data/itom.db`; set `DATABASE_URL` only if this VM is meant to use another configured database.
+Use the local supervisor:
 
-Apply the schema and run one live sync to validate the VM's credentials and source connectivity:
-```powershell
-& .\.venv\Scripts\python.exe -m alembic upgrade head
-& .\.venv\Scripts\python.exe scripts\run_live_sync.py --source all
-```
-
-The live sync writes the returned inventory into the configured CMDB database. If source access fails, inspect the per-source result before treating the VM as synchronized. Once the initial sync succeeds, the app's APScheduler runs every 600 seconds while the app process is running.
-
-### 2.2 Quick Interactive Launch
-For ad-hoc or development use, start the foreground supervisor:
 ```cmd
-start_itom_service.bat --open-browser
-```
-
-### 2.3 Background Service Supervisor (`start_itom_service.bat`)
-To run the server in the background as a detached process:
-```cmd
-:: Start in background
 start_itom_service.bat --background
-
-:: Check API, database, frontend, and data freshness
 start_itom_service.bat --status
-
-:: Stop background server
-start_itom_service.bat --stop
-
-:: Restart background server
 start_itom_service.bat --restart
+start_itom_service.bat --stop
 ```
 
-### 2.4 Local Windows Scheduled Task (`scripts/register_local_itom_task.ps1`)
-To start the local FastAPI, SQLite, and frontend supervisor when the signed-in user logs on:
-```powershell
-# Run from the repository root after the venv and .env are ready:
-powershell -ExecutionPolicy Bypass -File .\scripts\register_local_itom_task.ps1
+It binds the portal to `127.0.0.1:8080`. `--open-browser` opens the portal after launch. The older `start_server.bat` is a forwarding alias to this launcher.
 
-# Verify task status:
-powershell -ExecutionPolicy Bypass -File .\scripts\register_local_itom_task.ps1 -Status
+For login startup, use `scripts/register_local_itom_task.ps1`; its `-Status` and `-Remove` switches inspect or remove that task. The older root `register_startup_service.ps1` manages a differently named task and remains available for existing installations. Do not register both tasks for one checkout.
 
-# To remove the task:
-powershell -ExecutionPolicy Bypass -File .\scripts\register_local_itom_task.ps1 -Remove
-```
+## Linux service
 
-The task starts the app and its sync worker at interactive sign-in; the VM must remain powered on and connected to the required source networks. The supplied local supervisor binds to loopback (`127.0.0.1`) so the portal is available on the VM itself. Internal-network sharing requires a separately reviewed deployment with authentication, a network listener/reverse proxy, TLS, and firewall rules.
+The template `systemd/itom.service` starts `.venv/bin/python -m uvicorn app.main:app` on loopback port 8080. Adapt its user, group, working directory and executable path to the installation. Create the virtual environment, install dependencies, configure `.env`, and run `alembic upgrade head` before enabling the service. The template does not perform migrations.
 
----
+Use a separately configured authenticated TLS reverse proxy for shared-network access. The app currently does not provide its own authentication; restrict inventory and manual sync access at the deployment boundary.
 
-## 3. Model 2: Linux Production VM (systemd)
+## Containers
 
-### 3.1 Automated Deployment Engine (`scripts/deploy_to_vm.py`)
-To deploy from your workstation to a remote Linux host over SSH:
+`Dockerfile` runs FastAPI on port 8000 as a non-root user. `docker-compose.yml` adds PostgreSQL and an NGINX portal on the configured host port (default 8080).
+
 ```bash
-python scripts/deploy_to_vm.py --host <YOUR_SERVER_IP> --user <YOUR_SSH_USER> --port 8080
-```
-
-This script:
-1. Validates SSH connectivity.
-2. Synchronizes required directories (`data/`, `src/`, `scripts/`, `systemd/`, HTML/CSS/JS assets).
-3. Installs `systemd/itom.service` to `/etc/systemd/system/itom.service`.
-4. Executes `systemctl daemon-reload` and `systemctl enable --now itom.service`.
-
-### 3.2 Manual Linux systemd Setup
-If configuring manually on the target Linux host:
-
-1. **Clone repository and set up virtual environment**:
-   ```bash
-   cd /home/roshan/itom-portal
-   python3 -m venv .venv
-   source .venv/bin/activate
-   pip install -r requirements.txt
-   cp .env.example .env
-   chmod 600 .env
-   ```
-
-2. **Copy systemd service unit**:
-   ```bash
-   sudo cp systemd/itom.service /etc/systemd/system/itom.service
-   sudo chown root:root /etc/systemd/system/itom.service
-   sudo chmod 644 /etc/systemd/system/itom.service
-   ```
-
-3. **Enable and Start Service**:
-   ```bash
-   sudo systemctl daemon-reload
-   sudo systemctl enable itom.service
-   sudo systemctl start itom.service
-   ```
-
-4. **Monitor Service Health**:
-   ```bash
-   # Check active service status
-   sudo systemctl status itom.service
-
-   # View real-time logs via journalctl
-   sudo journalctl -u itom.service -f -n 50
-   ```
-
----
-
-## 4. Model 3: Containerized Docker Deployment
-
-### 4.1 Build Docker Container
-The repository includes an optimized `Dockerfile` and `.dockerignore`:
-```bash
-docker build -t itom-portal:latest .
-```
-
-### 4.2 Run via Docker Compose
-```bash
-docker compose up -d
-```
-
-Verify running container:
-```bash
+docker compose up --build -d
 docker compose ps
-docker compose logs -f
+docker compose logs api
 ```
 
-### 4.3 Container Security & Isolation
-- Non-root user execution inside container.
-- `.dockerignore` guarantees `.env`, private keys, local test caches, and Git history are never baked into container layers.
-- Runtime secrets should be mounted as environment variables:
-  ```bash
-  docker run -d --name itom-portal -p 8080:8080 --env-file .env itom-portal:latest
-  ```
+The supplied Compose file currently forwards only database configuration and `PORT` to the API. Host `.env` files are not automatically forwarded into the container, and `.dockerignore` excludes them from the image. Configure explicit runtime environment/secrets for source credentials, proxy settings, `ENVIRONMENT=production` and a strong `SECRET_KEY`. Replace the fallback database password.
 
----
+Apply Alembic migrations against the intended database before starting the production API. Production startup does not create tables. The supplied container health check uses `/healthz`; independently verify `/ready` before allowing traffic. The [audit](CODEBASE_AUDIT_2026-10-08.md) records remaining deployment and migration limitations.
 
-## 5. Reverse Proxy & SSL/TLS Termination
+## Operational checks
 
-For enterprise production environments, front the Python HTTP daemon with an Nginx reverse proxy providing TLS 1.3 encryption and gzip compression.
+- `/healthz`: process liveness.
+- `/ready`: database connectivity and migration head.
+- `/api/v1/system/freshness`: last successful source refreshes.
+- `/api/v1/sync/status`: last source attempts and failures.
+- `python scripts/run_live_sync.py --source all`: explicitly fetch and persist live telemetry; requires credentials and source connectivity.
 
-### 5.1 Nginx Configuration (`/etc/nginx/sites-available/itom-portal`)
-```nginx
-server {
-    listen 80;
-    server_name itom.internal.corp;
-    return 301 https://$host$request_uri;
-}
-
-server {
-    listen 443 ssl http2;
-    server_name itom.internal.corp;
-
-    ssl_certificate /etc/ssl/certs/itom-portal.crt;
-    ssl_certificate_key /etc/ssl/private/itom-portal.key;
-    ssl_protocols TLSv1.2 TLSv1.3;
-    ssl_ciphers HIGH:!aNULL:!MD5;
-
-    # Anti-caching for dynamic JSON telemetry payloads
-    location ~* \.json$ {
-        proxy_pass http://127.0.0.1:8080;
-        add_header Cache-Control "no-cache, no-store, must-revalidate";
-        add_header Pragma "no-cache";
-        expires 0;
-    }
-
-    # Static assets and REST API routing
-    location / {
-        proxy_pass http://127.0.0.1:8080;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-
-        # Timeouts for long paginated queries
-        proxy_connect_timeout 15s;
-        proxy_read_timeout 60s;
-    }
-
-    # Gzip compression
-    gzip on;
-    gzip_types text/plain text/css application/json application/javascript text/xml;
-}
-```
-
----
-
-## 6. Security Hardening Checklist
-
-| Security Control | Implementation | Verification |
-| :--- | :--- | :--- |
-| **Credential Protection** | Credentials stored exclusively in `.env` | Run `python -m unittest tests.verify_adversarial_security` |
-| **File Permissions** | Set `.env` file permissions to `chmod 600` | Verify only service user can read `.env` |
-| **Firewall Rules** | Allow inbound on port `8080` (or `443` for TLS reverse proxy) | `ufw allow 8080/tcp` or Windows Advanced Firewall |
-| **XSS Defense** | Strict `escapeHtml()` sanitization across all DOM insertions | Automated XSS attack matrix test passing |
-| **Read-Only API** | Mutating HTTP methods (`POST`, `PUT`, `DELETE`, `PATCH`) blocked | Verify curl returns `405 Method Not Allowed` |
-
----
-
-## 7. Backup & Disaster Recovery
-
-1. **Snapshot Backups**: The authoritative JSON datasets (`data/intune_ops_analytics.json`, `data/solarwinds_nodes.json`) should be backed up daily to cold storage or backup shares.
-2. **CSV Audit Archives**: Historical CSV exports in `exports/` can be archived into dated tarballs:
-   ```bash
-   tar -czf /backup/itom_exports_$(date +%Y%m%d).tar.gz exports/*.csv
-   ```
+Keep databases, snapshot files, backups and exports out of the image and Git. Back up the configured datastore before schema changes. See [troubleshooting](TROUBLESHOOTING.md).

@@ -6,7 +6,6 @@ Tests high-throughput performance, concurrency resilience, and adversarial attac
 2. Normalization Engine High-Volume Permutation Invariance
 3. Large Scale RFC 4180 CSV Generation & Formula Neutralization
 4. Chart.js Lifecycle Clean-up and Memory Guarding
-5. Server Dynamic IP Resolution & Address Reuse Resilience
 6. SWQL Read-Only AST Injection Fuzzing
 
 Usage:
@@ -27,7 +26,6 @@ if PROJECT_ROOT not in sys.path:
 
 from src.sync.payload_generator import normalize_manufacturer, calculate_metrics
 from src.sync.solarwinds_client import validate_swql_read_only, SolarWindsSecurityError
-from scripts.start_server import get_dynamic_ips, ThreadingHTTPServer
 
 
 class TestStressAndPerformance(unittest.TestCase):
@@ -106,14 +104,6 @@ class TestStressAndPerformance(unittest.TestCase):
             with self.assertRaises(SolarWindsSecurityError, msg=f"Payload failed to block: {inj}"):
                 validate_swql_read_only(inj)
 
-    def test_dynamic_ip_discovery_and_socket_reuse(self):
-        """Resilience: Dynamic IP resolution returns valid IPs and socket reuse is configured."""
-        ips = get_dynamic_ips()
-        self.assertIsInstance(ips, list)
-        self.assertGreaterEqual(len(ips), 1)
-
-        self.assertTrue(ThreadingHTTPServer.daemon_threads)
-        self.assertTrue(ThreadingHTTPServer.allow_reuse_address)
 
 
 def main() -> int:

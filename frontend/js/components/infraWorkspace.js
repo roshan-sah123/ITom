@@ -3,9 +3,10 @@
  * 4 Primary Category Cards (classified servers, networks, campus sites, CMDB baseline),
  * Sub-tab switching, location-wise filtration, interactive chart slicing, and full pagination.
  */
-import { itomApi } from '../api.js?v=6';
+import { itomApi } from '../api.js?v=8';
 import { formatNumber, formatPercent, formatLatency, escapeHtml, calculateNewPageAnchor, debounce, exportToCsv, fetchAllFilteredRows, destroyChartSafe, generatePaginationControls } from '../utils.js';
-import { openCiDrawer } from './drawer.js';
+import { openCiDrawer } from './drawer.js?v=2';
+import { renderLocationScorecards } from './locations.js?v=6';
 
 let activeSubtab = 'servers';
 
@@ -27,9 +28,6 @@ let allFetchedNodes = [];
 let cachedTotalServers = 0;
 
 // Campus sites state
-let campusSitesData = [];
-let campusPage = 1;
-const campusPageSize = 10;
 
 // Network devices state
 let currentNetPage = 1;
@@ -111,9 +109,7 @@ export async function renderInfrastructureWorkspace(subtabName = 'servers', filt
   initSubtabTriggers();
   initServerFilters();
   initNetworkFilters();
-  await loadInfraCategoryMetrics();
-  await loadServerKpisAndCharts();
-  await loadCampusSites();
+  await Promise.all([loadInfraCategoryMetrics(), loadServerKpisAndCharts(), loadCampusSites()]);
   if (subtabName && subtabName !== 'servers') {
     switchInfraSubtab(subtabName, filterParam);
   } else if (filterParam) {
@@ -169,7 +165,7 @@ async function loadInfraCategoryMetrics() {
   try {
     const [swSum, sitesResponse, networkResponse] = await Promise.all([
       itomApi.getSolarWindsSummary(),
-      itomApi.getSolarWindsSites().catch(() => ({ data: { items: [] } })),
+      itomApi.getLocations().catch(() => null),
       itomApi.getSolarWindsNetworkDevices({ page: 1, page_size: 10 }).catch(() => ({ total: null })),
     ]);
     const metrics = swSum.metrics || {};
@@ -178,7 +174,7 @@ async function loadInfraCategoryMetrics() {
     const totalNetworkDevices = metrics.network_devices_count;
     const unclassifiedNodes = metrics.unclassified_nodes_count;
     const highHealthPct = metrics.high_health_pct;
-    const sites = sitesResponse.data?.items || sitesResponse.items || [];
+    const sites = sitesResponse?.data?.items?.filter(site => site.id !== 'unassigned' && site.endpoints + site.nodes > 0);
 
     cachedTotalServers = totalServers;
 
@@ -197,8 +193,8 @@ async function loadInfraCategoryMetrics() {
       : 'No current SolarWinds data';
     if (catNetVal) catNetVal.textContent = networkResponse.total != null ? formatNumber(networkResponse.total) : 'Unavailable';
     if (catNetSub) catNetSub.textContent = networkResponse.total != null ? 'SolarWinds node inventory' : 'Network inventory unavailable';
-    if (catSitesVal) catSitesVal.textContent = formatNumber(sites.length);
-    if (catSitesSub) catSitesSub.textContent = 'Find locations that need attention';
+    if (catSitesVal) catSitesVal.textContent = sites ? formatNumber(sites.length) : 'Unavailable';
+    if (catSitesSub) catSitesSub.textContent = 'Populated reporting groups · mixed levels';
     if (catBaseVal) catBaseVal.textContent = 'Coming soon';
     if (catBaseSub) catBaseSub.textContent = 'Volume and alert APIs required';
 
@@ -842,100 +838,5 @@ function initNetworkFilters() {
    ========================================================================= */
 
 async function loadCampusSites() {
-  initCampusFilters();
-  const tbody = document.getElementById('ovCampusTableBody');
-  const summary = document.getElementById('locationHealthSummary');
-  try {
-    const res = await itomApi.getSolarWindsSites();
-    campusSitesData = res.data?.items || res.items || [];
-    renderCampusRows();
-  } catch (err) {
-    campusSitesData = [];
-    if (tbody) tbody.innerHTML = '<tr><td colspan="7" class="inline-error">Unable to load location health. Reopen this workspace to retry.</td></tr>';
-    if (summary) summary.textContent = 'Location data could not be loaded.';
-    document.getElementById('ovCampusRecordCount').textContent = '';
-    document.getElementById('ovCampusPagination').innerHTML = '';
-    console.error('Failed to load location health:', err);
-  }
-}
-
-function initCampusFilters() {
-  const search = document.getElementById('locationHealthSearch');
-  const issues = document.getElementById('locationIssuesOnly');
-  const reset = document.getElementById('locationHealthReset');
-  if (!search || search.dataset.initialized) return;
-  search.dataset.initialized = 'true';
-  search.addEventListener('input', () => { campusPage = 1; renderCampusRows(); });
-  issues.addEventListener('change', () => { campusPage = 1; renderCampusRows(); });
-  reset.addEventListener('click', () => {
-    search.value = '';
-    issues.checked = false;
-    campusPage = 1;
-    renderCampusRows();
-  });
-}
-
-function renderCampusRows() {
-  const tbody = document.getElementById('ovCampusTableBody');
-  const countLabel = document.getElementById('ovCampusRecordCount');
-  const paginationControls = document.getElementById('ovCampusPagination');
-  if (!tbody) return;
-  const query = document.getElementById('locationHealthSearch').value.trim().toLowerCase();
-  const onlyIssues = document.getElementById('locationIssuesOnly').checked;
-  const count = (site, key) => Number(site[key] ?? 0);
-  const issues = site => count(site, 'down_nodes') + count(site, 'warning_nodes') + count(site, 'critical_nodes');
-  const filtered = campusSitesData
-    .filter(site => String(site.name).toLowerCase().includes(query) && (!onlyIssues || issues(site) > 0))
-    .sort((a, b) => (count(b, 'critical_nodes') + count(b, 'down_nodes')) - (count(a, 'critical_nodes') + count(a, 'down_nodes'))
-      || count(b, 'warning_nodes') - count(a, 'warning_nodes') || a.name.localeCompare(b.name));
-  const total = filtered.length;
-  const totalPages = Math.max(1, Math.ceil(total / campusPageSize));
-  campusPage = Math.max(1, Math.min(campusPage, totalPages));
-  const start = (campusPage - 1) * campusPageSize;
-  const items = filtered.slice(start, start + campusPageSize);
-  countLabel.textContent = `Showing ${total ? start + 1 : 0}–${Math.min(start + campusPageSize, total)} of ${formatNumber(total)} locations`;
-  document.getElementById('locationHealthSummary').textContent = `${formatNumber(filtered.reduce((sum, site) => sum + count(site, 'total_nodes'), 0))} devices across ${formatNumber(total)} locations · ${formatNumber(filtered.filter(site => issues(site) > 0).length)} locations with Down, Warning or Critical devices. Other / Unmanaged contains all remaining statuses.`;
-  paginationControls.innerHTML = '';
-  if (!items.length) {
-    tbody.innerHTML = '<tr><td colspan="7" class="location-empty">No locations match these filters. Try another search or reset the filters.</td></tr>';
-    return;
-  }
-  const statusCell = (site, key, status, tone) => {
-    const value = count(site, key);
-    return value > 0
-      ? `<td class="location-count"><button class="location-status ${tone}" data-location="${escapeHtml(site.name)}" data-status="${status}" aria-label="${escapeHtml(site.name)}: ${value} ${status} devices">${formatNumber(value)}</button></td>`
-      : '<td class="location-count"><span class="location-zero">0</span></td>';
-  };
-  tbody.innerHTML = items.map(site => {
-    const other = count(site, 'total_nodes') - count(site, 'up_nodes') - issues(site);
-    return `<tr>
-      <td><button class="table-location-link" data-location="${escapeHtml(site.name)}" data-status="">${escapeHtml(site.name)}</button></td>
-      <td class="location-count"><button class="table-location-link" data-location="${escapeHtml(site.name)}" data-status="" aria-label="All devices at ${escapeHtml(site.name)}">${formatNumber(count(site, 'total_nodes'))}</button></td>
-      ${statusCell(site, 'up_nodes', 'Up', 'status-healthy')}
-      ${statusCell(site, 'down_nodes', 'Down', 'status-critical')}
-      ${statusCell(site, 'warning_nodes', 'Warning', 'status-warning')}
-      ${statusCell(site, 'critical_nodes', 'Critical', 'status-critical')}
-      <td class="location-count">${formatNumber(other)}</td>
-    </tr>`;
-  }).join('');
-  tbody.querySelectorAll('button[data-location]').forEach(button => {
-    button.addEventListener('click', () => {
-      // The chosen count must open exactly that location/status, without old filters.
-      activeSwSearch = '';
-      activeSwHealthTier = '';
-      activeSwVendor = '';
-      activeSwStatus = button.dataset.status;
-      for (const id of ['swSearchInput', 'swFilterHealth', 'swFilterVendor']) {
-        const control = document.getElementById(id);
-        if (control) control.value = '';
-      }
-      const statusControl = document.getElementById('swFilterStatus');
-      if (statusControl) statusControl.value = activeSwStatus;
-      switchInfraSubtab('servers', button.dataset.location);
-    });
-  });
-  if (totalPages > 1) generatePaginationControls(paginationControls, campusPage, totalPages, page => {
-    campusPage = page;
-    renderCampusRows();
-  });
+  await renderLocationScorecards();
 }

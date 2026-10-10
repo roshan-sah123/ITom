@@ -7,8 +7,8 @@ from app.core import database
 from app.core.config import settings
 
 
-def test_fastapi_serves_portal_and_assets_from_root():
-    client = TestClient(app)
+def test_fastapi_serves_portal_and_assets_from_root(api_environment):
+    client = TestClient(api_environment)
     response = client.get("/")
     asset = client.get("/js/api.js")
     client.close()
@@ -19,23 +19,21 @@ def test_fastapi_serves_portal_and_assets_from_root():
     assert "window.ITOM_API_BASE || '/api/v1'" in asset.text
 
 
-def test_readiness_and_dashboard_are_available_on_same_origin():
-    client = TestClient(app)
+def test_readiness_and_dashboard_are_available_on_same_origin(api_environment):
+    client = TestClient(api_environment)
     dashboard = client.get("/")
-    readiness = client.get("/healthz")
+    readiness = client.get("/ready")
     client.close()
 
     assert dashboard.status_code == 200
     assert readiness.status_code == 200
-    assert readiness.json()["status"] == "ok"
+    assert readiness.json()["status"] == "ready"
 
 
-def test_sqlite_fallback_uses_configured_database_path(monkeypatch):
-    from pathlib import Path
-
-    database_path = Path("C:/main-project/data/itom.db")
+def test_sqlite_url_uses_configured_database_path(monkeypatch, tmp_path):
+    database_path = tmp_path / "itom.db"
     monkeypatch.setattr(settings, "SQLITE_DB_PATH", str(database_path))
 
-    fallback_url = database._sqlite_fallback_url("C:/worktree")
+    configured_url = database._sqlite_url(str(tmp_path / "other_checkout"))
 
-    assert fallback_url == f"sqlite+aiosqlite:///{database_path.as_posix()}"
+    assert configured_url == f"sqlite+aiosqlite:///{database_path.as_posix()}"

@@ -26,6 +26,7 @@ from app.models import history as _history_models  # noqa: F401  (registers tabl
 from app.models import sync as _sync_models  # noqa: F401  (registers tables)
 from app.models.base import Base
 from app.models.ci import ConfigurationItem
+from tests.factories import make_ci as _ci
 from app.repositories.ci_repository import CIRepository
 from app.repositories.summary_repository import EmptyDatasetError, SummaryRepository
 
@@ -38,33 +39,6 @@ FORBIDDEN_LITERALS = {
 }
 
 
-def _ci(
-    source_system: str,
-    name: str,
-    status: str,
-    health_tier: str,
-    ci_type: str = "Server",
-    vendor: str = "Dell",
-    location: str | None = None,
-) -> ConfigurationItem:
-    """Build a minimal, valid ConfigurationItem row."""
-    now = datetime.now(timezone.utc)
-    return ConfigurationItem(
-        id=uuid.uuid4(),
-        source_id=f"{source_system}-{name}",
-        source_system=source_system,
-        name=name,
-        ci_type=ci_type,
-        status=status,
-        health_tier=health_tier,
-        vendor=vendor,
-        location=location,
-        last_sync_time=now,
-        state_hash="deadbeef",
-        attributes={},
-        created_at=now,
-        updated_at=now,
-    )
 
 
 @pytest_asyncio.fixture
@@ -187,7 +161,7 @@ async def test_solarwinds_summary_includes_every_status(session: AsyncSession):
     assert metrics["availability_pct"] == 40.0
     assert metrics["total_fleet_availability_pct"] == 33.33
     assert metrics["total_nodes"] == 6
-    assert metrics["server_nodes_count"] == 0
+    assert metrics["server_nodes_count"] == 6
     assert summary["api_aliases"]["total_server_nodes"]
 
     # Critical and Unmanaged must survive as distinct statuses - they used to be

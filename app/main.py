@@ -21,6 +21,7 @@ from app.core.config import settings
 from app.core.database import create_db_and_tables, engine
 from app.core.middleware import FreshnessHeadersMiddleware
 from app.core.security import SolarWindsSecurityError
+from app.repositories.ci_repository import InventoryUnavailableError
 from app.repositories.summary_repository import EmptyDatasetError
 from app.workers.scheduler import start_scheduler, stop_scheduler
 
@@ -94,6 +95,15 @@ app.add_middleware(FreshnessHeadersMiddleware)
 
 
 # Custom Exception Handlers
+@app.exception_handler(InventoryUnavailableError)
+async def inventory_unavailable_exception_handler(request: Request, exc: InventoryUnavailableError):
+    """Report failed inventory reads without exposing database diagnostics."""
+    return JSONResponse(
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        content={"error": "Inventory datastore unavailable", "data_available": False},
+    )
+
+
 @app.exception_handler(EmptyDatasetError)
 async def empty_dataset_exception_handler(request: Request, exc: EmptyDatasetError):
     """Return HTTP 503 when a telemetry domain has no ingested data."""

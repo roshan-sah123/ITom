@@ -64,7 +64,9 @@ export async function openCiDrawer(ci) {
           <span style="color: #9CA3AF;">Accountable Owner:</span>
           <span>${escapeHtml(ci.attributes?.contact || ci.attributes?.user_principal_name || ci.attributes?.primary_user || 'Unassigned')}</span>
           <span style="color: #9CA3AF;">Campus Facility:</span>
-          <span>${escapeHtml(ci.location || 'Unassigned')}</span>
+          <span>${escapeHtml(ci.canonical_location || ci.location || 'Unassigned')}</span>
+          <span style="color: #9CA3AF;">Raw source location:</span>
+          <span>${escapeHtml(ci.location || 'Not supplied')}</span>
           <span style="color: #9CA3AF;">Last Sync Time:</span>
           <span>${escapeHtml(formatRelativeTime(ci.last_sync_time))}</span>
           <span style="color: #9CA3AF;">Discovered At:</span>

@@ -1,6 +1,5 @@
 """Local SQLite concurrency settings required by long-running sync writes."""
 from pathlib import Path
-from uuid import uuid4
 
 import pytest
 from sqlalchemy import text
@@ -9,8 +8,8 @@ from app.core.database import create_engine_for_url
 
 
 @pytest.mark.asyncio
-async def test_local_sqlite_uses_wal_and_busy_timeout():
-    db_path = (Path(__file__).resolve().parents[1] / "data" / f"runtime-{uuid4().hex}.db")
+async def test_local_sqlite_uses_wal_and_busy_timeout(tmp_path):
+    db_path = tmp_path / "runtime.db"
     engine = create_engine_for_url(f"sqlite+aiosqlite:///{db_path.as_posix()}")
     try:
         async with engine.connect() as connection:

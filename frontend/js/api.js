@@ -26,7 +26,16 @@ async function fetchJson(endpoint, options = {}) {
   }
 }
 
+let pendingLocations = null;
+function getLocations() {
+  if (!pendingLocations) pendingLocations = fetchJson('/locations').finally(() => { pendingLocations = null; });
+  return pendingLocations;
+}
+
 export const itomApi = {
+  getLocations,
+  getLocationDevices: (id, params = {}) => fetchJson(`/locations/${encodeURIComponent(id)}/devices?${new URLSearchParams(params)}`),
+  getLocationHistory: id => fetchJson(`/locations/${encodeURIComponent(id)}/history`),
   // SolarWinds Orion (Hybrid Servers & Campus Sites)
   getSolarWindsSummary: () => fetchJson('/solarwinds/summary'),
   getSolarWindsNodes: (params = {}) => {

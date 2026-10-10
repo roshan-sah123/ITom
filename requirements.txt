@@ -1,6 +1,5 @@
 # Enterprise ITOM Operations Platform Dependencies
-# Pinned to exact versions verified against the full test suite (257 unit/integration
-# tests + 214 E2E tests, 100% pass). Bump deliberately and re-run the full suite;
+# Pinned direct dependencies. Bump deliberately and run the relevant tests;
 # do not widen these to range specifiers (>=) as that breaks reproducible builds.
 
 # Core Web & API Framework

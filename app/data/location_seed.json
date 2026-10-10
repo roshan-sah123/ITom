@@ -1,0 +1,1505 @@
+{
+  "origin": "Initial location knowledge reviewed 2026-10-09; database rules are the runtime authority",
+  "rules": [
+    {
+      "source_system": "INTUNE",
+      "match_key": "LP-TZD-",
+      "location": "Greater Noida / Tower D",
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "LP-CIG-",
+      "location": "Hyderabad / QE",
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "LP-TZ-",
+      "location": "Greater Noida / Tower AB",
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "LP-HYD-",
+      "location": "Hyderabad",
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "LP-AZ-",
+      "location": null,
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "LP-PUN-",
+      "location": "Pune",
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "ENCOPDBANLT",
+      "location": "Bengaluru",
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "LP-BCT-",
+      "location": "Bengaluru",
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "LP-GGN-",
+      "location": "Gurugram",
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "LAP-NJ-",
+      "location": "New Jersey",
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "ENCSABCAMLT",
+      "location": "Brazil",
+      "review_note": "Country/region only. Exact office still needed."
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "LAP-TZ-",
+      "location": "Greater Noida / Tower AB",
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "LP-CHN-",
+      "location": "Chennai",
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "CSALIMLT",
+      "location": "Costa Rica",
+      "review_note": "Confirm Costa Rica assignment and prefix meaning."
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "LAP-TZD-",
+      "location": "Greater Noida / Tower D",
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "LP-BLR1-",
+      "location": "Bengaluru / BPS",
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "LP-MUM-",
+      "location": "Mumbai",
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "LP-MNL-",
+      "location": "Manila",
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "ENCDAPPUNLT",
+      "location": "Pune",
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "LAP-GGN-",
+      "location": "Gurugram",
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "ENCDXPAHDLT",
+      "location": "Ahmedabad",
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "ENCDAPHYDLT",
+      "location": "Hyderabad",
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "LP-KOP-",
+      "location": "Kolhapur",
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "ENCOPDNDALT",
+      "location": "Noida",
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "LAP-HYD-",
+      "location": "Hyderabad",
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "ENCDLNPUNLT",
+      "location": "Pune",
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "ENCSFTBUCLT",
+      "location": "Europe",
+      "review_note": "Country/region only. Exact office still needed."
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "LAP-CN-",
+      "location": null,
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "ENCUSLT",
+      "location": "United States",
+      "review_note": "Country/region only. Exact office still needed."
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "CSAHERLT",
+      "location": "Costa Rica",
+      "review_note": "Country/region only. Exact office still needed."
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "LAP-AG-",
+      "location": "Augusta",
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "LAP-CH-",
+      "location": "Charleston",
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "ENCEDCHMOLT",
+      "location": "Mexico",
+      "review_note": "Country/region only. Exact office still needed."
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "ENCOPDNODLT",
+      "location": "Noida",
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "LAP-SC-",
+      "location": null,
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "ENCEDCCDMLT",
+      "location": "Mexico",
+      "review_note": "Country/region only. Exact office still needed."
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "CSALIMMB",
+      "location": "Costa Rica",
+      "review_note": "Confirm Costa Rica assignment and prefix meaning."
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "ENCAPJCHNLT",
+      "location": "Chennai",
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "CSAPANLT",
+      "location": "Costa Rica",
+      "review_note": "Country/region only. Exact office still needed."
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "CSASJOLT",
+      "location": "Costa Rica",
+      "review_note": "Country/region only. Exact office still needed."
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "ENCEDCREMLT",
+      "location": "Mexico",
+      "review_note": "Country/region only. Exact office still needed."
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "LP-CAL-",
+      "location": "Kolkata",
+      "review_note": "Calculata interpreted as Kolkata. Please confirm."
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "LP-CTK-",
+      "location": null,
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "DT-BLR1-",
+      "location": "Bengaluru",
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "LP-RKT-",
+      "location": "Bengaluru",
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "LP-RYT-",
+      "location": null,
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "ENCEDCCUULT",
+      "location": "Mexico",
+      "review_note": "Country/region only. Exact office still needed."
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "ENCAPJMNLLT",
+      "location": "Manila",
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "LAP-RKT-",
+      "location": "Bengaluru",
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "CSAPANMB",
+      "location": "Costa Rica",
+      "review_note": "Country/region only. Exact office still needed."
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "LAP-MUM-",
+      "location": "Mumbai",
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "ENCSFTCRLT",
+      "location": "Europe",
+      "review_note": "Country/region only. Exact office still needed."
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "LP-AUS-",
+      "location": "Australia",
+      "review_note": "Country/region only. Exact office still needed."
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "ENCTCGBANLT",
+      "location": "Bengaluru",
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "CSACBBLT",
+      "location": "Costa Rica",
+      "review_note": "Confirm Costa Rica assignment and prefix meaning."
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "CSASJOMB",
+      "location": "Costa Rica",
+      "review_note": "Country/region only. Exact office still needed."
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "LAP-UK-",
+      "location": "United Kingdom",
+      "review_note": "Country/region only. Exact office still needed."
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "ENCSFTMKLT",
+      "location": "Europe",
+      "review_note": "Country/region only. Exact office still needed."
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "LP-BK-",
+      "location": null,
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "LAP-CAL-",
+      "location": "Kolkata",
+      "review_note": "Calculata interpreted as Kolkata. Please confirm."
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "LP-BBR-",
+      "location": "Bhubaneswar",
+      "review_note": "LP-BBR is Bhubaneswar; LAP-BBR is Bengaluru. Confirm."
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "US-MAC-",
+      "location": "United States",
+      "review_note": "Country/region only. Exact office still needed."
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "CSABOGLT",
+      "location": "Costa Rica",
+      "review_note": "Confirm Costa Rica assignment and prefix meaning."
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "ENCEDCMIDLT",
+      "location": "Mexico",
+      "review_note": "Country/region only. Exact office still needed."
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "LP-UAE-",
+      "location": "Dubai",
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "US-AG-",
+      "location": "Augusta",
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "ENCBAN",
+      "location": "Bengaluru",
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "LP-BLR-",
+      "location": "Bengaluru",
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "IN-MAC-",
+      "location": null,
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "CSABOGMB",
+      "location": "Costa Rica",
+      "review_note": "Confirm Costa Rica assignment and prefix meaning."
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "CSASCALT",
+      "location": "Costa Rica",
+      "review_note": "Country/region only. Exact office still needed."
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "LAP-BK-",
+      "location": null,
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "CSAHERMB",
+      "location": "Costa Rica",
+      "review_note": "Country/region only. Exact office still needed."
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "CSACALMB",
+      "location": "Costa Rica",
+      "review_note": "Country/region only. Exact office still needed."
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "CSACBBMB",
+      "location": "Costa Rica",
+      "review_note": "Confirm Costa Rica assignment and prefix meaning."
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "LP-SG-",
+      "location": "Singapore",
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "ENCDMIESPLT",
+      "location": null,
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "LP-AU-",
+      "location": "Australia",
+      "review_note": "Country/region only. Exact office still needed."
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "LP-CHN1-",
+      "location": "Chennai",
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "LP-TZB-",
+      "location": "Greater Noida / Tower B",
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "LAP-CIG-",
+      "location": "Hyderabad / QE",
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "ENCSFTUKLT",
+      "location": "Europe",
+      "review_note": "Country/region only. Exact office still needed."
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "LAP-BBR-",
+      "location": "Bengaluru",
+      "review_note": "LP-BBR is Bhubaneswar; LAP-BBR is Bengaluru. Confirm."
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "LAP-PUN-",
+      "location": "Pune",
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "LPMNL-",
+      "location": "Manila",
+      "review_note": "LPMNL and LPMNL- overlap. Confirm prefix boundary."
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "DT-CTK-",
+      "location": null,
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "ENCDLNPUNDT",
+      "location": "Pune",
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "LP-ESKY-",
+      "location": null,
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "CSAARGMB",
+      "location": "Costa Rica",
+      "review_note": "Confirm Costa Rica assignment and prefix meaning."
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "ENCDAPUSALT",
+      "location": "United States",
+      "review_note": "Country/region only. Exact office still needed."
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "CSASCAMB",
+      "location": "Costa Rica",
+      "review_note": "Country/region only. Exact office still needed."
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "DC-CTK-",
+      "location": null,
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "L-BLR1-",
+      "location": null,
+      "review_note": "Suggested only: Bengaluru, India."
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "LAP-AU-",
+      "location": "Augusta",
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "CSAARGLT",
+      "location": "Costa Rica",
+      "review_note": "Confirm Costa Rica assignment and prefix meaning."
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "ENCEDCSLPLT",
+      "location": "Mexico",
+      "review_note": "Country/region only. Exact office still needed."
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "LP-DAL-",
+      "location": "Dallas, United States",
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "CSALIBLT",
+      "location": "Costa Rica",
+      "review_note": "Country/region only. Exact office still needed."
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "LAP-AUG-",
+      "location": "Augusta",
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "LP-TZA-",
+      "location": "Greater Noida / Tower A",
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "ENCSABMONLT",
+      "location": "Brazil",
+      "review_note": "Country/region only. Exact office still needed."
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "LAP-SG-",
+      "location": "Singapore",
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "CSACALLT",
+      "location": "Costa Rica",
+      "review_note": "Country/region only. Exact office still needed."
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "ENCDMIUKLT",
+      "location": null,
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "ENCSABVICLT",
+      "location": "Brazil",
+      "review_note": "Country/region only. Exact office still needed."
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "LAP-BCT-",
+      "location": "Bengaluru",
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "LAP-DAL-",
+      "location": "Dallas",
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "D-BLR1-",
+      "location": "Bengaluru",
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "ENCSABCAMDT",
+      "location": "Brazil",
+      "review_note": "Country/region only. Exact office still needed."
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "IP-CHN-",
+      "location": "Chennai",
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "ENCAPJSGLT",
+      "location": "Chennai",
+      "review_note": "Confirm Chennai assignment for this prefix."
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "ENCOPDBANMC",
+      "location": "Bengaluru",
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "LAP-UAE-",
+      "location": "Dubai",
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "LAP-UKT-",
+      "location": null,
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "LP-BC-",
+      "location": null,
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "LP-POL-",
+      "location": "Poland",
+      "review_note": "Country/region only. Exact office still needed."
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "CSACARLT",
+      "location": "Costa Rica",
+      "review_note": "Country/region only. Exact office still needed."
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "CSAPALT",
+      "location": "Costa Rica",
+      "review_note": "Country/region only. Exact office still needed."
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "LAP-AUS-",
+      "location": "Australia",
+      "review_note": "Country/region only. Exact office still needed."
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "LP-BBS-",
+      "location": null,
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "LP-CKT-",
+      "location": null,
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "LP-CN-",
+      "location": null,
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "LP-KOL-",
+      "location": "Kolkata",
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "LP-NJ-",
+      "location": "New Jersey",
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "LPMNL",
+      "location": "Manila",
+      "review_note": "LPMNL and LPMNL- overlap. Confirm prefix boundary."
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "CHN-LP-",
+      "location": "Chennai",
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "CSALIBMB",
+      "location": "Costa Rica",
+      "review_note": "Country/region only. Exact office still needed."
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "CSALIMDT",
+      "location": "Costa Rica",
+      "review_note": "Country/region only. Exact office still needed."
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "CSALIMMM",
+      "location": "Costa Rica",
+      "review_note": "Country/region only. Exact office still needed."
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "ENCDXPUSALT",
+      "location": "United States",
+      "review_note": "Country/region only. Exact office still needed."
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "ENCNOD",
+      "location": "Noida",
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "ENCOPDCHNLT",
+      "location": "Chennai",
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "ENCPUN",
+      "location": "Pune",
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "KIOSK-TZC-",
+      "location": null,
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "LAP-BLR-",
+      "location": "Bengaluru",
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "LAP-CG-",
+      "location": null,
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "LAP-KUL-",
+      "location": null,
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "LP-BHU-",
+      "location": null,
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "LP-GER-",
+      "location": null,
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "LP-KUL-",
+      "location": null,
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "CSACARMB",
+      "location": "Costa Rica",
+      "review_note": "Country/region only. Exact office still needed."
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "CSALIBLLT",
+      "location": "Costa Rica",
+      "review_note": "Country/region only. Exact office still needed."
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "CSAPAMB",
+      "location": "Costa Rica",
+      "review_note": "Country/region only. Exact office still needed."
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "CSAPAMMB",
+      "location": "Costa Rica",
+      "review_note": "Country/region only. Exact office still needed."
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "DC-CHT-",
+      "location": null,
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "DC-CKT-",
+      "location": null,
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "DT-BLR-",
+      "location": null,
+      "review_note": "Suggested only: Bengaluru, India."
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "DT-HYD-",
+      "location": null,
+      "review_note": "Suggested only: Hyderabad, India."
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "DT-US-",
+      "location": null,
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "ENCAPJMYLT",
+      "location": "Chennai",
+      "review_note": "Confirm Chennai assignment for this prefix."
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "ENCDAPPULT",
+      "location": "Pune",
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "ENCDAPUNLT",
+      "location": "Pune",
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "ENCSABSBJLT",
+      "location": "Brazil",
+      "review_note": "Country/region only. Exact office still needed."
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "ENCSULT",
+      "location": "United States",
+      "review_note": "Country/region only. Exact office still needed."
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "KIOSK-TZ-",
+      "location": null,
+      "review_note": "Suggested only: Greater Noida, India."
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "KIOSK-TZD-",
+      "location": null,
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "LAP-ML-",
+      "location": null,
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "LAP-MX-",
+      "location": null,
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "LAP-SP-",
+      "location": null,
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "LAP-TZB-",
+      "location": null,
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "LAP-US-",
+      "location": null,
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "LAP-WW-",
+      "location": null,
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "LP-A1-",
+      "location": null,
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "LP-BBK-",
+      "location": null,
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "LP-BCIT-",
+      "location": null,
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "LP-BHN-",
+      "location": null,
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "LP-CG-",
+      "location": null,
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "LP-CHI-",
+      "location": null,
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "LP-CIN-",
+      "location": null,
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "LP-CNI-",
+      "location": null,
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "LP-CTK1-",
+      "location": null,
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "LP-GG-",
+      "location": null,
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "LP-HY-",
+      "location": null,
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "LP-MEX-",
+      "location": null,
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "LP-NTR-",
+      "location": null,
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "LP-SGP-",
+      "location": null,
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "LP-TDZ-",
+      "location": null,
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "LP-TZC-",
+      "location": null,
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "LP-US-",
+      "location": null,
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "LP-YD-",
+      "location": null,
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "US-AL-",
+      "location": null,
+      "review_note": null
+    },
+    {
+      "source_system": "INTUNE",
+      "match_key": "US-MC-",
+      "location": null,
+      "review_note": null
+    },
+    {
+      "source_system": "SOLARWINDS",
+      "match_key": "AHMEDABAD-ENCORA",
+      "location": "Ahmedabad / Encora",
+      "review_note": null
+    },
+    {
+      "source_system": "SOLARWINDS",
+      "match_key": "AUGUSTA",
+      "location": "Augusta",
+      "review_note": null
+    },
+    {
+      "source_system": "SOLARWINDS",
+      "match_key": "BPS-AUGUSTA",
+      "location": "Augusta / BPS",
+      "review_note": null
+    },
+    {
+      "source_system": "SOLARWINDS",
+      "match_key": "AUGUSTA - MARTINEZ (CFG)",
+      "location": "Augusta / Martinez (CFG)",
+      "review_note": null
+    },
+    {
+      "source_system": "SOLARWINDS",
+      "match_key": "BPS-US-END",
+      "location": "BPS / US-END",
+      "review_note": "Confirm the meaning of US-END."
+    },
+    {
+      "source_system": "SOLARWINDS",
+      "match_key": "BANGALORE",
+      "location": "Bengaluru",
+      "review_note": null
+    },
+    {
+      "source_system": "SOLARWINDS",
+      "match_key": "BANGALORE-ENCORA",
+      "location": "Bengaluru / Encora",
+      "review_note": "One node says Encora-Pune in ITSM. Resolve conflict."
+    },
+    {
+      "source_system": "SOLARWINDS",
+      "match_key": "BOLIVIA-COCHABAMBA -ENCORA",
+      "location": "Bolivia / Cochabamba / Encora",
+      "review_note": null
+    },
+    {
+      "source_system": "SOLARWINDS",
+      "match_key": "BRAZIL CAMPINAS (SAB) - ENCORA",
+      "location": "Brazil / Campinas / SAB / Encora",
+      "review_note": null
+    },
+    {
+      "source_system": "SOLARWINDS",
+      "match_key": "BUCHAREST-ENCORA",
+      "location": "Bucharest / Encora",
+      "review_note": null
+    },
+    {
+      "source_system": "SOLARWINDS",
+      "match_key": "SFT-BUCHAREST-ENCORA",
+      "location": "Bucharest / SFT / Encora",
+      "review_note": null
+    },
+    {
+      "source_system": "SOLARWINDS",
+      "match_key": "CHARLESTON",
+      "location": "Charleston",
+      "review_note": null
+    },
+    {
+      "source_system": "SOLARWINDS",
+      "match_key": "CHARLESTON_SOUTH",
+      "location": "Charleston / South",
+      "review_note": null
+    },
+    {
+      "source_system": "SOLARWINDS",
+      "match_key": "BPS-CHENNAI",
+      "location": "Chennai / BPS",
+      "review_note": null
+    },
+    {
+      "source_system": "SOLARWINDS",
+      "match_key": "CHENNAI-ENCORA",
+      "location": "Chennai / Encora",
+      "review_note": null
+    },
+    {
+      "source_system": "SOLARWINDS",
+      "match_key": "CHICAGO",
+      "location": "Chicago",
+      "review_note": null
+    },
+    {
+      "source_system": "SOLARWINDS",
+      "match_key": "AWS, ENCORA",
+      "location": "Cloud / AWS / Encora",
+      "review_note": "Cloud group. Office/region unconfirmed."
+    },
+    {
+      "source_system": "SOLARWINDS",
+      "match_key": "AZURE",
+      "location": "Cloud / Azure",
+      "review_note": "Cloud group. Office/region unconfirmed."
+    },
+    {
+      "source_system": "SOLARWINDS",
+      "match_key": "AZURE-ENCORA",
+      "location": "Cloud / Azure / Encora",
+      "review_note": "Cloud group. Office/region unconfirmed."
+    },
+    {
+      "source_system": "SOLARWINDS",
+      "match_key": "GCP, ENCORA",
+      "location": "Cloud / GCP / Encora",
+      "review_note": "Cloud group. Office/region unconfirmed."
+    },
+    {
+      "source_system": "SOLARWINDS",
+      "match_key": "COLOMBIA, CALI",
+      "location": "Colombia / Cali",
+      "review_note": null
+    },
+    {
+      "source_system": "SOLARWINDS",
+      "match_key": "COLOMBIA",
+      "location": "Colombia / Site unspecified",
+      "review_note": "Country/region only. Exact office still needed."
+    },
+    {
+      "source_system": "SOLARWINDS",
+      "match_key": "ENCORA-COSTARICA-BACKUP DATACENTER",
+      "location": "Costa Rica / Backup Data Center / Encora",
+      "review_note": "City unknown. Keep backup data center separate."
+    },
+    {
+      "source_system": "SOLARWINDS",
+      "match_key": "ENCORA-COSTARICA-CONDAL",
+      "location": "Costa Rica / Condal / Encora",
+      "review_note": "Keep Condal separate; city unconfirmed."
+    },
+    {
+      "source_system": "SOLARWINDS",
+      "match_key": "ENCORA-COSTARICA-HEREDIA OFFICE",
+      "location": "Costa Rica / Heredia Office / Encora",
+      "review_note": null
+    },
+    {
+      "source_system": "SOLARWINDS",
+      "match_key": "ENCORA-COSTA RICA-MAIN DATACENTER",
+      "location": "Costa Rica / Main Data Center / Encora",
+      "review_note": "City unknown. Keep main data center separate."
+    },
+    {
+      "source_system": "SOLARWINDS",
+      "match_key": "CRAIOVA-ENCORA",
+      "location": "Craiova / Encora",
+      "review_note": null
+    },
+    {
+      "source_system": "SOLARWINDS",
+      "match_key": "BPS-DALLAS",
+      "location": "Dallas / BPS",
+      "review_note": null
+    },
+    {
+      "source_system": "SOLARWINDS",
+      "match_key": "ENCORA",
+      "location": "Encora / Site unspecified",
+      "review_note": "Country/region only. Exact office still needed."
+    },
+    {
+      "source_system": "SOLARWINDS",
+      "match_key": "FENCHURCH",
+      "location": "Fenchurch",
+      "review_note": null
+    },
+    {
+      "source_system": "SOLARWINDS",
+      "match_key": "GR.NOIDA-T-AB",
+      "location": "Greater Noida / Tower AB",
+      "review_note": "Tower AB versus Tower A,B,C in ITSM. Confirm."
+    },
+    {
+      "source_system": "SOLARWINDS",
+      "match_key": "GR. NOIDA TB",
+      "location": "Greater Noida / Tower B",
+      "review_note": "TB interpreted as Tower B. Confirm."
+    },
+    {
+      "source_system": "SOLARWINDS",
+      "match_key": "GR.NOIDA-TD",
+      "location": "Greater Noida / Tower D",
+      "review_note": "Keep Tower D separate."
+    },
+    {
+      "source_system": "SOLARWINDS",
+      "match_key": "GURUGRAM",
+      "location": "Gurugram",
+      "review_note": null
+    },
+    {
+      "source_system": "SOLARWINDS",
+      "match_key": "HYDERABAD",
+      "location": "Hyderabad",
+      "review_note": null
+    },
+    {
+      "source_system": "SOLARWINDS",
+      "match_key": "HYDERABAD-QE",
+      "location": "Hyderabad / QE",
+      "review_note": null
+    },
+    {
+      "source_system": "SOLARWINDS",
+      "match_key": "QE_IRVING_DALLAS",
+      "location": "Irving / Dallas / QE",
+      "review_note": "QE Irving versus BPS Dallas in ITSM. Confirm."
+    },
+    {
+      "source_system": "SOLARWINDS",
+      "match_key": "BPS-KOLHAPUR",
+      "location": "Kolhapur / BPS",
+      "review_note": null
+    },
+    {
+      "source_system": "SOLARWINDS",
+      "match_key": "LONDON",
+      "location": "London",
+      "review_note": null
+    },
+    {
+      "source_system": "SOLARWINDS",
+      "match_key": "BPS-MANILA",
+      "location": "Manila / BPS",
+      "review_note": null
+    },
+    {
+      "source_system": "SOLARWINDS",
+      "match_key": "BPS-MANILA-V3",
+      "location": "Manila / BPS / Vector 3",
+      "review_note": null
+    },
+    {
+      "source_system": "SOLARWINDS",
+      "match_key": "MANILA-ENCORA",
+      "location": "Manila / Encora",
+      "review_note": null
+    },
+    {
+      "source_system": "SOLARWINDS",
+      "match_key": "MANILA-IHUB",
+      "location": "Manila / IHUB",
+      "review_note": "Confirm whether IHUB and Vector 3 are the same office."
+    },
+    {
+      "source_system": "SOLARWINDS",
+      "match_key": "MELBOURNE",
+      "location": "Melbourne",
+      "review_note": "Sydney/Melbourne in ITSM. Confirm the office."
+    },
+    {
+      "source_system": "SOLARWINDS",
+      "match_key": "MEXICO HERMOSILO ENCORA",
+      "location": "Mexico / Hermosillo / Encora",
+      "review_note": "Hermosillo spelling corrected; confirm office."
+    },
+    {
+      "source_system": "SOLARWINDS",
+      "match_key": "MEXICO SAN LUIS POTOSI ENCORA",
+      "location": "Mexico / San Luis Potosi / Encora",
+      "review_note": null
+    },
+    {
+      "source_system": "SOLARWINDS",
+      "match_key": "MEXICO",
+      "location": "Mexico / Site unspecified",
+      "review_note": "Country/region only. Exact office still needed."
+    },
+    {
+      "source_system": "SOLARWINDS",
+      "match_key": "NEW JERSEY",
+      "location": "New Jersey",
+      "review_note": null
+    },
+    {
+      "source_system": "SOLARWINDS",
+      "match_key": "NEW YORK",
+      "location": "New York",
+      "review_note": null
+    },
+    {
+      "source_system": "SOLARWINDS",
+      "match_key": "NOIDA",
+      "location": "Noida",
+      "review_note": "Keep Noida and Greater Noida separate."
+    },
+    {
+      "source_system": "SOLARWINDS",
+      "match_key": "PERU-LIMA OFFICE-ENCORA",
+      "location": "Peru / Lima Office / Encora",
+      "review_note": null
+    },
+    {
+      "source_system": "SOLARWINDS",
+      "match_key": "POLAND",
+      "location": "Poland / Site unspecified",
+      "review_note": "Country/region only. Exact office still needed."
+    },
+    {
+      "source_system": "SOLARWINDS",
+      "match_key": "BPS-PUNE",
+      "location": "Pune / BPS",
+      "review_note": null
+    },
+    {
+      "source_system": "SOLARWINDS",
+      "match_key": "ENCORA-PUNE",
+      "location": "Pune / Encora",
+      "review_note": null
+    },
+    {
+      "source_system": "SOLARWINDS",
+      "match_key": "PUNE-ENCORA",
+      "location": "Pune / Encora",
+      "review_note": null
+    },
+    {
+      "source_system": "SOLARWINDS",
+      "match_key": "SAN-JOSE",
+      "location": "San Jose / Country unconfirmed",
+      "review_note": "Country unknown. Confirm before assigning a site."
+    },
+    {
+      "source_system": "SOLARWINDS",
+      "match_key": "SINGAPORE",
+      "location": "Singapore",
+      "review_note": null
+    },
+    {
+      "source_system": "SOLARWINDS",
+      "match_key": "SKOPJE-ENCORA",
+      "location": "Skopje / Encora",
+      "review_note": null
+    },
+    {
+      "source_system": "SOLARWINDS",
+      "match_key": "SPAIN",
+      "location": "Spain / Site unspecified",
+      "review_note": "Country/region only. Exact office still needed."
+    },
+    {
+      "source_system": "SOLARWINDS",
+      "match_key": "TELECITY",
+      "location": "Telecity",
+      "review_note": null
+    },
+    {
+      "source_system": "SOLARWINDS",
+      "match_key": "TELFORD",
+      "location": "Telford",
+      "review_note": null
+    },
+    {
+      "source_system": "SOLARWINDS",
+      "match_key": "THAILAND",
+      "location": "Thailand / Site unspecified",
+      "review_note": "Country/region only. Exact office still needed."
+    },
+    {
+      "source_system": "SOLARWINDS",
+      "match_key": "1",
+      "location": null,
+      "review_note": "Location missing. Please assign it."
+    },
+    {
+      "source_system": "SOLARWINDS",
+      "match_key": "NA",
+      "location": null,
+      "review_note": "Location missing. Please assign it."
+    },
+    {
+      "source_system": "SOLARWINDS",
+      "match_key": "OTHERS",
+      "location": null,
+      "review_note": "Location missing. Please assign it."
+    },
+    {
+      "source_system": "SOLARWINDS",
+      "match_key": "UNASSIGNED",
+      "location": null,
+      "review_note": "Location missing. Please assign it."
+    },
+    {
+      "source_system": "SOLARWINDS",
+      "match_key": "USA SJC ENCORA",
+      "location": "United States / SJC / Encora",
+      "review_note": "Confirm the office represented by SJC."
+    },
+    {
+      "source_system": "SOLARWINDS",
+      "match_key": "WINDSOR",
+      "location": "Windsor",
+      "review_note": null
+    }
+  ]
+}

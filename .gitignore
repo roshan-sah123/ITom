@@ -44,3 +44,9 @@ data/*.db-*
 exports/*.csv
 frontend/exports/
 backups/
+
+# Local analysis outputs and browser reports
+outputs/
+scratch/
+test-results/
+playwright-report/

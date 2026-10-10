@@ -5,7 +5,6 @@ from app.repositories.summary_repository import SummaryRepository
 from app.repositories.ci_repository import CIRepository
 from app.services.sync_service import SyncService
 from app.services.telemetry_sources import SolarWindsSource, SourceUnavailableError, validated_snapshot, normalize_solarwinds_node
-from tests.test_location_and_network_contracts import session
 
 
 class Client:

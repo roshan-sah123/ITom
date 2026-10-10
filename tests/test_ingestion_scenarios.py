@@ -323,14 +323,14 @@ class TestIngestionPipelineScenarios(unittest.IsolatedAsyncioTestCase):
         # Verify defaults applied cleanly
         stmt1 = select(ConfigurationItem).where(ConfigurationItem.source_id == "DEV-BROKEN-01")
         ci1 = (await self.session.execute(stmt1)).scalar_one()
-        self.assertEqual(ci1.status, "ACTIVE")
-        self.assertEqual(ci1.health_tier, "High")
-        self.assertEqual(ci1.vendor, "Other")
+        self.assertEqual(ci1.status, "Unknown")
+        self.assertEqual(ci1.health_tier, "Medium")
+        self.assertEqual(ci1.vendor, "Unknown")
 
         stmt2 = select(ConfigurationItem).where(ConfigurationItem.source_id == "DEV-BROKEN-02")
         ci2 = (await self.session.execute(stmt2)).scalar_one()
-        self.assertEqual(ci2.status, "ACTIVE")
-        self.assertEqual(ci2.vendor, "Other")
+        self.assertEqual(ci2.status, "Unknown")
+        self.assertEqual(ci2.vendor, "Unknown")
 
 
 if __name__ == "__main__":

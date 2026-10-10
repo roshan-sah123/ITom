@@ -28,6 +28,7 @@ scratch/
 backups/
 logs/
 exports/
+outputs/
 data/*.db
 data/*.sqlite
 data/*.db-journal

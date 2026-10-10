@@ -3,7 +3,7 @@ from unittest.mock import Mock
 import pytest
 
 from app.core.config import Settings
-from src.sync.graph_client import DEFAULT_SELECT_FIELDS, GraphClient
+from src.sync.graph_client import DEFAULT_SELECT_FIELDS, GraphClient, GraphApiError
 
 
 def test_graph_reads_injected_settings_and_selects_owner_type():
@@ -48,3 +48,28 @@ def test_positive_limit_is_applied_to_request_page_size():
     client._session.get.return_value = response
     assert len(client.fetch_managed_devices(max_devices=2)) == 2
     assert "$top=2" in client._session.get.call_args.args[0]
+
+
+@pytest.mark.parametrize("link", ["https://attacker.invalid/page", "http://graph.microsoft.com/page", "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices?$select=" + ",".join(DEFAULT_SELECT_FIELDS) + "&$top=999"])
+def test_untrusted_or_cyclic_pagination_cannot_receive_bearer_token(link):
+    client = GraphClient(tenant_id="t", client_id="c", client_secret="s")
+    client.get_access_token = Mock(return_value="token")
+    response = Mock(status_code=200)
+    response.json.return_value = {"value": [{"id": "one"}], "@odata.nextLink": link}
+    client._session = Mock()
+    client._session.get.return_value = response
+    with pytest.raises(GraphApiError, match="pagination URL"):
+        client.fetch_managed_devices()
+    assert client._session.get.call_count == 1
+
+
+@pytest.mark.parametrize("page", [{}, {"value": None}, {"value": {}}, []])
+def test_malformed_graph_page_cannot_be_a_successful_snapshot(page):
+    client = GraphClient(tenant_id="t", client_id="c", client_secret="s")
+    client.get_access_token = Mock(return_value="token")
+    response = Mock(status_code=200)
+    response.json.return_value = page
+    client._session = Mock()
+    client._session.get.return_value = response
+    with pytest.raises(GraphApiError, match="Malformed Graph page"):
+        client.fetch_managed_devices()

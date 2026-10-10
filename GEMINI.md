@@ -1,20 +1,26 @@
-# ITOM Portal Development & Telemetry Guidelines
+# ITOM Portal Development Guidelines
 
-## Zero-Hallucination Policy
-- Never create, display, or commit mock/simulated numbers for executive metrics.
-- All figures displayed on OPS Analytics must originate from verified API extractions (Microsoft Graph Intune API or SolarWinds SWIS API).
-- All non-integrated sections (Network CMDB, DEX) must strictly display clean "Coming Soon / Phase 2" pipeline cards.
+## Source-backed telemetry
 
-## Multi-Domain Telemetry Standards
-- **Microsoft Intune**: 25,987 total endpoints across Windows, macOS, Linux, iOS, Android. Compliance and storage invariants must reconcile with raw Graph datasets.
-- **SolarWinds Orion**: 1,548 total server nodes. Health tiers: High (Up & CPU<75% & RAM<80%), Medium (Warning or CPU/RAM 75-90%), Low/Critical (Down/Critical or CPU/RAM>90%).
+- Display metrics from persisted, verified Microsoft Graph and SolarWinds telemetry.
+- Never hardcode fleet totals or substitute demo values for unavailable data.
+- Present non-integrated features as unavailable or coming soon.
+- Preserve source provenance, freshness and per-source failure states.
 
-## UI & Visual Design Tokens
-- Background: Black (`#0B0B0B`)
-- Cards & Surfaces: `#141414` with `#222222` subtle borders
-- Accent Colors: `#F97316` (Orange highlights), `#10B981` (Green/High Health), `#F59E0B` (Warning), `#EF4444` (Critical)
-- Dynamic Headers: Tab-aware header telemetry switching between Intune (25,987) and SolarWinds (1,548).
+## Runtime
 
-## Security & Secrets
-- Never commit credentials to git. All client IDs, tenant secrets, and passwords must be stored exclusively in `.env` and read at runtime via environment variables.
-- All user, hostname, and serial number inputs rendered in DOM tables must be sanitized through `escapeHtml()` to prevent XSS.
+- Use `app.main:app` for the API and `frontend/` for browser assets.
+- Use the scheduler and `scripts/run_live_sync.py` for database ingestion.
+- SolarWinds access remains read-only: HTTP GET and SELECT-only SWQL.
+- Use [architecture](docs/ARCHITECTURE.md) and [data flow](docs/DATA_FLOW.md) for current contracts.
+
+## UI
+
+- Follow `frontend/css/style.css` and existing components rather than copying old root assets.
+- Escape untrusted values with `escapeHtml()` before rendering HTML.
+- Compute labels and counts from API responses rather than historical baselines.
+
+## Secrets
+
+- Keep credentials out of Git and read them from runtime environment configuration.
+- Keep TLS verification enabled and follow the configured source proxy policy.

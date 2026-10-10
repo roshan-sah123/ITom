@@ -114,7 +114,16 @@ class CIService:
     async def get_ci_by_id(self, ci_id: str | uuid.UUID) -> Optional[Any]:
         """Fetch a specific CI record by UUID, serialised to a plain dict."""
         record = await self.ci_repo.get_by_id(ci_id)
-        return orm_to_dict(record) if record is not None else None
+        if record is None:
+            return None
+        data=orm_to_dict(record)
+        if record.location_id:
+            from app.models.location import Location
+            loc=await self.ci_repo.session.get(Location,record.location_id)
+            data['canonical_location']=loc.name if loc else None
+        else:
+            data['canonical_location']=None
+        return data
 
     async def get_cmdb_summary(self) -> Dict[str, Any]:
         """Retrieve aggregated CMDB health and inventory metrics."""

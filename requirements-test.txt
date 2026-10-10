@@ -1,0 +1,4 @@
+-r requirements.txt
+
+# Structured validation of deployment and CI configuration.
+PyYAML==6.0.3

@@ -18,18 +18,14 @@ Copy-Item .env.example .env
 Set source credentials in `.env` before expecting live ingestion. For API-only work, set `SCHEDULER_ENABLED=false` to prevent periodic source calls. Configure `DATABASE_URL` for PostgreSQL or a local SQLite database, then run:
 
 ```powershell
-python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+python -m uvicorn app.main:app --host 127.0.0.1 --port 8080
 ```
 
-The API documentation is at [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs). Check liveness at `/healthz`, database readiness at `/ready`, and source freshness at `/api/v1/system/freshness`.
+The API documentation is at [http://127.0.0.1:8080/docs](http://127.0.0.1:8080/docs). Check liveness at `/healthz`, database readiness at `/ready`, and source freshness at `/api/v1/system/freshness`.
 
-To view the portal locally, serve the `frontend/` directory with a static HTTP server, for example in a second terminal:
+Open `http://127.0.0.1:8080/` for the portal. FastAPI serves `frontend/` and the API on the same origin; a separate static server is unnecessary. Apply `alembic upgrade head` before expecting `/ready` to report migration readiness.
 
-```powershell
-python -m http.server 8080 --directory frontend
-```
-
-The frontend API client supports `window.ITOM_API_BASE` for pointing the UI to a backend on a different origin. See [deployment](docs/DEPLOYMENT.md) for supported local supervisor and container setups.
+The frontend API client supports `window.ITOM_API_BASE` when a separately hosted UI needs another API origin. See [deployment](docs/DEPLOYMENT.md) for supported local supervisor and container setups.
 
 ### Docker Compose
 
@@ -73,8 +69,9 @@ flowchart LR
 
 | Purpose | Command |
 | --- | --- |
-| Start API | `python -m uvicorn app.main:app --host 127.0.0.1 --port 8000` |
-| Run test suite | `python -m pytest tests/ -q` |
+| Start API | `python -m uvicorn app.main:app --host 127.0.0.1 --port 8080` |
+| Install test dependencies | `python -m pip install -r requirements-test.txt` |
+| Run offline test suite | `python -m pytest tests/ -q -ra` |
 | Apply migrations | `alembic upgrade head` |
 | Start container stack | `docker compose up --build -d` |
 | Stop container stack | `docker compose down` |
@@ -104,6 +101,7 @@ Use the commands above according to the configured environment. Live connectivit
 - [API contracts](docs/API_CONTRACTS.md) — endpoint contract details.
 - [Data flow](docs/DATA_FLOW.md) — source-to-database processing.
 - [Deployment](docs/DEPLOYMENT.md) — container and local service operation.
+- [Testing](tests/README.md) — isolated test commands, requirement coverage and known defects.
 - [Onboarding](docs/ONBOARDING.md) — codebase orientation and developer workflow.
 - [Troubleshooting](docs/TROUBLESHOOTING.md) — common operational failures.
 - [Project context](docs/PROJECT_CONTEXT.md) — product scope and implementation context.
@@ -111,3 +109,5 @@ Use the commands above according to the configured environment. Live connectivit
 ## Security and deployment
 
 Keep `.env` out of version control and use unique credentials and a strong `SECRET_KEY` outside development. Restrict network access and configure explicit CORS origins when deploying. The sync trigger can initiate external API calls, so do not expose it to untrusted clients without access controls. Review the current security and operational requirements in [deployment](docs/DEPLOYMENT.md) before placing the service on a shared network.
+
+Historical prototype specifications and implementation reports are retained under [docs/archive](docs/archive/legacy-2026-09/README.md). Current cleanup details are in [the cleanup report](docs/cleanup-reports/CODE_CLEANUP_2026-10-08.md).

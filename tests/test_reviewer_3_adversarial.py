@@ -7,7 +7,6 @@ Covers:
 3. SolarWindsClient.process_telemetry with string numeric telemetry parsing and degraded server ordering.
 4. SolarWindsClient.reconcile_from_file rejection when 'nodes' is not a list.
 5. verify_solarwinds_data.py descriptive failure messages across all invariants, missing files, and boundary conditions.
-6. Zero-drift compliance for src/frontend/css/style.css against style.css.
 7. Settings CORS cross-parameter wildcard bypass closure (BACKEND_CORS_ORIGINS vs CORS_ORIGINS).
 8. Settings SECRET_KEY minimum length enforcement and expanded placeholder rejection in non-development environments.
 """
@@ -148,21 +147,6 @@ class TestReviewer3ConfigAndSecurityHardening(unittest.TestCase):
                 Settings(ENVIRONMENT="production", SECRET_KEY=ph, DEBUG=False)
 
 
-class TestReviewer3AssetAndInvariantGuards(unittest.TestCase):
-    """Test zero drift between frontend/style.css and style.css."""
-
-    def test_css_style_drift_guard(self):
-        front_style = os.path.join(PROJECT_ROOT, "frontend", "style.css")
-        root_style = os.path.join(PROJECT_ROOT, "style.css")
-
-        self.assertTrue(os.path.exists(front_style), f"{front_style} must exist")
-        self.assertTrue(os.path.exists(root_style), f"{root_style} must exist")
-
-        with open(front_style, "rb") as ff, open(root_style, "rb") as rf:
-            f_bytes = ff.read()
-            r_bytes = rf.read()
-
-        self.assertEqual(f_bytes, r_bytes, "frontend/style.css and root style.css must have zero drift")
 
 
 if __name__ == "__main__":

@@ -1,0 +1,79 @@
+# Location scorecards
+
+Open **Infrastructure → Location Health**. The page uses database-owned locations and rules. The Excel workbook supplied the initial knowledge only; no spreadsheet is read during requests or syncs.
+
+## What is implemented
+
+- Stable location IDs, reporting levels, database source rules and per-device assignment provenance.
+- Literal longest-prefix matching for Intune and normalized exact aliases for SolarWinds.
+- More precise known locations are preferred when both source fields agree geographically. Conflicting cities/offices remain unassigned conflicts; generic country labels do not override a known office.
+- Original source locations and device telemetry remain intact. CI details show canonical and raw location separately.
+- Mapping revisions include the resolver version. Every future ingestion batch resolves assignments, including unchanged-health records.
+- Source-specific and Combined scorecards, search/status/mode/level filters, exact issue drilldowns, paging, CSV exports and reset controls.
+- Clickable red/warning/insufficient-data/green summary counts scoped to the current search, level and score mode. The populated reporting-group count excludes empty groups and Unassigned; it is not a physical-office count.
+- A separate unassigned coverage task, 24 cards initially with progressive disclosure, source scope on each card, specific low-component explanations and numerator/denominator evidence. Issue counts can overlap.
+- Focused inventory replaces the card catalogue while inspecting a location. Back restores filters and keyboard focus. Refresh preserves filters. Inventory shows semantic status badges, last Intune check-in age and readable assignment state; raw location remains in device details and CSV.
+- Source freshness, unassigned/review counts and observed score history. Earlier data is not synthesized; the UI displays only matching policy/mapping revisions.
+
+## Score policy `location-v1`
+
+C = confirmed compliant endpoints / eligible active assigned endpoints.
+
+H = Up nodes / eligible active monitored assigned nodes. Explicitly Unmanaged nodes are excluded and remain visible separately. This is current node status, not measured uptime/SLA.
+
+R = endpoints with a valid successful Intune check-in within seven days / eligible active assigned endpoints.
+
+Each component requires at least **95% known field coverage**, an eligible nonzero denominator and a fresh source. Missing timestamps or unknown statuses do not become a healthy zero or a certified failure. Check-in timestamps more than five minutes in the future are invalid.
+
+- **Endpoints:** `(40C + 25R) / 65`.
+- **Infrastructure:** `H`.
+- **Combined:** `0.40C + 0.35H + 0.25R`, only with both usable sources and no unresolved location review in the group.
+
+Green means >=90; Warning means 75–<90, Down/Critical node attention, or a failed latest refresh while the previous successful snapshot is still fresh. Red means <75 or a required component <75. Unavailable scores are grey. These are initial operating bands, not industry-certified targets. Compare scores within the same mode and reporting level. No automatic business-critical outage override is claimed without authoritative service/criticality mapping.
+
+The source freshness window is the existing backend contract: `max(900, SYNC_INTERVAL_SECONDS × 2.5)`, currently 25 minutes. An old successful snapshot can be displayed as stale but cannot supply a current score. A database failure returns unavailable rather than an empty successful inventory.
+
+## Database setup and maintenance
+
+For a new deployment or an existing checkout:
+
+```powershell
+python -m alembic upgrade head
+python scripts/manage_locations.py              # preview; transaction is rolled back
+python scripts/manage_locations.py --apply      # bootstrap/backfill; commit
+```
+
+Initial bootstrap data is `app/data/location_seed.json`. It contains source keys, locations and review notes, not workbook device counts. It is used only if the database has no mapping rules; later syncs never overwrite database rules from this file.
+
+To replace rules, provide a complete JSON revision with a `rules` array. Each rule has `source_system` (`INTUNE` or `SOLARWINDS`), `match_key`, optional `location` and optional `review_note`:
+
+```powershell
+python scripts/manage_locations.py --rules reviewed-rules.json
+python scripts/manage_locations.py --rules reviewed-rules.json --apply
+```
+
+Validation rejects duplicate/conflicting source keys before changing any rule. Replacement disables rules omitted from the complete revision and recomputes active assignments. Backfill preserves source status, source IDs and last-sync timestamps; mapping changes can update the CI's ordinary modification time. Preview first and coordinate with the sync worker during application. Changes roll back on failure.
+
+Rules containing unresolved source conflict/versus notes retain a review notice until reviewed knowledge removes that note. Bulk approval in the reference file is not independent verification of office identity. Country, city, cloud and business-unit groups remain labelled distinctly.
+
+## API
+
+- `GET /api/v1/locations`: all reporting locations, scores, source coverage and freshness.
+- `GET /api/v1/locations/{id}/score`: one location's components, denominators, reasons and provenance.
+- `GET /api/v1/locations/{id}/devices`: `source`, `issue`, `search`, `page`, `page_size`.
+- `GET /api/v1/locations/{id}/export`: the same source/issue/search selection, CSV formula-safe output.
+- `GET /api/v1/locations/{id}/history`: real observations, newest first; default last 48 samples.
+
+`unassigned` is a supported inventory scope with no health score. Issue values include `noncompliant`, `other_compliance`, `old_checkins`, `old_30d`, `invalid_checkins`, `up`, `down`, `critical`, `warning`, `unmanaged` and `conflict`.
+
+Cards and lists share the same issue predicates. Counts can change between requests as new snapshots arrive; the UI discloses mismatches and refreshes an out-of-range page. Each response identifies its observation time. This is not a frozen snapshot browsing service.
+
+History is appended inside the same source savepoint as inventory, retirement and the successful source audit. Capture failure rolls all of those changes back and persists a failed source audit. There is no fabricated historical trend. Operational retention should be configured for long-running installations; this release does not delete existing observations automatically.
+
+Score reads bracket inventory, source freshness and location metadata with source-run, inventory-update and mapping/location revision markers. A concurrent supported writer causes a retry, up to three attempts. Continuous changes return HTTP 503 rather than mixing old counts with a newer source timestamp. This optimistic coherence check assumes writes follow the application's synchronization/mapping contracts; it is not an immutable snapshot browsing service or a guarantee for arbitrary direct SQL edits. No transaction is discarded inside ingestion capture.
+
+## Validation and limits
+
+The test suite covers matching boundaries, rule replacement, idempotent backfill, unchanged-health sync persistence, blank/unknown/stale data, field coverage, unmanaged nodes, exact card/list counts and observed history. Browser journeys cover cards, filters, export and phone-width layout. Third-party chart rendering and font downloads are stubbed in those navigation tests; live browser verification uses the real portal assets.
+
+SQLite migration/backfill and live APIs were verified locally. PostgreSQL-compatible SQL/model types are implemented, but a live PostgreSQL cluster was not available for deployment validation. Scores reflect source records, assigned reporting location and a provisional policy—not current physical presence, physical-asset deduplication or end-to-end business availability.

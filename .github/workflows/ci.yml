@@ -29,23 +29,15 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-          cache-dependency-path: requirements.txt
+          cache-dependency-path: |
+            requirements.txt
+            requirements-test.txt
 
       - name: Install Dependencies
-        run: python -m pip install -r requirements.txt
+        run: python -m pip install -r requirements-test.txt
 
       - name: Run deterministic tests without live credentials or source access
         env:
           SCHEDULER_ENABLED: "false"
-          DATABASE_URL: sqlite+aiosqlite:///:memory:
-        run: >-
-          python -m pytest
-          tests/test_graph_client_contract.py
-          tests/test_intune_forecast.py
-          tests/test_source_proxy_routing.py
-          tests/test_summary_cache.py
-          tests/test_ui_truthfulness.py
-          tests/test_local_service_environment.py
-          tests/test_sqlite_runtime_pragmas.py
-          tests/test_frontend_home_contract.py
-          -q
+          DATABASE_URL: "sqlite+aiosqlite:///:memory:"
+        run: python -m pytest tests/ -q -ra
