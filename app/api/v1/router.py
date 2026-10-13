@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter
 
-from app.api.v1.endpoints import analytics, cmdb, health, intune, solarwinds, sync, system, locations
+from app.api.v1.endpoints import analytics, cmdb, health, intune, solarwinds, sync, system, locations, location_reviews
 
 api_router = APIRouter()
 
@@ -14,4 +14,5 @@ api_router.include_router(solarwinds.router)
 api_router.include_router(sync.router)
 api_router.include_router(system.router)
 api_router.include_router(analytics.router)
+api_router.include_router(location_reviews.router)
 api_router.include_router(locations.router)

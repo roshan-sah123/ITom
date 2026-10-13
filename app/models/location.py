@@ -1,7 +1,7 @@
 """Canonical reporting locations, database rules and observed score snapshots."""
 from datetime import datetime
 from typing import Optional
-from sqlalchemy import String, ForeignKey, Boolean, DateTime, Index, UniqueConstraint
+from sqlalchemy import String, ForeignKey, Boolean, DateTime, Index, UniqueConstraint, CheckConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 from app.models.base import Base, TimestampMixin, JSONType, UUIDPrimaryKeyMixin, UUIDType
 
@@ -22,7 +22,25 @@ class LocationMappingRule(Base):
     revision: Mapped[str] = mapped_column(String(64), nullable=False)
     enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     review_note: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
-    __table_args__ = (UniqueConstraint('source_system', 'match_key', name='uq_location_source_key'),)
+    approval_status: Mapped[str] = mapped_column(String(16), nullable=False, default='PENDING', server_default='PENDING')
+    reviewed_by: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    reviewed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    __table_args__ = (UniqueConstraint('source_system', 'match_key', name='uq_location_source_key'),
+                     CheckConstraint("approval_status IN ('PENDING','APPROVED','REJECTED')",name='ck_location_rule_approval'),
+                     CheckConstraint("approval_status != 'APPROVED' OR location_id IS NOT NULL",name='ck_location_approved_target'),
+                     Index('ix_location_rule_review_queue','approval_status','source_system'))
+
+
+class LocationMappingReview(Base, UUIDPrimaryKeyMixin):
+    """Append-only decisions with a copy of the rule before and after review."""
+    __tablename__ = 'location_mapping_reviews'
+    rule_id: Mapped[str] = mapped_column(ForeignKey('location_mapping_rules.id'), nullable=False)
+    reviewed_by: Mapped[str] = mapped_column(String(128), nullable=False)
+    reviewed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    comment: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
+    before_data: Mapped[dict] = mapped_column(JSONType, nullable=False)
+    after_data: Mapped[dict] = mapped_column(JSONType, nullable=False)
+    __table_args__ = (Index('ix_location_review_rule_time','rule_id','reviewed_at'),)
 
 
 class LocationScoreSnapshot(Base, UUIDPrimaryKeyMixin):

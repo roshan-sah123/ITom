@@ -16,7 +16,7 @@
   
   <!-- Master Obsidian Design System & Favicon -->
   <link rel="icon" type="image/png" href="logo.png?v=2">
-  <link rel="stylesheet" href="css/style.css?v=13">
+  <link rel="stylesheet" href="css/style.css?v=21">
 </head>
 <body>
   <div class="app-container">
@@ -143,7 +143,7 @@
             <div>
               <div class="card-top-meta">
                 <div class="module-icon-wrap" style="color: var(--accent-ops);">🖥️</div>
-                <span class="module-pill pill-active">Live Telemetry</span>
+                <span class="module-pill pill-active">Stored Telemetry</span>
               </div>
               <div class="card-body-content">
                 <h3>Infrastructure Analytics</h3>
@@ -166,7 +166,7 @@
             <div>
               <div class="card-top-meta">
                 <div class="module-icon-wrap" style="color: var(--accent-intune);">💻</div>
-                <span class="module-pill pill-active">Live Mirror</span>
+                <span class="module-pill pill-active">Stored Mirror</span>
               </div>
               <div class="card-body-content">
                 <h3>Digital Workplace Experience</h3>
@@ -261,6 +261,10 @@
            ========================================================================= -->
       <section id="view-infrastructure" class="view-section">
         <button class="module-back-button" type="button" data-back-home>← Back to portal home</button>
+        <section class="workspace-freshness" id="workspaceFreshness-infrastructure" aria-label="Infrastructure source evidence">
+          <div class="workspace-freshness-rows" role="status">Checking source evidence…</div>
+          <button class="btn-action workspace-freshness-reload" type="button" title="Reread stored inventory and source evidence">Reload snapshot</button>
+        </section>
         
         <!-- 4 Primary Category Cards (Top Sub-Tabs) -->
         <div class="infra-category-grid">
@@ -316,25 +320,25 @@
                 <div class="kpi-icon">🖥️</div>
               </div>
               <div class="kpi-value" id="swTotalNodesVal">—</div>
-              <div class="kpi-footer" id="swTotalNodesSub">Loading live data</div>
+              <div class="kpi-footer" id="swTotalNodesSub">Loading stored snapshot</div>
             </div>
 
             <div class="kpi-card">
               <div class="kpi-header">
-                <span>FLEET HIGH HEALTH</span>
+                <span>CURRENT NODE STATUS</span>
                 <div class="kpi-icon">☑️</div>
               </div>
               <div class="kpi-value text-healthy" id="swSlaVal">—</div>
-              <div class="kpi-footer" id="swSlaFooter">High Health Tier • Snapshot Avail: <span id="swAvailSub">—</span></div>
+              <div class="kpi-footer" id="swSlaFooter">Up / eligible monitored nodes: <span id="swAvailSub">—</span></div>
             </div>
 
             <div class="kpi-card">
               <div class="kpi-header">
-                <span>ACTIVE ANOMALY ALERTS</span>
+                <span>NODES NEEDING ATTENTION</span>
                 <div class="kpi-icon">⚠️</div>
               </div>
               <div class="kpi-value text-warning" id="swAlertsVal">—</div>
-              <div class="kpi-footer">Derived from current node status</div>
+              <div class="kpi-footer">Warning, Critical or Down • Snapshot count</div>
             </div>
 
             <div class="kpi-card">
@@ -347,13 +351,15 @@
             </div>
           </div>
 
-          <!-- 4 Operational Visualizations Row -->
+          <!-- Optional infrastructure charts -->
+          <details class="workspace-chart-summary" id="swChartSummary" open>
+            <summary>Charts and resource summary</summary>
           <div class="charts-grid-4">
             
             <div class="chart-card">
               <div class="chart-header">
                 <span class="chart-title">Health Classification</span>
-                <span class="chart-subtitle">Click slice to filter</span>
+                <span class="chart-subtitle">Derived tier • Click to filter</span>
               </div>
               <div class="chart-canvas-wrap">
                 <canvas id="swHealthChart"></canvas>
@@ -390,6 +396,13 @@
               </div>
             </div>
 
+          </div>
+
+          </details>
+          <div class="inventory-heading">
+            <h2 id="swInventoryHeading" tabindex="-1">SolarWinds node inventory</h2>
+            <p id="swRecordCount" role="status">SolarWinds node count unavailable</p>
+            <div class="inventory-freshness" id="inventoryFreshness-infrastructure" role="group" aria-label="Source snapshot evidence"></div>
           </div>
 
           <!-- Active Filter Banner for Servers -->
@@ -458,7 +471,6 @@
 
             <!-- Zone 3: 3-Part Footer Controller -->
             <div class="grid-footer">
-              <div class="footer-count" id="swRecordCount">SolarWinds node count unavailable</div>
               <div class="footer-page-size">
                 <label for="swPageSizeSelect">Rows per page:</label>
                 <select class="select-page-size" id="swPageSizeSelect">
@@ -597,6 +609,10 @@
            ========================================================================= -->
       <section id="view-endpoints" class="view-section">
         <button class="module-back-button" type="button" data-back-home>← Back to portal home</button>
+        <section class="workspace-freshness" id="workspaceFreshness-endpoints" aria-label="Endpoint source evidence">
+          <div class="workspace-freshness-rows" role="status">Checking source evidence…</div>
+          <button class="btn-action workspace-freshness-reload" type="button" title="Reread stored inventory and source evidence">Reload snapshot</button>
+        </section>
         
         <!-- 4 Executive KPI Cards Row -->
         <div class="kpi-grid">
@@ -637,7 +653,9 @@
           </div>
         </div>
 
-        <!-- 4 Operational Visualizations Row -->
+        <!-- Optional endpoint charts -->
+        <details class="workspace-chart-summary" id="epChartSummary" open>
+          <summary>Charts and fleet summary</summary>
         <div class="charts-grid-4">
           
           <div class="chart-card">
@@ -691,6 +709,13 @@
           </div>
         </section>
 
+        </details>
+        <div class="inventory-heading">
+          <h2 id="epInventoryHeading" tabindex="-1">Managed endpoint inventory</h2>
+          <p id="epRecordCount" role="status">Intune device count unavailable</p>
+          <div class="inventory-freshness" id="inventoryFreshness-endpoints" role="group" aria-label="Source snapshot evidence"></div>
+        </div>
+
         <!-- Active Filter Banner for Endpoints -->
         <div class="active-filter-banner" id="epActiveFilterBanner" style="display: none;">
           <span>Active Filter: <strong id="epActiveFilterLabel"></strong></span>
@@ -743,7 +768,6 @@
 
           <!-- Zone 3: 3-Part Footer Controller -->
           <div class="grid-footer">
-            <div class="footer-count" id="epRecordCount">Intune device count unavailable</div>
             <div class="footer-page-size">
               <label for="epPageSizeSelect">Rows per page:</label>
               <select class="select-page-size" id="epPageSizeSelect">
@@ -768,53 +792,48 @@
            ========================================================================= -->
       <section id="view-cmdb" class="view-section">
         <button class="module-back-button" type="button" data-back-home>← Back to portal home</button>
+        <section class="workspace-freshness" id="workspaceFreshness-cmdb" aria-label="CMDB source evidence">
+          <div class="workspace-freshness-rows" role="status">Checking source evidence…</div>
+          <button class="btn-action workspace-freshness-reload" type="button" title="Reread stored inventory and source evidence">Reload snapshot</button>
+        </section>
         
-        <!-- 4 KPI Cards Row -->
-        <div class="kpi-grid">
+        <!-- 3 source record counters -->
+        <div class="kpi-grid cmdb-summary-grid">
           <div class="kpi-card">
             <div class="kpi-header">
-              <span>TOTAL RECONCILED CIS</span>
+              <span>Total source records</span>
               <div class="kpi-icon">🗄️</div>
             </div>
             <div class="kpi-value" id="cmdbTotalCisVal">—</div>
-            <div class="kpi-footer">SolarWinds inventory and custom properties</div>
+            <div class="kpi-footer">Intune and SolarWinds records combined</div>
           </div>
 
           <div class="kpi-card">
             <div class="kpi-header">
-              <span>CMDB DATA SOURCE</span>
+              <span>Intune records</span>
               <div class="kpi-icon">💻</div>
             </div>
-            <div class="kpi-value" style="color: #3B82F6;" id="cmdbIntuneProvVal">SolarWinds</div>
-            <div class="kpi-footer">Inventory plus custom properties</div>
+            <div class="kpi-value" id="cmdbIntuneProvVal">—</div>
+            <div class="kpi-footer">Microsoft Intune managed endpoint records</div>
           </div>
 
           <div class="kpi-card">
             <div class="kpi-header">
-              <span>SOLARWINDS PROVENANCE</span>
+              <span>SolarWinds records</span>
               <div class="kpi-icon">🖥️</div>
             </div>
-            <div class="kpi-value text-warning" id="cmdbSwProvVal">—</div>
-            <div class="kpi-footer">SolarWinds Orion SWIS Extractions</div>
-          </div>
-
-          <div class="kpi-card">
-            <div class="kpi-header">
-              <span>HEALTH COMPLIANCE BASELINE</span>
-              <div class="kpi-icon">🛡️</div>
-            </div>
-            <div class="kpi-value text-healthy" id="cmdbHealthCompVal">—</div>
-            <div class="kpi-footer">Calculated from current inventory</div>
+            <div class="kpi-value" id="cmdbSwProvVal">—</div>
+            <div class="kpi-footer">SolarWinds infrastructure node records</div>
           </div>
         </div>
 
         <!-- Discovery Provenance Split Bar & Details Panel -->
         <div class="charts-grid-2">
           
-          <div class="chart-card">
+          <div class="chart-card cmdb-provenance-panel" id="cmdbProvenancePanel">
             <div class="chart-header">
-              <span class="chart-title">Discovery Provenance Breakdown</span>
-              <span class="chart-subtitle" style="color: var(--accent-cmdb);">Multi-Domain Reconciliation</span>
+              <span class="chart-title">Records by source</span>
+              <span class="chart-subtitle">Stored snapshot</span>
             </div>
             <div class="provenance-bar-container">
               <div class="provenance-bar" id="cmdbProvenanceBar" role="img" aria-label="Loading source distribution">
@@ -822,14 +841,12 @@
                 <div class="bar-solarwinds" id="cmdbProvenanceSolarWindsBar" style="width: 0%;"></div>
               </div>
               <div class="provenance-legend">
-                <span><span class="legend-dot" style="background: #3B82F6;"></span> <span id="cmdbProvenanceIntuneLabel">Loading Intune source data…</span></span>
-                <span><span class="legend-dot" style="background: #F59E0B;"></span> <span id="cmdbProvenanceSolarWindsLabel">Loading SolarWinds source data…</span></span>
+                <span><span class="legend-dot legend-intune" aria-hidden="true"></span> <span id="cmdbProvenanceIntuneLabel">Loading Intune source data…</span></span>
+                <span><span class="legend-dot legend-solarwinds" aria-hidden="true"></span> <span id="cmdbProvenanceSolarWindsLabel">Loading SolarWinds source data…</span></span>
               </div>
               <p class="provenance-status" id="cmdbProvenanceStatus" role="status" aria-live="polite">Loading source distribution…</p>
             </div>
-            <div style="margin-top: 16px; font-size: 11px; color: var(--text-muted);">
-              Inventory reporting is derived from the currently available SolarWinds source data.
-            </div>
+            <p class="cmdb-counting-note"><strong>How records are counted:</strong> Each source keeps its own device record. The same physical device may appear in both systems, so this total is not a count of unique physical devices. Endpoint compliance and infrastructure status are reported separately in their workspaces.</p>
           </div>
 
           <div class="chart-card">
@@ -1025,20 +1042,6 @@
     <!-- 4. Mandatory Module Termination Gap (48px) -->
     <div class="module-termination-gap"></div>
 
-    <!-- 5. System Status Strip (40px) -->
-    <div class="system-status-strip">
-      <div class="status-left">
-        <span class="status-dot"></span>
-        <span>Operational data is sourced from SolarWinds and Microsoft Intune.</span>
-      </div>
-      <div class="status-center">
-        <span>Current freshness and sync health are shown on the portal home.</span>
-      </div>
-      <div class="status-right font-mono">
-        <span>Internal POC</span>
-      </div>
-    </div>
-
     <!-- 6. Global Footer (56px) -->
     <footer class="global-footer">
       <div class="footer-left">
@@ -1081,21 +1084,21 @@
   <!-- =========================================================================
        OVERLAY 2: SLIDE-OVER CI & NODE INSPECTION DRAWER
        ========================================================================= -->
-  <div class="drawer-backdrop" id="drawerBackdrop" style="display: none;"></div>
-  <aside class="slide-drawer" id="slideDrawer" style="display: none;">
+  <div class="drawer-backdrop" id="drawerBackdrop" hidden></div>
+  <aside class="slide-drawer" id="slideDrawer" role="dialog" aria-modal="true" aria-labelledby="drawerCiTitle" hidden>
     <div class="drawer-header">
       <div>
         <h3 class="drawer-title" id="drawerCiTitle">Configuration Item</h3>
         <span class="drawer-badge" id="drawerCiSource">SOLARWINDS</span>
       </div>
-      <button class="drawer-close-btn" id="drawerCloseBtn">✕ Close</button>
+      <button type="button" class="drawer-close-btn" id="drawerCloseBtn">✕ Close</button>
     </div>
-    <div class="drawer-content" id="drawerContent">
+    <div class="drawer-body" id="drawerContent">
       <!-- Populated dynamically -->
     </div>
   </aside>
 
   <!-- Master ES6 Application Bootstrap -->
-    <script type="module" src="js/app.js?v=23"></script>
+    <script type="module" src="js/app.js?v=32"></script>
 </body>
 </html>

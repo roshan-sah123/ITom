@@ -1,114 +1,120 @@
-/**
- * Slide-Over Inspection Drawer for CIs and Server Nodes
- */
+/** Shared, accessible inspection panel for persisted configuration items. */
 import { itomApi } from '../api.js';
-import { escapeHtml, formatRelativeTime } from '../utils.js';
+import { escapeHtml } from '../utils.js';
 
-export function initDrawer() {
-  const backdrop = document.getElementById('drawerBackdrop');
-  const drawer = document.getElementById('slideDrawer');
-  const closeBtn = document.getElementById('drawerCloseBtn');
+let requestVersion = 0;
+let returnFocus = null;
+let background = [];
+let previousOverflow = '';
 
-  const close = () => {
-    if (drawer) drawer.classList.remove('active');
-    if (backdrop) backdrop.classList.remove('active');
-  };
-
-  if (closeBtn) closeBtn.addEventListener('click', close);
-  if (backdrop) backdrop.addEventListener('click', close);
+function closeDrawer() {
+  requestVersion++;
+  document.getElementById('slideDrawer').hidden = true;
+  document.getElementById('drawerBackdrop').hidden = true;
+  background.forEach(([element, inert]) => { element.inert = inert; });
+  background = [];
+  document.body.style.overflow = previousOverflow;
+  if (returnFocus?.isConnected) returnFocus.focus();
+  returnFocus = null;
 }
 
-export async function openCiDrawer(ci) {
-  const backdrop = document.getElementById('drawerBackdrop');
+export function initDrawer() {
   const drawer = document.getElementById('slideDrawer');
-  const titleEl = document.getElementById('drawerCiTitle');
-  const bodyEl = document.getElementById('drawerCiContent');
-
-  if (!drawer || !backdrop) return;
-
-  if (titleEl) titleEl.textContent = ci.name || 'Configuration Item Details';
-
-  if (bodyEl) {
-    bodyEl.innerHTML = `
-      <div style="margin-bottom: 24px;">
-        <div style="font-size: 11px; text-transform: uppercase; color: #6B7280; margin-bottom: 8px;">Identity & Baseline</div>
-        <div style="display: grid; grid-template-columns: 140px 1fr; gap: 8px; font-size: 12px;">
-          <span style="color: #9CA3AF;">CI UUID:</span>
-          <span class="font-mono">${escapeHtml(ci.id || 'N/A')}</span>
-          <span style="color: #9CA3AF;">Source ID:</span>
-          <span class="font-mono">${escapeHtml(ci.source_id || 'N/A')}</span>
-          <span style="color: #9CA3AF;">Discovery Source:</span>
-          <span><strong style="color: #F97316;">${escapeHtml(ci.source_system || 'N/A')}</strong></span>
-          <span style="color: #9CA3AF;">CI Type:</span>
-          <span>${escapeHtml(ci.ci_type || 'Server')}</span>
-          <span style="color: #9CA3AF;">Vendor:</span>
-          <span>${escapeHtml(ci.vendor || 'Generic')}</span>
-          <span style="color: #9CA3AF;">Health Tier:</span>
-          <span><span class="status-pill status-${(ci.health_tier || 'healthy').toLowerCase()}">${escapeHtml(ci.health_tier || 'High')}</span></span>
-          <span style="color: #9CA3AF;">Operational Status:</span>
-          <span>${escapeHtml(ci.status || 'Up')}</span>
-        </div>
-      </div>
-
-      <div style="margin-bottom: 24px;">
-        <div style="font-size: 11px; text-transform: uppercase; color: #6B7280; margin-bottom: 8px;">Network & Host Attributes</div>
-        <div style="display: grid; grid-template-columns: 140px 1fr; gap: 8px; font-size: 12px;">
-          <span style="color: #9CA3AF;">IP Address:</span>
-          <span class="font-mono">${escapeHtml(ci.ip_address || 'N/A')}</span>
-          <span style="color: #9CA3AF;">MAC Address:</span>
-          <span class="font-mono">${escapeHtml(ci.mac_address || 'N/A')}</span>
-          <span style="color: #9CA3AF;">Serial Number:</span>
-          <span class="font-mono">${escapeHtml(ci.serial_number || 'N/A')}</span>
-          <span style="color: #9CA3AF;">Operating System:</span>
-          <span>${escapeHtml(ci.operating_system || 'N/A')}</span>
-          <span style="color: #9CA3AF;">Accountable Owner:</span>
-          <span>${escapeHtml(ci.attributes?.contact || ci.attributes?.user_principal_name || ci.attributes?.primary_user || 'Unassigned')}</span>
-          <span style="color: #9CA3AF;">Campus Facility:</span>
-          <span>${escapeHtml(ci.canonical_location || ci.location || 'Unassigned')}</span>
-          <span style="color: #9CA3AF;">Raw source location:</span>
-          <span>${escapeHtml(ci.location || 'Not supplied')}</span>
-          <span style="color: #9CA3AF;">Last Sync Time:</span>
-          <span>${escapeHtml(formatRelativeTime(ci.last_sync_time))}</span>
-          <span style="color: #9CA3AF;">Discovered At:</span>
-          <span>${escapeHtml(formatRelativeTime(ci.created_at || ci.last_sync_time))}</span>
-        </div>
-      </div>
-
-      <div>
-        <div style="font-size: 11px; text-transform: uppercase; color: #6B7280; margin-bottom: 8px;">Temporal State Transitions (PostgreSQL 16)</div>
-        <div id="drawerHistoryList" style="font-size: 11px; color: #9CA3AF; display: flex; flex-direction: column; gap: 6px;">
-          <div style="padding: 8px; background: #141414; border-radius: 4px;">Loading append-only history audit...</div>
-        </div>
-      </div>
-    `;
-  }
-
-  backdrop.classList.add('active');
-  drawer.classList.add('active');
-
-  // Load time-series history
-  if (ci.id) {
-    try {
-      const history = await itomApi.getCiHistory(ci.id, 10);
-      const historyListEl = document.getElementById('drawerHistoryList');
-      if (historyListEl) {
-        if (history && history.length) {
-          historyListEl.innerHTML = history.map(h => `
-            <div style="padding: 8px; background: #141414; border: 1px solid #222; border-radius: 4px; display: flex; justify-content: space-between; align-items: center;">
-              <div>
-                <strong>${escapeHtml(h.status)}</strong> (${escapeHtml(h.health_tier || 'High')})
-                ${h.cpu_utilization !== null && h.cpu_utilization !== undefined ? ` • CPU: ${h.cpu_utilization.toFixed(1)}%` : ''}
-              </div>
-              <span class="font-mono" style="color: #6B7280;">${escapeHtml(formatRelativeTime(h.recorded_at))}</span>
-            </div>
-          `).join('');
-        } else {
-          historyListEl.innerHTML = `<div style="padding: 8px; color: #6B7280;">No status transitions recorded. State is steady.</div>`;
-        }
+  if (!drawer || drawer.dataset.initialized) return;
+  drawer.dataset.initialized = 'true';
+  document.getElementById('drawerCloseBtn').addEventListener('click', closeDrawer);
+  document.getElementById('drawerBackdrop').addEventListener('click', closeDrawer);
+  document.addEventListener('keydown', event => {
+    if (drawer.hidden) return;
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      closeDrawer();
+    } else if (event.key === 'Tab') {
+      const controls = [...drawer.querySelectorAll('button, a[href], input, select, textarea, [tabindex="0"]')]
+        .filter(element => !element.disabled && element.getClientRects().length);
+      const first = controls[0], last = controls.at(-1);
+      if (event.shiftKey && (document.activeElement === first || !drawer.contains(document.activeElement))) {
+        event.preventDefault(); last?.focus();
+      } else if (!event.shiftKey && (document.activeElement === last || !drawer.contains(document.activeElement))) {
+        event.preventDefault(); first?.focus();
       }
-    } catch {
-      const historyListEl = document.getElementById('drawerHistoryList');
-      if (historyListEl) historyListEl.innerHTML = `<div style="padding: 8px; color: #6B7280;">State steady; zero degradation events.</div>`;
     }
+  });
+}
+
+function timestamp(value) {
+  if (!value) return 'Not supplied';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? 'Not supplied' : date.toLocaleString();
+}
+
+const field = (label, value) => `<dt>${label}</dt><dd>${escapeHtml(String(value ?? 'Not supplied'))}</dd>`;
+
+function renderDetails(ci) {
+  document.getElementById('drawerCiTitle').textContent = ci.name || 'Device details';
+  document.getElementById('drawerCiSource').textContent = ci.source_system || 'Source not supplied';
+  const attributes = ci.attributes || {};
+  document.getElementById('drawerContent').innerHTML = `
+    <p class="drawer-note">Stored source snapshot. Missing fields do not indicate a healthy device.</p>
+    <section><h4>Status and evidence</h4><dl class="drawer-fields">
+      ${field('Status', ci.status)}${field('Health tier', ci.health_tier)}
+      ${field('Last synchronized', timestamp(ci.last_sync_time))}
+      ${field('Source ID', ci.source_id)}${field('Configuration item ID', ci.id)}
+    </dl></section>
+    <section><h4>Device information</h4><dl class="drawer-fields">
+      ${field('Device type', ci.ci_type)}${field('Vendor', ci.vendor)}${field('Model', ci.model)}
+      ${field('Operating system', ci.operating_system)}${field('Serial number', ci.serial_number)}
+      ${field('IP address', ci.ip_address)}${field('MAC address', ci.mac_address)}
+      ${field('Owner', attributes.contact || attributes.user_principal_name || attributes.primary_user)}
+      ${field('Location', ci.canonical_location || ci.location)}
+      ${field('Raw source location', ci.location)}${field('First recorded', timestamp(ci.created_at))}
+    </dl></section>
+    <section><h4>Status history</h4><div id="drawerHistoryList" role="status">Loading recorded changes…</div></section>`;
+}
+
+export async function openCiDrawer(item) {
+  initDrawer();
+  const drawer = document.getElementById('slideDrawer');
+  const backdrop = document.getElementById('drawerBackdrop');
+  if (!drawer || !backdrop) return;
+  const version = ++requestVersion;
+  if (drawer.hidden) {
+    returnFocus = document.activeElement;
+    previousOverflow = document.body.style.overflow;
+    background = [...document.body.children].filter(element => element !== drawer && element !== backdrop)
+      .map(element => [element, element.inert]);
+    background.forEach(([element]) => { element.inert = true; });
+    document.body.style.overflow = 'hidden';
+  }
+  drawer.hidden = false;
+  backdrop.hidden = false;
+  document.getElementById('drawerCiTitle').textContent = typeof item === 'object' ? item.name || 'Device details' : 'Device details';
+  document.getElementById('drawerCiSource').textContent = 'Loading source…';
+  document.getElementById('drawerContent').innerHTML = '<p role="status">Loading device evidence…</p>';
+  document.getElementById('drawerCloseBtn').focus();
+  const id = typeof item === 'string' ? item : item?.id;
+  if (!id) {
+    document.getElementById('drawerContent').innerHTML = '<p role="status">Device details unavailable: no configuration item ID was supplied.</p>';
+    return;
+  }
+  try {
+    const ci = await itomApi.getCiById(id);
+    if (version !== requestVersion) return;
+    renderDetails(ci);
+  } catch {
+    if (version !== requestVersion) return;
+    document.getElementById('drawerContent').innerHTML = '<p role="status">Device details unavailable. Close this panel and try again.</p>';
+    return;
+  }
+  try {
+    const history = await itomApi.getCiHistory(id, 10);
+    if (version !== requestVersion) return;
+    if (!Array.isArray(history)) throw new Error('Invalid history response');
+    document.getElementById('drawerHistoryList').innerHTML = history.length ? history.map(change => `
+      <div class="drawer-history-entry"><strong>${escapeHtml(change.status || 'Unknown')} · ${escapeHtml(change.health_tier || 'Unknown')}</strong>
+      <span>${escapeHtml(timestamp(change.recorded_at))}</span></div>`).join('') : 'No status changes recorded. This does not establish historical uptime.';
+  } catch {
+    if (version !== requestVersion) return;
+    document.getElementById('drawerHistoryList').textContent = 'History unavailable. Current device details remain visible; close and reopen to try again.';
   }
 }

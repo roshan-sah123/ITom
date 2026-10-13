@@ -4,7 +4,7 @@
  */
 import { itomApi } from '../api.js?v=4';
 import { formatNumber, formatPercent, escapeHtml, calculateNewPageAnchor, debounce, exportToCsv, fetchAllFilteredRows, destroyChartSafe, generatePaginationControls } from '../utils.js';
-import { openCiDrawer } from './drawer.js';
+import { openCiDrawer } from './drawer.js?v=3';
 
 let osChartInstance = null;
 let complianceChartInstance = null;
@@ -80,11 +80,22 @@ function applyEndpointFilterState(filterParam) {
 
 export async function renderEndpoints(subtabName = '', filterParam = '') {
   initEndpointsFilters();
-  await loadEndpointsKpisAndCharts();
+  initChartSummary();
+  loadEndpointsKpisAndCharts();
   if (filterParam) {
     applyEndpointFilterState(filterParam);
   }
   await loadEndpointsGrid();
+}
+
+function initChartSummary() {
+  const summary = document.getElementById('epChartSummary');
+  if (!summary || summary.dataset.initialized) return;
+  summary.dataset.initialized = 'true';
+  summary.addEventListener('toggle', () => {
+    if (summary.open) [osChartInstance, complianceChartInstance, mfgChartInstance]
+      .forEach(chart => chart?.resize?.());
+  });
 }
 
 async function loadEndpointsKpisAndCharts() {
@@ -151,7 +162,7 @@ async function loadIntuneDeviceCountForecast() {
       return;
     }
     badge.textContent = '7-day trend estimate';
-    badge.dataset.mode = 'live';
+    badge.dataset.mode = 'snapshot';
     const direction = forecast.change_count > 0 ? 'increase' : forecast.change_count < 0 ? 'decrease' : 'no change';
     content.textContent = `Current: ${formatNumber(forecast.current_count)} devices. Estimated in ${forecast.horizon_days} days: ${formatNumber(forecast.forecast_count)} (${direction} of ${formatNumber(Math.abs(forecast.change_count))}). Trend: ${formatNumber(forecast.trend_per_day)} devices per day, based on ${forecast.observed_days} daily syncs through ${forecast.observed_through}. ${forecast.notice}`;
   } catch (err) {
@@ -163,7 +174,6 @@ async function loadIntuneDeviceCountForecast() {
 
 function renderEndpointsUnavailable() {
   cachedTotalRecords = 0;
-  allFetchedDevices = [];
   const unavailableValues = ['epTotalVal', 'epCompRateVal', 'epOsDiversityVal'];
   unavailableValues.forEach((id) => {
     const element = document.getElementById(id);
@@ -190,17 +200,17 @@ function renderStoragePanel(metrics, total, sourceAvailable) {
   const median = Number(metrics.median_device_storage_used_pct);
   const capacity = Number(metrics.fleet_capacity_used_pct ?? metrics.avg_storage_used_pct);
   const sample = Number(metrics.storage_sample_size);
-  const hasLiveStorage = sourceAvailable && total > 0 && sample > 0
+  const hasStorageEvidence = sourceAvailable && total > 0 && sample > 0
     && Number.isFinite(median) && median >= 0 && median <= 100
     && Number.isFinite(capacity) && capacity >= 0 && capacity <= 100;
 
-  if (!hasLiveStorage) {
+  if (!hasStorageEvidence) {
     renderStorageUnavailable();
     return;
   }
 
-  badge.textContent = 'Live Intune data';
-  badge.dataset.mode = 'live';
+  badge.textContent = 'Stored Intune snapshot';
+  badge.dataset.mode = 'snapshot';
   content.innerHTML = `${renderStorageMeter('Median per-device usage', median)}
     ${renderStorageMeter('Fleet capacity used', capacity)}
     <p class="storage-note">Based on ${formatNumber(sample)} devices with storage data (${formatPercent((sample / total) * 100, 1)} of the managed fleet). Fleet capacity is weighted by disk size.</p>`;
@@ -440,7 +450,7 @@ async function loadEndpointsGrid() {
 
       return `
         <tr>
-          <td><strong class="ci-name-link" data-ep-idx="${idx}" style="cursor: pointer; color: #60A5FA;" title="Open device details drawer">${escapeHtml(dev.name)}</strong></td>
+          <td><button type="button" class="ci-name-link" data-ep-idx="${idx}" title="Open device details drawer">${escapeHtml(dev.name)}</button></td>
           <td>${escapeHtml(dev.attributes?.user_principal_name || dev.attributes?.primary_user || 'Unavailable')}</td>
           <td>${escapeHtml(dev.operating_system || dev.ci_type || 'Unavailable')}</td>
           <td>${escapeHtml(dev.vendor || 'Unavailable')}</td>

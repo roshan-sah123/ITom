@@ -15,7 +15,15 @@ Open **Infrastructure → Location Health**. The page uses database-owned locati
 - Focused inventory replaces the card catalogue while inspecting a location. Back restores filters and keyboard focus. Refresh preserves filters. Inventory shows semantic status badges, last Intune check-in age and readable assignment state; raw location remains in device details and CSV.
 - Source freshness, unassigned/review counts and observed score history. Earlier data is not synthesized; the UI displays only matching policy/mapping revisions.
 
-## Score policy `location-v1`
+## Reading and acting on a card
+
+Cards distinguish device health attention from data or location-mapping attention. A card needing attention shows one main reason and an action that opens the relevant inventory, location reviews or saved evidence. Issue selection follows the chosen score mode; an endpoint score does not prioritise unrelated infrastructure issues. Reloading evidence reads the latest saved data and does not start a source synchronization.
+
+Green cards keep component percentages, inventory and evidence inside an expandable details section. Other cards also retain their full component breakdown, individual issue filters and source evidence there. Issue counts can overlap and are never added into a unique affected-device total.
+
+The default automatic mode remains available for browsing. A comparison note explains that it can show different score modes side by side; choose one score mode and a reporting level for consistent comparisons. Exact counts explain a weak-component Red override or a rounded score at a colour threshold.
+
+## Score policy `location-v2`
 
 C = confirmed compliant endpoints / eligible active assigned endpoints.
 
@@ -27,9 +35,13 @@ Each component requires at least **95% known field coverage**, an eligible nonze
 
 - **Endpoints:** `(40C + 25R) / 65`.
 - **Infrastructure:** `H`.
-- **Combined:** `0.40C + 0.35H + 0.25R`, only with both usable sources and no unresolved location review in the group.
+- **Combined:** `0.40C + 0.35H + 0.25R`, only with both usable sources.
+
+All score modes require the group's assignments to have no unresolved mapping review. Pending rules with a proposed location retain tentative assignment evidence (`review`); rejected rules do not assign a location. Policy `location-v2` and resolver `assignment-v2` keep these approval rules distinct from earlier observations. Weights and numerical bands have not changed.
 
 Green means >=90; Warning means 75–<90, Down/Critical node attention, or a failed latest refresh while the previous successful snapshot is still fresh. Red means <75 or a required component <75. Unavailable scores are grey. These are initial operating bands, not industry-certified targets. Compare scores within the same mode and reporting level. No automatic business-critical outage override is claimed without authoritative service/criticality mapping.
+
+Scores and colour thresholds use exact numerator/denominator ratios. Rounding is for display only: a score shown as 90.0 can remain Warning if the exact score is below 90, and a component shown as 75.0 can still trigger Red if its exact percentage is below 75.
 
 The source freshness window is the existing backend contract: `max(900, SYNC_INTERVAL_SECONDS × 2.5)`, currently 25 minutes. An old successful snapshot can be displayed as stale but cannot supply a current score. A database failure returns unavailable rather than an empty successful inventory.
 
@@ -54,7 +66,9 @@ python scripts/manage_locations.py --rules reviewed-rules.json --apply
 
 Validation rejects duplicate/conflicting source keys before changing any rule. Replacement disables rules omitted from the complete revision and recomputes active assignments. Backfill preserves source status, source IDs and last-sync timestamps; mapping changes can update the CI's ordinary modification time. Preview first and coordinate with the sync worker during application. Changes roll back on failure.
 
-Rules containing unresolved source conflict/versus notes retain a review notice until reviewed knowledge removes that note. Bulk approval in the reference file is not independent verification of office identity. Country, city, cloud and business-unit groups remain labelled distinctly.
+Approval is now an explicit database field. Source notes are informational and never decide runtime approval. Bootstrap knowledge contains explicit approval states. Migration preserves the old approved/review distinction once, with reviewer/date blank for legacy decisions. New, changed-target or re-enabled imported rules are Pending; unchanged approved targets retain their reviewer/date. Bulk approval in the reference file is not independent verification of office identity. Country, city, cloud and business-unit groups remain labelled distinctly.
+
+Use **Infrastructure → Location Health → Review location mappings** for Pending/Approved/Rejected decisions, reviewer name, server-recorded review date and before/after decision history. See [Location review workflow](LOCATION_REVIEW_WORKFLOW.md) for operation and trust boundaries.
 
 ## API
 

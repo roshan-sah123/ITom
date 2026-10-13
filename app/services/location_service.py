@@ -7,6 +7,7 @@ import json
 import re
 from collections import Counter, defaultdict
 from datetime import datetime, timezone, timedelta
+from fractions import Fraction
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -18,8 +19,8 @@ from app.models.sync import SyncRun
 from app.repositories.freshness_repository import FreshnessRepository
 from app.services.telemetry_sources import ORION_STATUS_MAP
 
-POLICY_VERSION = 'location-v1'
-RESOLVER_VERSION = 'assignment-v1'
+POLICY_VERSION = 'location-v2'
+RESOLVER_VERSION = 'assignment-v2'
 MIN_FIELD_COVERAGE = 0.95
 ISSUES = {'all','noncompliant','other_compliance','old_checkins','old_30d','invalid_checkins',
           'up','down','critical','warning','unmanaged','conflict'}
@@ -90,6 +91,8 @@ class LocationResolver:
             attrs = attributes or {}
             city = self.aliases.get(normalized(attrs.get('city')))
             itsm = self.aliases.get(normalized(attrs.get('itsm_location')))
+            city = city if city and city.get('approval_status') != 'REJECTED' else None
+            itsm = itsm if itsm and itsm.get('approval_status') != 'REJECTED' else None
             if city and itsm and city['location_id'] and itsm['location_id'] and city['location_id']!=itsm['location_id']:
                 a = self.names.get(city['location_id'],'').removesuffix(' / Site unspecified')
                 b = self.names.get(itsm['location_id'],'').removesuffix(' / Site unspecified')
@@ -101,10 +104,12 @@ class LocationResolver:
                 if b.startswith(a+' / '):
                     city=itsm  # Both agree geographically; use the more precise known rule.
             raw_rule=self.aliases.get(normalized(raw))
-            rule = next((r for r in [city,raw_rule,itsm] if r and r['location_id']),city or raw_rule or itsm)
-        target = rule.get('location_id') if rule else None
-        note = (rule.get('review_note') or '').casefold() if rule else ''
-        state = 'review' if target and any(word in note for word in ['conflict','versus']) else 'mapped' if target else 'unassigned'
+            rejected_fallback = city or raw_rule or itsm or self.aliases.get(normalized(attrs.get('city'))) or self.aliases.get(normalized(attrs.get('itsm_location')))
+            raw_rule = raw_rule if raw_rule and raw_rule.get('approval_status') != 'REJECTED' else None
+            rule = next((r for r in [city,raw_rule,itsm] if r and r['location_id']),city or raw_rule or itsm or rejected_fallback)
+        approval = rule.get('approval_status','PENDING') if rule else 'PENDING'
+        target = rule.get('location_id') if rule and approval != 'REJECTED' else None
+        state = 'mapped' if target and approval == 'APPROVED' else 'review' if target else 'unassigned'
         return dict(location_id=target, location_rule_id=rule['id'] if rule else None,
                     location_resolution=state, resolution=state, location_revision=self.assignment_revision(rule['revision']) if rule else None)
 
@@ -122,10 +127,10 @@ class LocationService:
         if await self.session.scalar(select(func.count()).select_from(LocationMappingRule)):
             return False
         payload = json.loads((Path(__file__).parents[1]/'data'/'location_seed.json').read_text(encoding='utf-8'))
-        await self.install_rules(payload['rules'])
+        await self.install_rules(payload['rules'],bootstrap_approvals=True)
         return True
 
-    async def install_rules(self, rules):
+    async def install_rules(self, rules, bootstrap_approvals=False):
         """Validate a complete revision before changing rules in the transaction."""
         prepared, names, keys = [], {}, set()
         for r in rules:
@@ -141,8 +146,14 @@ class LocationService:
                 if target in names and names[target]!=name:
                     raise ValueError('Inconsistent canonical spelling')
                 names[target]=name
-            prepared.append(dict(id=stable_id('rule',src+'|'+key),source_system=src,match_key=key,
-                                 location_id=target,review_note=r.get('review_note')))
+            values=dict(id=stable_id('rule',src+'|'+key),source_system=src,match_key=key,
+                        location_id=target,review_note=r.get('review_note'))
+            if bootstrap_approvals:
+                approval=r.get('approval_status','PENDING')
+                if approval not in {'PENDING','APPROVED','REJECTED'} or (approval=='APPROVED' and not target):
+                    raise ValueError('Invalid bootstrap approval state')
+                values['approval_status']=approval
+            prepared.append(values)
         revision = hashlib.sha256(json.dumps(prepared,sort_keys=True).encode()).hexdigest()
         existing_locations = {r.id:r for r in (await self.session.scalars(select(Location))).all()}
         countries = {'Costa Rica','Brazil','Mexico','United States','United Kingdom','Poland','Australia'}
@@ -152,6 +163,7 @@ class LocationService:
                 self.session.add(Location(id=id,name=name,level=level))
         await self.session.flush()
         existing = {r.id:r for r in (await self.session.scalars(select(LocationMappingRule))).all()}
+        previously_enabled = {id:rule.enabled for id,rule in existing.items()}
         for rule in existing.values():
             rule.enabled=False
         for values in prepared:
@@ -160,6 +172,8 @@ class LocationService:
                 rule=LocationMappingRule(**values,revision=revision,enabled=True)
                 self.session.add(rule)
             else:
+                if rule.location_id != values['location_id'] or not previously_enabled[rule.id]:
+                    rule.approval_status='PENDING'; rule.reviewed_by=None; rule.reviewed_at=None
                 for field,value in values.items():
                     setattr(rule,field,value)
                 rule.revision=revision;rule.enabled=True
@@ -171,18 +185,23 @@ class LocationService:
             await self.install_seed()
         rules=(await self.session.scalars(select(LocationMappingRule).where(LocationMappingRule.enabled.is_(True)))).all()
         names={r.id:r.name for r in (await self.session.scalars(select(Location))).all()}
-        return LocationResolver([dict(id=r.id,source_system=r.source_system,match_key=r.match_key,location_id=r.location_id,revision=r.revision,review_note=r.review_note) for r in rules], names)
+        return LocationResolver([dict(id=r.id,source_system=r.source_system,match_key=r.match_key,location_id=r.location_id,revision=r.revision,approval_status=r.approval_status) for r in rules], names)
 
     @staticmethod
     def assign(ci, result):
         for field in ['location_id','location_rule_id','location_resolution','location_revision']:
             setattr(ci,field,result[field])
 
-    async def backfill(self):
-        resolver=await self.resolver(bootstrap=True)
+    async def backfill(self, source_system=None, bootstrap=True):
+        resolver=await self.resolver(bootstrap=bootstrap)
         counts=Counter()
-        for ci in (await self.session.scalars(select(ConfigurationItem))).all():
+        query=select(ConfigurationItem)
+        if source_system:
+            query=query.where(ConfigurationItem.source_system==source_system)
+        for ci in (await self.session.scalars(query)).all():
             result=resolver.resolve(ci.source_system,ci.name,ci.location,ci.attributes)
+            if any(getattr(ci,field)!=result[field] for field in ['location_id','location_rule_id','location_resolution','location_revision']):
+                counts['changed_assignments']+=1
             self.assign(ci,result)
             counts[ci.source_system+':'+result['resolution']]+=1
         await self.session.flush()
@@ -226,7 +245,7 @@ class LocationService:
             .group_by(ConfigurationItem.source_system).order_by(ConfigurationItem.source_system)
             .execution_options(include_retired=True))).all()
         rules=(await self.session.execute(select(LocationMappingRule.id,LocationMappingRule.revision,
-                LocationMappingRule.enabled,LocationMappingRule.location_id).order_by(LocationMappingRule.id))).all()
+                LocationMappingRule.enabled,LocationMappingRule.location_id,LocationMappingRule.approval_status).order_by(LocationMappingRule.id))).all()
         locations=(await self.session.execute(select(Location.id,Location.name,Location.level).order_by(Location.id))).all()
         return tuple(runs),tuple(inventory),tuple(rules),tuple(locations)
 
@@ -284,15 +303,15 @@ class LocationService:
         def scored(value, required, allow, infrastructure=False):
             if not mapped or not allow or not all(v['usable'] for v in required):
                 return dict(value=None,status='unavailable',reason='Unassigned location' if not mapped else 'Location identity needs review' if not allow else next((v['reason'] for v in required if not v['usable']),'Insufficient data'))
-            value=round(value,1)
-            severe=any(v['value']<75 for v in required)
+            # Classify exact counts before rounding the displayed percentages.
+            severe=any(100*v['numerator']<75*v['denominator'] for v in required)
             attention=infrastructure and bool(issues['down']+issues['critical'])
             degraded=any(fresh['sources'][v['source_system']].get('last_attempt_status') in {'FAILED','PARTIAL'} for v in required)
             status='critical' if value<75 or severe else 'warning' if value<90 or attention or degraded else 'healthy'
-            return dict(value=value,status=status,reason='A component is below 75%' if severe else 'Down or Critical nodes need attention' if attention else 'Latest refresh failed; showing the last successful snapshot' if degraded else None)
-        cv,hv,rv=[v['value'] or 0 for v in [c,h,r]]
-        scores=dict(endpoints=scored((40*cv+25*rv)/65,[c,r],True),infrastructure=scored(hv,[h],True,True),
-                    combined=scored(.4*cv+.35*hv+.25*rv,[c,h,r],not review,True))
+            return dict(value=round(float(value),1),status=status,reason='A component is below 75%' if severe else 'Down or Critical nodes need attention' if attention else 'Latest refresh failed; showing the last successful snapshot' if degraded else None)
+        cv,hv,rv=[Fraction(100*v['numerator'],v['denominator']) if v['denominator'] else Fraction(0) for v in [c,h,r]]
+        scores=dict(endpoints=scored((40*cv+25*rv)/65,[c,r],not review),infrastructure=scored(hv,[h],not review,True),
+                    combined=scored((40*cv+35*hv+25*rv)/100,[c,h,r],not review,True))
         revisions=sorted({ci.location_revision for ci in cis if ci.location_revision})
         return dict(id=loc.id,name=loc.name,level=loc.level,endpoints=len(endpoints),nodes=len(nodes),
                     components=components,scores=scores,issues=issues,status_breakdown=statuses,

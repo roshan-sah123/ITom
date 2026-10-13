@@ -5,8 +5,14 @@
  */
 import { itomApi } from '../api.js?v=8';
 import { formatNumber, formatPercent, formatLatency, escapeHtml, calculateNewPageAnchor, debounce, exportToCsv, fetchAllFilteredRows, destroyChartSafe, generatePaginationControls } from '../utils.js';
-import { openCiDrawer } from './drawer.js?v=2';
-import { renderLocationScorecards } from './locations.js?v=6';
+import { openCiDrawer } from './drawer.js?v=3';
+import { renderLocationScorecards } from './locations.js?v=9';
+
+const resourcePercent = (value) => {
+  if (value == null || typeof value === 'boolean' || String(value).trim() === '') return 'Unavailable';
+  const measured = Number(value);
+  return Number.isFinite(measured) && measured >= 0 && measured <= 100 ? `${measured}%` : 'Unavailable';
+};
 
 let activeSubtab = 'servers';
 
@@ -109,16 +115,27 @@ export async function renderInfrastructureWorkspace(subtabName = 'servers', filt
   initSubtabTriggers();
   initServerFilters();
   initNetworkFilters();
-  await Promise.all([loadInfraCategoryMetrics(), loadServerKpisAndCharts(), loadCampusSites()]);
-  if (subtabName && subtabName !== 'servers') {
-    switchInfraSubtab(subtabName, filterParam);
-  } else if (filterParam) {
-    await applyServerFilter(filterParam);
-  } else {
-    await loadServerGrid();
-  }
-  await loadNetworkGrid();
+  initChartSummary();
+  switchInfraSubtab(subtabName || 'servers');
+  // Summaries cannot hold up an operator's filtered inventory.
+  loadInfraCategoryMetrics();
+  loadServerKpisAndCharts();
+  const locations = loadCampusSites();
+  const nodes = filterParam && (!subtabName || subtabName === 'servers')
+    ? applyServerFilter(filterParam) : loadServerGrid();
+  const networks = loadNetworkGrid();
   showUnsupportedInfrastructureViews();
+  await (subtabName === 'networks' ? networks : subtabName === 'sites' ? locations : nodes);
+}
+
+function initChartSummary() {
+  const summary = document.getElementById('swChartSummary');
+  if (!summary || summary.dataset.initialized) return;
+  summary.dataset.initialized = 'true';
+  summary.addEventListener('toggle', () => {
+    if (summary.open) [swHealthChartInstance, swStatusChartInstance, swVendorChartInstance]
+      .forEach(chart => chart?.resize?.());
+  });
 }
 
 function showUnsupportedInfrastructureViews() {
@@ -154,6 +171,8 @@ export function switchInfraSubtab(subtabName, filterParam = '') {
 
 function initSubtabTriggers() {
   document.querySelectorAll('.category-card-tab').forEach(tab => {
+    if (tab.dataset.initialized) return;
+    tab.dataset.initialized = 'true';
     tab.addEventListener('click', () => {
       const subtab = tab.dataset.subtab;
       if (subtab) switchInfraSubtab(subtab);
@@ -215,9 +234,8 @@ async function loadServerKpisAndCharts() {
     const serverCount = metrics.server_nodes_count;
     const networkCount = metrics.network_devices_count;
     const unclassifiedCount = metrics.unclassified_nodes_count;
-    const active = metrics.active_monitored_nodes;
-    const highHealth = metrics.high_health_pct;
-    const avail = metrics.availability_pct;
+    const nodeStatus = summary.decision_metrics?.current_node_status;
+    const active = nodeStatus?.denominator;
     const alerts = (metrics.status_counts?.warning ?? 0) + (metrics.status_counts?.critical ?? 0) + (metrics.status_counts?.down ?? 0);
 
     const totalEl = document.getElementById('swTotalNodesVal');
@@ -229,10 +247,12 @@ async function loadServerKpisAndCharts() {
 
     if (totalEl) totalEl.textContent = total != null ? formatNumber(total) : 'Unavailable';
     if (totalSub) totalSub.textContent = total != null
-      ? `${formatNumber(active ?? 0)} actively monitored · ${formatNumber(serverCount ?? 0)} servers · ${formatNumber(networkCount ?? 0)} network · ${formatNumber(unclassifiedCount ?? 0)} unclassified`
+      ? `${active == null ? 'Unknown monitored count' : `${formatNumber(active)} eligible monitored`} · ${formatNumber(serverCount ?? 0)} servers · ${formatNumber(networkCount ?? 0)} network · ${formatNumber(unclassifiedCount ?? 0)} unclassified`
       : 'No current data';
-    if (slaEl) slaEl.textContent = highHealth != null ? `${Number(highHealth).toFixed(1)}%` : 'Unavailable';
-    if (availSub) availSub.textContent = avail != null ? `${Number(avail).toFixed(1)}%` : 'Unavailable';
+    if (slaEl) slaEl.textContent = nodeStatus?.denominator === 0 ? 'No population' : nodeStatus?.value != null ? `${Number(nodeStatus.value).toFixed(1)}%` : 'Unavailable';
+    if (availSub) availSub.textContent = nodeStatus?.denominator > 0
+      ? `${formatNumber(nodeStatus.numerator)} / ${formatNumber(nodeStatus.denominator)} · ${nodeStatus.unknown_count == null ? 'Unknown coverage' : `${formatNumber(nodeStatus.unknown_count)} unknown`}`
+      : nodeStatus?.denominator === 0 ? 'No eligible observations' : 'Measurement evidence unavailable';
     if (alertsEl) alertsEl.textContent = metrics.status_counts ? formatNumber(alerts) : 'Unavailable';
     if (osEl) osEl.textContent = Object.keys(summary.vendor_distribution || {}).join(' / ') || 'Unavailable';
 
@@ -246,6 +266,13 @@ async function loadServerKpisAndCharts() {
     populateCampusLocationSelect();
 
   } catch (err) {
+    ['swTotalNodesVal', 'swSlaVal', 'swAvailSub', 'swAlertsVal', 'swOsVal'].forEach((id) => {
+      const element = document.getElementById(id);
+      if (element) element.textContent = 'Unavailable';
+    });
+    const totalSub = document.getElementById('swTotalNodesSub');
+    if (totalSub) totalSub.textContent = 'Summary unavailable; inventory may still be accessible';
+    renderSwSaturatedTriage(null);
     console.error('Failed to load SolarWinds server summary:', err);
   }
 }
@@ -416,7 +443,7 @@ function renderSwSaturatedTriage(servers) {
   }
 
   if (!Array.isArray(servers) || !servers.length) {
-    container.innerHTML = `<div style="padding: 12px; color: #10B981; font-size: 11px;">No saturation threshold breaches (CPU ≥75% or RAM ≥80%).</div>`;
+    container.innerHTML = `<div style="padding: 12px; color: #64748B; font-size: 11px;">No observed breaches in measured classified servers (CPU ≥75% or RAM ≥80%). Missing readings are not healthy measurements.</div>`;
     return;
   }
 
@@ -424,8 +451,8 @@ function renderSwSaturatedTriage(servers) {
     <div class="triage-item" data-name="${escapeHtml(s.Caption || s.name)}">
       <span class="triage-node-name">${escapeHtml(s.Caption || s.name)}</span>
       <div class="triage-badges">
-        <span class="badge-metric badge-cpu-crit">CPU: ${s.CPULoad !== undefined ? s.CPULoad : s.cpu_load || 0}%</span>
-        <span class="badge-metric badge-ram-crit">RAM: ${s.PercentMemoryUsed !== undefined ? s.PercentMemoryUsed : s.memory_used || 0}%</span>
+        <span class="badge-metric badge-cpu-crit">CPU: ${resourcePercent(s.CPULoad ?? s.cpu_load)}</span>
+        <span class="badge-metric badge-ram-crit">RAM: ${resourcePercent(s.PercentMemoryUsed ?? s.memory_used)}</span>
       </div>
     </div>
   `).join('');
@@ -501,21 +528,22 @@ async function loadServerGrid() {
     }
 
     tbody.innerHTML = allFetchedNodes.map((n, idx) => {
-      const cpu = n.attributes?.cpu_load ?? n.cpu_load;
-      const ram = n.attributes?.memory_used ?? n.attributes?.percent_memory_used ?? n.memory_used;
+      const cpu = n.attributes?.cpu_load ?? n.attributes?.CPULoad ?? n.cpu_load;
+      const ram = n.attributes?.memory_used ?? n.attributes?.percent_memory_used ?? n.attributes?.PercentMemoryUsed ?? n.memory_used;
+      const cpuText = resourcePercent(cpu), ramText = resourcePercent(ram);
       const latency = n.attributes?.latency_ms ?? n.attributes?.response_time_ms ?? n.latency_ms;
       const healthTier = n.health_tier || 'Unknown';
 
       return `
         <tr>
-          <td><strong class="ci-name-link" data-node-idx="${idx}" style="cursor: pointer; color: #60A5FA;" title="View node details">${escapeHtml(n.name)}</strong></td>
+          <td><button type="button" class="ci-name-link" data-node-idx="${idx}" title="View node details">${escapeHtml(n.name)}</button></td>
           <td class="font-mono">${escapeHtml(n.ip_address || n.attributes?.ip_address || 'Unavailable')}</td>
           <td>${escapeHtml(n.status || 'Unavailable')}</td>
           <td>${escapeHtml(n.ci_type || 'Unavailable')}</td>
           <td>${escapeHtml(n.vendor || 'Unavailable')}</td>
           <td><span class="status-pill status-${healthTier.toLowerCase() === 'high' ? 'healthy' : healthTier.toLowerCase() === 'medium' ? 'warning' : 'critical'}">${escapeHtml(healthTier)}</span></td>
-          <td class="font-mono" style="color: ${cpu > 80 ? '#EF4444' : '#10B981'};">${cpu != null ? `${Number(cpu).toFixed(1)}%` : '—'}</td>
-          <td class="font-mono" style="color: ${ram > 85 ? '#EF4444' : '#10B981'};">${ram != null ? `${Number(ram).toFixed(1)}%` : '—'}</td>
+          <td class="font-mono" style="color: ${cpuText === 'Unavailable' ? '#64748B' : Number(cpu) >= 75 ? '#B45309' : '#15803D'};">${cpuText}</td>
+          <td class="font-mono" style="color: ${ramText === 'Unavailable' ? '#64748B' : Number(ram) >= 80 ? '#B45309' : '#15803D'};">${ramText}</td>
           <td class="font-mono">${latency != null ? `${Number(latency).toFixed(1)}ms` : 'Unavailable'}</td>
         </tr>
       `;
@@ -663,8 +691,8 @@ function initServerFilters() {
         device_type: n.ci_type || 'Unavailable',
         vendor: n.vendor || 'Unavailable',
         health_tier: n.health_tier || 'Unknown',
-        cpu: (n.attributes?.cpu_load !== undefined ? n.attributes.cpu_load : n.cpu_load || 0) + '%',
-        ram: (n.attributes?.percent_memory_used !== undefined ? n.attributes.percent_memory_used : n.memory_used || 0) + '%',
+        cpu: resourcePercent(n.attributes?.cpu_load ?? n.attributes?.CPULoad ?? n.cpu_load),
+        ram: resourcePercent(n.attributes?.memory_used ?? n.attributes?.percent_memory_used ?? n.attributes?.PercentMemoryUsed ?? n.memory_used),
         latency: (n.attributes?.latency_ms ?? n.attributes?.response_time_ms ?? n.latency_ms) != null ? `${n.attributes?.latency_ms ?? n.attributes?.response_time_ms ?? n.latency_ms}ms` : 'Unavailable'
       }));
       exportToCsv('SolarWinds_Server_Nodes_Filtered', headers, rows);

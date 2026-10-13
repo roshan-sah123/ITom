@@ -1,10 +1,9 @@
 /**
- * Module 4: Configuration Management Database (Universal CI Reconciliation Catalog)
- * 28,984 CIs, discovery provenance bar, pure CI accounting & SolarWinds compliance baselines
+ * Source-record inventory with verified Intune and SolarWinds accounting.
  */
 import { itomApi } from '../api.js?v=6';
 import { formatNumber, formatPercent, escapeHtml, calculateNewPageAnchor, debounce, exportToCsv, fetchAllFilteredRows, generatePaginationControls } from '../utils.js';
-import { openCiDrawer } from './drawer.js';
+import { openCiDrawer } from './drawer.js?v=3';
 
 let currentCmdbPage = 1;
 let currentCmdbPageSize = 25;
@@ -43,28 +42,35 @@ function initCmdbGlobalSearch() {
 async function loadCmdbKpis() {
   try {
     const summary = await itomApi.getCmdbSummary();
-    renderCmdbProvenance(summary);
-    const total = summary.total_cis ?? cachedTotalCis;
-    const highHealth = summary.high_health_count ?? 0;
-    const endpoints = summary.total_endpoints ?? 0;
-    const swTotal = (summary.total_servers ?? 0) + (summary.total_network_devices ?? 0) + (summary.total_unclassified ?? 0);
-
-    cachedTotalCis = total;
-
-    const totalEl = document.getElementById('cmdbTotalCisVal');
-    const intuneEl = document.getElementById('cmdbIntuneProvVal');
-    const swEl = document.getElementById('cmdbSwProvVal');
-    const healthEl = document.getElementById('cmdbHealthCompVal');
-
-    if (totalEl) totalEl.textContent = formatNumber(total);
-    if (intuneEl) intuneEl.textContent = endpoints ? formatNumber(endpoints) : 'Unavailable';
-    if (swEl) swEl.textContent = swTotal ? formatNumber(swTotal) : 'Unavailable';
-    if (healthEl) healthEl.textContent = total ? `${((highHealth / total) * 100).toFixed(1)}% (${formatNumber(highHealth)})` : 'Unavailable';
-
+    setCmdbCounts(renderCmdbProvenance(summary));
   } catch (err) {
     console.error('Failed to load CMDB summary:', err);
     renderCmdbProvenance(null);
+    setCmdbCounts(null);
   }
+}
+
+function setCmdbCounts(counts) {
+  cachedTotalCis = counts?.total ?? 0;
+  for (const [id, value] of [
+    ['cmdbTotalCisVal', counts?.total],
+    ['cmdbIntuneProvVal', counts?.intune],
+    ['cmdbSwProvVal', counts?.solarwinds],
+  ]) {
+    const element = document.getElementById(id);
+    if (element) element.textContent = value == null ? 'Unavailable' : formatNumber(value);
+  }
+}
+
+function sourceCounts(summary) {
+  if (!summary || summary.data_available === false) return null;
+  const values = [summary.total_cis, summary.total_endpoints, summary.total_servers,
+    summary.total_network_devices, summary.total_unclassified];
+  // Null and omitted counts are not evidence of zero records.
+  if (!values.every(value => Number.isSafeInteger(value) && value >= 0)) return null;
+  const [total, intune, servers, network, unclassified] = values;
+  const solarwinds = servers + network + unclassified;
+  return intune + solarwinds === total ? { total, intune, solarwinds } : null;
 }
 
 function renderCmdbProvenance(summary) {
@@ -74,39 +80,34 @@ function renderCmdbProvenance(summary) {
   const intuneLabel = document.getElementById('cmdbProvenanceIntuneLabel');
   const solarWindsLabel = document.getElementById('cmdbProvenanceSolarWindsLabel');
   const status = document.getElementById('cmdbProvenanceStatus');
-  if (!bar || !intuneBar || !solarWindsBar || !intuneLabel || !solarWindsLabel || !status) return;
+  const counts = sourceCounts(summary);
+  if (!bar || !intuneBar || !solarWindsBar || !intuneLabel || !solarWindsLabel || !status) return counts;
 
-  const total = Number(summary?.total_cis);
-  const intuneCount = Number(summary?.total_endpoints);
-  const solarWindsCount = Number(summary?.total_servers)
-    + Number(summary?.total_network_devices)
-    + Number(summary?.total_unclassified);
-  const hasValidSources = summary?.data_available !== false
-    && Number.isFinite(total) && total > 0
-    && Number.isFinite(intuneCount) && intuneCount >= 0
-    && Number.isFinite(solarWindsCount) && solarWindsCount >= 0
-    && intuneCount + solarWindsCount === total;
-
-  if (!hasValidSources) {
+  if (!counts) {
     bar.dataset.status = 'unavailable';
     bar.setAttribute('aria-label', 'Source distribution unavailable');
     intuneBar.style.width = '0%';
     solarWindsBar.style.width = '0%';
     intuneLabel.textContent = 'Microsoft Intune: Unavailable';
     solarWindsLabel.textContent = 'SolarWinds Orion: Unavailable';
-    status.textContent = 'Source distribution is unavailable; no sample values are shown.';
-    return;
+    status.textContent = 'Source counts could not be verified. Reload snapshot to try again.';
+    return null;
   }
 
-  const intunePct = (intuneCount / total) * 100;
-  const solarWindsPct = (solarWindsCount / total) * 100;
-  bar.dataset.status = 'live';
-  bar.setAttribute('aria-label', `Live source distribution: ${formatNumber(total)} configuration items`);
+  const intunePct = counts.total ? (counts.intune / counts.total) * 100 : 0;
+  const solarWindsPct = counts.total ? (counts.solarwinds / counts.total) * 100 : 0;
+  bar.dataset.status = counts.total ? 'snapshot' : 'empty';
+  bar.setAttribute('aria-label', counts.total
+    ? `Stored source distribution: ${formatNumber(counts.total)} records; Microsoft Intune ${formatPercent(intunePct, 1)}; SolarWinds Orion ${formatPercent(solarWindsPct, 1)}`
+    : 'No stored source records');
   intuneBar.style.width = `${intunePct}%`;
   solarWindsBar.style.width = `${solarWindsPct}%`;
-  intuneLabel.textContent = `Microsoft Intune: ${formatNumber(intuneCount)} CIs (${formatPercent(intunePct, 1)})`;
-  solarWindsLabel.textContent = `SolarWinds Orion: ${formatNumber(solarWindsCount)} CIs (${formatPercent(solarWindsPct, 1)})`;
-  status.textContent = `Live distribution across ${formatNumber(total)} active configuration items.`;
+  intuneLabel.textContent = `Microsoft Intune: ${formatNumber(counts.intune)} records (${formatPercent(intunePct, 1)})`;
+  solarWindsLabel.textContent = `SolarWinds Orion: ${formatNumber(counts.solarwinds)} records (${formatPercent(solarWindsPct, 1)})`;
+  status.textContent = counts.total
+    ? `Source totals verified: ${formatNumber(counts.intune)} Intune + ${formatNumber(counts.solarwinds)} SolarWinds = ${formatNumber(counts.total)} source records.`
+    : 'No stored source records in this snapshot.';
+  return counts;
 }
 
 function updateCmdbFilterBanner() {
@@ -166,7 +167,7 @@ async function loadCmdbGrid() {
 
       return `
         <tr>
-          <td><strong class="ci-name-link" data-ci-idx="${idx}" style="cursor: pointer; color: #60A5FA;" title="Open CI details drawer">${escapeHtml(ci.name)}</strong></td>
+          <td><button type="button" class="ci-name-link" data-ci-idx="${idx}" title="Open CI details drawer">${escapeHtml(ci.name)}</button></td>
           <td>
             <span class="status-pill" style="background: ${isSw ? 'rgba(245, 158, 11, 0.1)' : 'rgba(59, 130, 246, 0.1)'}; color: ${isSw ? '#F59E0B' : '#3B82F6'}; border: 1px solid ${isSw ? 'rgba(245, 158, 11, 0.3)' : 'rgba(59, 130, 246, 0.3)'};">
               ${escapeHtml(ci.source_system)}

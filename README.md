@@ -97,6 +97,7 @@ Use the commands above according to the configured environment. Live connectivit
 
 ## Further documentation
 
+- [Decision metrics](docs/DECISION_METRICS.md) — overview definitions, evidence guardrails and operational interpretation.
 - [Architecture](docs/ARCHITECTURE.md) — runtime components, request flow, synchronization, and data model.
 - [API contracts](docs/API_CONTRACTS.md) — endpoint contract details.
 - [Data flow](docs/DATA_FLOW.md) — source-to-database processing.

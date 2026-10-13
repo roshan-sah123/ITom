@@ -15,6 +15,50 @@ from app.models.location import LocationScoreSnapshot
 from sqlalchemy import func
 
 
+@pytest.mark.parametrize('mode', ['endpoints', 'infrastructure', 'combined'])
+@pytest.mark.parametrize('numerator,denominator,expected_status,display', [
+    (2249,2500,'warning',90.0),
+    (22499,30000,'critical',75.0),
+    (9,10,'healthy',90.0),
+    (3,4,'warning',75.0),
+])
+def test_score_thresholds_use_exact_ratios(mode,numerator,denominator,expected_status,display):
+    now=datetime.now(timezone.utc)
+    def record(source,status,recent=True):
+        return SimpleNamespace(source_system=source,status=status,location_resolution='mapped',
+                               location_revision=None,attributes={'last_sync_date_time':
+                               (now-timedelta(days=0 if recent else 8)).isoformat()})
+    records=[]
+    if mode != 'infrastructure':
+        records += [record('INTUNE','Compliant')]*numerator
+        records += [record('INTUNE','NonCompliant',False)]*(denominator-numerator)
+    if mode != 'endpoints':
+        records += [record('SOLARWINDS','Up')]*numerator
+        records += [record('SOLARWINDS','Warning')]*(denominator-numerator)
+    fresh={'sources':{source:dict(status='FRESH',last_attempt_status='SUCCESS')
+                      for source in ['INTUNE','SOLARWINDS']}}
+    result=LocationService.score(SimpleNamespace(id='office',name='Office',level='office'),records,fresh,now)
+    assert result['scores'][mode]['value']==display
+    assert result['scores'][mode]['status']==expected_status
+
+
+def test_low_component_cannot_be_rounded_above_red_floor():
+    now=datetime.now(timezone.utc)
+    fresh={'sources':{source:dict(status='FRESH',last_attempt_status='SUCCESS')
+                      for source in ['INTUNE','SOLARWINDS']}}
+    def record(status):
+        return SimpleNamespace(source_system='SOLARWINDS',status=status,location_resolution='mapped',
+                               location_revision=None,attributes={})
+    endpoint=SimpleNamespace(source_system='INTUNE',status='Compliant',location_resolution='mapped',
+                             location_revision=None,attributes={'last_sync_date_time':now.isoformat()})
+    records=[endpoint]+[record('Up')]*22499+[record('Warning')]*7501
+    result=LocationService.score(SimpleNamespace(id='office',name='Office',level='office'),records,fresh,now)
+    assert result['components']['node_status']['value']==75.0
+    assert result['scores']['combined']['value']==91.2
+    assert result['scores']['combined']['status']=='critical'
+    assert result['scores']['combined']['reason']=='A component is below 75%'
+
+
 def test_longest_prefix_and_unknown():
     resolver = LocationResolver([
         dict(id='a', source_system='INTUNE', match_key='LPMNL', location_id='city', revision='v1'),
@@ -37,9 +81,9 @@ def test_conflicting_solarwinds_fields():
 
 def test_solarwinds_placeholder_fallback_and_broad_country_agreement():
     resolver=LocationResolver([
-        dict(id='empty',source_system='SOLARWINDS',match_key='NA',location_id=None,revision='v1'),
-        dict(id='country',source_system='SOLARWINDS',match_key='Mexico',location_id='mx',revision='v1'),
-        dict(id='office',source_system='SOLARWINDS',match_key='Hermosillo',location_id='office',revision='v1'),
+        dict(id='empty',source_system='SOLARWINDS',match_key='NA',location_id=None,revision='v1',approval_status='PENDING'),
+        dict(id='country',source_system='SOLARWINDS',match_key='Mexico',location_id='mx',revision='v1',approval_status='APPROVED'),
+        dict(id='office',source_system='SOLARWINDS',match_key='Hermosillo',location_id='office',revision='v1',approval_status='APPROVED'),
     ],{'mx':'Mexico / Site unspecified','office':'Mexico / Hermosillo / Encora'})
     assert resolver.resolve('SOLARWINDS','node','NA',{'city':'NA','itsm_location':'Hermosillo'})['location_id']=='office'
     assert resolver.resolve('SOLARWINDS','node','Hermosillo',{'city':'Hermosillo','itsm_location':'Mexico'})['resolution']=='mapped'

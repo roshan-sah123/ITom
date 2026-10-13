@@ -17,7 +17,9 @@ async function fetchJson(endpoint, options = {}) {
       }
     });
     if (!res.ok) {
-      throw new Error(`API error ${res.status}: ${res.statusText} (${url})`);
+      const error = new Error(`API error ${res.status}: ${res.statusText} (${url})`);
+      error.status = res.status;
+      throw error;
     }
     return await res.json();
   } catch (err) {
@@ -36,6 +38,11 @@ export const itomApi = {
   getLocations,
   getLocationDevices: (id, params = {}) => fetchJson(`/locations/${encodeURIComponent(id)}/devices?${new URLSearchParams(params)}`),
   getLocationHistory: id => fetchJson(`/locations/${encodeURIComponent(id)}/history`),
+  getLocationReviewRules: (params = {}) => fetchJson(`/locations/reviews/rules?${new URLSearchParams(params)}`),
+  getLocationReviewHistory: id => fetchJson(`/locations/reviews/rules/${encodeURIComponent(id)}/history`),
+  saveLocationReview: (id, decision) => fetchJson(`/locations/reviews/rules/${encodeURIComponent(id)}/decision`, {
+    method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(decision)
+  }),
   // SolarWinds Orion (Hybrid Servers & Campus Sites)
   getSolarWindsSummary: () => fetchJson('/solarwinds/summary'),
   getSolarWindsNodes: (params = {}) => {

@@ -46,6 +46,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.ci import ConfigurationItem
 from app.models.sync import SyncRun
+from app.repositories.decision_metrics import intune_evidence, solarwinds_evidence, resources
 
 logger = logging.getLogger("itom.summary")
 
@@ -748,8 +749,11 @@ class SummaryRepository:
         )
         payload["metrics"].update(await self._storage_metrics("INTUNE"))
         owner_counts: Dict[str, int] = {}
-        owners = await self.session.execute(select(ConfigurationItem.attributes).where(ConfigurationItem.source_system == "INTUNE"))
-        for attrs in owners.scalars().all():
+        owners = await self.session.execute(select(ConfigurationItem.status, ConfigurationItem.attributes, ConfigurationItem.last_sync_time).where(ConfigurationItem.source_system == "INTUNE", ConfigurationItem.is_active.is_(True)))
+        records = owners.all()
+        payload['decision_metrics'] = intune_evidence(records)
+        for row in records:
+            attrs = row.attributes
             owner = attrs.get("managed_device_owner_type") if isinstance(attrs, dict) else None
             owner = str(owner or "Unknown").strip() or "Unknown"
             owner_counts[owner] = owner_counts.get(owner, 0) + 1
@@ -805,6 +809,8 @@ class SummaryRepository:
                 ConfigurationItem.ci_type,
                 ConfigurationItem.vendor,
                 ConfigurationItem.attributes,
+                ConfigurationItem.status,
+                ConfigurationItem.last_sync_time,
             )
             .where(
                 ConfigurationItem.source_system == "SOLARWINDS",
@@ -814,27 +820,13 @@ class SummaryRepository:
         sat_res = await self.session.execute(sat_stmt)
         saturated_candidates: List[Dict[str, Any]] = []
 
-        for row in sat_res.all():
+        records = sat_res.all()
+        payload['decision_metrics'] = solarwinds_evidence(records)
+        for row in records:
             if _solarwinds_role(row.vendor, row.ci_type) != "server":
                 continue
 
-            attrs = row.attributes or {}
-            cpu = attrs.get("cpu_load")
-            if cpu is None:
-                cpu = attrs.get("CPULoad")
-            ram = attrs.get("memory_used")
-            if ram is None:
-                ram = attrs.get("PercentMemoryUsed")
-
-            try:
-                cpu_val = float(cpu) if cpu is not None else None
-            except (ValueError, TypeError):
-                cpu_val = None
-
-            try:
-                ram_val = float(ram) if ram is not None else None
-            except (ValueError, TypeError):
-                ram_val = None
+            cpu_val, ram_val = resources(row.attributes)
 
             if (cpu_val is not None and cpu_val >= 75.0) or (ram_val is not None and ram_val >= 80.0):
                 eff_cpu = cpu_val if cpu_val is not None else 0.0
@@ -846,10 +838,10 @@ class SummaryRepository:
                     "location": row.location or "Unassigned",
                     "ci_type": row.ci_type,
                     "vendor": row.vendor,
-                    "cpu_load": round(eff_cpu, 1),
-                    "CPULoad": round(eff_cpu, 1),
-                    "memory_used": round(eff_ram, 1),
-                    "PercentMemoryUsed": round(eff_ram, 1),
+                    "cpu_load": round(cpu_val, 1) if cpu_val is not None else None,
+                    "CPULoad": round(cpu_val, 1) if cpu_val is not None else None,
+                    "memory_used": round(ram_val, 1) if ram_val is not None else None,
+                    "PercentMemoryUsed": round(ram_val, 1) if ram_val is not None else None,
                     "_score": max(eff_cpu, eff_ram),
                 })
 

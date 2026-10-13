@@ -3,15 +3,17 @@
  */
 import { initHeader } from './components/header.js?v=4';
 import { initModal } from './components/modal.js';
-import { initDrawer } from './components/drawer.js?v=2';
-import { renderHome } from './components/home.js?v=6';
-import { renderInfrastructureWorkspace } from './components/infraWorkspace.js?v=17';
-import { renderEndpoints } from './components/endpoints.js?v=10';
-import { renderCmdb } from './components/cmdb.js?v=10';
+import { initDrawer } from './components/drawer.js?v=3';
+import { renderHome } from './components/home.js?v=10';
+import { renderInfrastructureWorkspace } from './components/infraWorkspace.js?v=22';
+import { renderEndpoints } from './components/endpoints.js?v=13';
+import { renderCmdb } from './components/cmdb.js?v=13';
 import { renderSyncLedger } from './components/syncLedger.js?v=3';
 import { renderSyncSchedule } from './components/syncSchedule.js?v=1';
+import { initWorkspaceFreshness, renderWorkspaceFreshness } from './components/workspaceFreshness.js?v=1';
 
 let activeView = 'home';
+let navigationVersion = 0;
 
 const workspaceLabels = {
   home: 'Operations overview',
@@ -25,7 +27,7 @@ const workspaceLabels = {
 };
 
 // Expose global navigation helper for cards and buttons
-window.navigateToView = function(viewName, subtabName = '', filterParam = '') {
+window.navigateToView = async function(viewName, subtabName = '', filterParam = '') {
   const targetSec = document.getElementById(`view-${viewName}`);
   if (!targetSec) return;
 
@@ -42,11 +44,21 @@ window.navigateToView = function(viewName, subtabName = '', filterParam = '') {
   targetSec.classList.add('active');
 
   activeView = viewName;
+  const version = ++navigationVersion;
+  const inventoryId = viewName === 'infrastructure' && (!subtabName || subtabName === 'servers')
+    ? 'swInventoryHeading' : viewName === 'endpoints' ? 'epInventoryHeading' : null;
+  const exceptionLanding = Boolean(inventoryId && filterParam);
+  const summary = document.getElementById(viewName === 'infrastructure' ? 'swChartSummary' : 'epChartSummary');
+  if (inventoryId && summary) summary.open = !exceptionLanding;
   const workspaceLabel = document.getElementById('activeWorkspaceLabel');
   if (workspaceLabel) workspaceLabel.textContent = workspaceLabels[viewName] || 'Operations overview';
-  loadViewData(viewName, subtabName, filterParam);
-
-  window.scrollTo({ top: 0, behavior: 'smooth' });
+  window.scrollTo({ top: 0, behavior: 'instant' });
+  await loadViewData(viewName, subtabName, filterParam);
+  if (!exceptionLanding || version !== navigationVersion) return;
+  const heading = document.getElementById(inventoryId);
+  if (!heading?.getClientRects().length) return;
+  heading.focus({ preventScroll: true });
+  heading.scrollIntoView({ block: 'start', behavior: 'instant' });
 };
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -54,6 +66,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initHeader();
   initModal();
   initDrawer();
+  initWorkspaceFreshness(refreshCurrentView);
 
   const globalSearch = document.getElementById('globalSearch');
   globalSearch?.addEventListener('keydown', (event) => {
@@ -97,31 +110,28 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function loadViewData(view, subtabName = '', filterParam = '') {
+  renderWorkspaceFreshness(view);
   switch (view) {
     case 'home':
-      renderHome();
-      break;
+      return renderHome();
     case 'infrastructure':
-      renderInfrastructureWorkspace(subtabName || 'servers', filterParam);
-      break;
+      return renderInfrastructureWorkspace(subtabName || 'servers', filterParam);
     case 'endpoints':
-      renderEndpoints(subtabName, filterParam);
-      break;
+      return renderEndpoints(subtabName, filterParam);
     case 'cmdb':
-      renderCmdb();
-      break;
+      return renderCmdb();
     case 'knowledge':
     case 'automations':
       break;
     case 'sync':
-      renderSyncLedger();
-      break;
+      return renderSyncLedger();
     case 'sync-schedule':
-      renderSyncSchedule();
-      break;
+      return renderSyncSchedule();
   }
 }
 
 function refreshCurrentView() {
-  loadViewData(activeView);
+  const subtab = activeView === 'infrastructure'
+    ? document.querySelector('.category-card-tab.active')?.dataset.subtab || 'servers' : '';
+  loadViewData(activeView, subtab);
 }

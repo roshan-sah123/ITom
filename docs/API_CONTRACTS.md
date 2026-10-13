@@ -49,4 +49,19 @@ The inventory source routes reject mutating methods. The separate sync trigger r
 
 ## Source integrations
 
+Intune and SolarWinds summaries include additive `decision_metrics`. Percentage
+metrics expose `numerator`, `denominator`, nullable `value`, `known_count`,
+`unknown_count`, nullable `coverage_pct`, `definition`, `population`, `exclusions`,
+`observed_at`, `calculated_at` and `measurement_window`. `observed_at` is the latest
+mirrored record sync timestamp, not a guarantee that every device was measured at
+that instant. Legacy summary keys remain available.
+
+Intune provides `confirmed_compliance`, `recent_checkins`, `compliance_state_counts`
+and `checkin_age_buckets`. SolarWinds provides `current_node_status`, `all_fleet_up`,
+`status_evidence`, `cpu_coverage`, `memory_coverage`, `resource_pressure` and
+`resource_health_counts`. No eligible population has a null percentage; resource
+pressure is also null when there are no usable CPU or memory readings. Resource
+pressure can be observed with one reading while complete-pair coverage remains
+incomplete. See [decision metric policy](DECISION_METRICS.md) for interpretation.
+
 Graph uses OAuth client credentials and read-only managed-device extraction, including pagination. SolarWinds uses GET requests with validated SELECT-only SWQL. Implementations live in `src/sync/graph_client.py`, `src/sync/solarwinds_client.py` and `app/services/telemetry_sources.py`. Source credentials and transport policy are configured through `app/core/config.py`; source API access is separate from the portal inventory contract.

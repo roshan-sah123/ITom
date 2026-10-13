@@ -1,13 +1,14 @@
-import { itomApi } from '../api.js?v=8';
+import { itomApi } from '../api.js?v=9';
 import { escapeHtml, formatNumber } from '../utils.js';
-import { openCiDrawer } from './drawer.js?v=2';
+import { openCiDrawer } from './drawer.js?v=3';
+import { openLocationReviews } from './locationReviews.js?v=1';
 
 let catalogue = [], currentMode = 'auto', selected = null, issue = 'all', source = '', page = 1;
 let listRequest = 0, catalogueRequest = 0, visibleCards = 24, returnFocus = null;
 let searchTimer;
 const tones = { healthy: 'Green', warning: 'Warning', critical: 'Red', unavailable: 'Insufficient data' };
 const modes = { endpoints: 'Endpoints', infrastructure: 'Infrastructure', combined: 'Combined' };
-const pct = component => component?.value == null ? 'Unavailable' : `${component.value.toFixed(1)}%${component.usable ? '' : ' (stale)'}`;
+const pct = component => component?.value == null ? 'Unavailable' : `${component.value.toFixed(1)}%${component.usable ? '' : component.reason === 'Source data is stale or unavailable' ? ' (stale)' : ' (incomplete data)'}`;
 const coverage = component => component.coverage_pct == null ? 'Unavailable' : `${component.coverage_pct}%`;
 const statusTone = status => {
   const value = (status || '').trim().toLowerCase();
@@ -24,6 +25,13 @@ const sourceScope = l => l.endpoints && l.nodes ? 'Both sources' : l.endpoints ?
 const utcDate = raw => new Date(/Z$|[+-]\d\d:\d\d$/.test(raw) ? raw : `${raw}Z`);
 const observedAt = raw => raw ? utcDate(raw).toLocaleString() : 'No successful refresh';
 const issueOptions = [['all','All devices'],['noncompliant','Noncompliant'],['other_compliance','Other compliance states'],['old_checkins','Check-in over 7 days'],['old_30d','Check-in over 30 days'],['invalid_checkins','Unknown check-in'],['up','Up'],['down','Down'],['critical','Critical'],['warning','Warning'],['unmanaged','Unmanaged'],['conflict','Mapping conflict / review']];
+const componentRatio = component => component.denominator ? 100 * component.numerator / component.denominator : null;
+const componentCounts = component => `${formatNumber(component.numerator)} / ${formatNumber(component.denominator)}`;
+const componentIssues = { compliance: ['noncompliant','other_compliance'], recent_checkins: ['old_checkins','invalid_checkins'], node_status: ['down','critical','warning'] };
+const issueDescription = (key,count) => {
+  const device = count === 1 ? 'device' : 'devices', node = count === 1 ? 'node is' : 'nodes are';
+  return { noncompliant: `noncompliant ${device}`, other_compliance: `${device} in other compliance states`, old_checkins: `${device} last checked in over 7 days ago`, invalid_checkins: `${device} with unknown check-ins`, down: `${node} Down`, critical: `${node} Critical`, warning: `${node} Warning` }[key];
+};
 
 function lastCheckin(ci) {
   if (ci.source_system !== 'INTUNE') return 'Not applicable';
@@ -39,17 +47,49 @@ function scoreReason(location, mode) {
   const score = location.scores[mode];
   if (mode !== 'infrastructure' && !location.endpoints) return 'No Intune records for this group.';
   if (mode !== 'endpoints' && !location.nodes) return 'No SolarWinds records for this group.';
-  if (score.reason === 'Location identity needs review') return 'Confirm location mapping before using a combined score.';
+  if (score.reason === 'Location identity needs review') return 'Confirm location mapping before using this score.';
   const required = requiredKeys(mode).map(key => [key,location.components[key]]);
   if (score.value == null) {
     if (required.some(([,c]) => c.denominator && location.freshness[c.source_system].status !== 'FRESH')) return 'Source data is stale or unavailable. Refresh evidence before assessing health.';
     if (required.some(([,c]) => !c.denominator)) return 'Only unmanaged nodes; no monitored nodes to score.';
     return 'Required data coverage is below 95%. Review missing fields.';
   }
-  const low = required.filter(([,c]) => c.value < 75).map(([key,c]) => `${key === 'recent_checkins' ? 'Recent check-ins' : componentNames[key]} ${c.value.toFixed(1)}%`);
-  if (low.length) return `${low.join('; ')} — below the 75% floor.`;
+  const low = required.filter(([,c]) => c.denominator && 100*c.numerator < 75*c.denominator).map(([key,c]) => `${componentNames[key]}: ${componentCounts(c)}, below 75%`);
+  if (low.length) return `Red because the exact counts show ${low.join('; ')}. A high average cannot override this floor; displayed percentages are rounded.`;
+  const ratio = key => componentRatio(location.components[key]);
+  const exact = mode === 'infrastructure' ? ratio('node_status') : mode === 'endpoints' ? (40*ratio('compliance')+25*ratio('recent_checkins'))/65 : (40*ratio('compliance')+35*ratio('node_status')+25*ratio('recent_checkins'))/100;
+  const boundary = [75,90].find(target => exact < target && score.value >= target);
+  if (boundary) return `Rounded display; the exact score is below ${boundary}. Colour uses the full calculation from ${required.map(([key,c]) => `${componentNames[key]} ${componentCounts(c)}`).join('; ')}.`;
   if (score.reason) return score.reason;
   return score.status === 'healthy' ? 'Within the current operating bands.' : 'Score is below the 90% green target.';
+}
+
+function cardAttention(location, mode) {
+  const score = location.scores[mode];
+  const required = requiredKeys(mode).map(key => [key,location.components[key]]);
+  if (score.reason === 'Location identity needs review') return { kind:'data', reason:'Location mapping needs confirmation before this score can be used.', action:'review', label:'Review location mappings' };
+  const stale = required.find(([,c]) => c.denominator && location.freshness[c.source_system].status !== 'FRESH');
+  if (score.value == null && stale) return { kind:'data', reason:`${sourceName(stale[1].source_system)} evidence is stale or unavailable. Reload the latest saved evidence; this does not start a source sync.`, action:'refresh', label:'Reload evidence' };
+  if (score.value == null) {
+    const missing = required.find(([,c]) => !c.denominator);
+    if (missing) return { kind:'data', reason:scoreReason(location,mode), issue:missing[0] === 'node_status' && location.issues.unmanaged ? 'unmanaged' : 'all', label:missing[0] === 'node_status' && location.issues.unmanaged ? 'View unmanaged nodes' : 'View available records' };
+    const incomplete = required.find(([,c]) => !c.usable);
+    const key = incomplete?.[0];
+    const issue = key === 'recent_checkins' && location.issues.invalid_checkins ? 'invalid_checkins' : key === 'compliance' && location.issues.other_compliance ? 'other_compliance' : 'all';
+    return { kind:'data', reason:`${key ? componentNames[key] : 'Required data'} has less than 95% known field coverage. Inspect the source records.`, issue, source:issue === 'all' ? incomplete?.[1].source_system : undefined, label:issue === 'all' ? 'View source records' : 'View records to inspect' };
+  }
+  const low = required.filter(([,c]) => 100*c.numerator < 75*c.denominator).sort((a,b) => componentRatio(a[1])-componentRatio(b[1]));
+  if (low.length && !componentIssues[low[0][0]].some(key => location.issues[key])) {
+    const [key,c] = low[0];
+    return { kind:'health', reason:`${componentNames[key]}: ${componentCounts(c)}, below 75%. Inspect the underlying ${sourceName(c.source_system)} records.`, issue:'all', source:c.source_system, label:key === 'node_status' ? 'View infrastructure records' : 'View endpoint records' };
+  }
+  const degraded = required.find(([,c]) => ['FAILED','PARTIAL'].includes(location.freshness[c.source_system].last_attempt_status));
+  const downOrCritical = mode !== 'endpoints' && (location.issues.down || location.issues.critical);
+  if (!low.length && !downOrCritical && degraded) return { kind:'data', reason:`The latest ${sourceName(degraded[1].source_system)} refresh failed or was incomplete. Showing the last successful snapshot. Reload reads saved evidence; it does not start a source sync.`, action:'refresh', label:'Reload evidence' };
+  const candidates = [...low.map(([key]) => key), ...(mode !== 'endpoints' ? ['node_status'] : []), ...required.map(([key]) => key)];
+  const issue = candidates.flatMap(key => componentIssues[key]).find(key => location.issues[key]);
+  if (issue) return { kind:'health', reason:`${formatNumber(location.issues[issue])} ${issueDescription(issue,location.issues[issue])}.`, issue, label:issue === 'old_checkins' ? 'View overdue devices' : issue === 'invalid_checkins' ? 'View unknown check-ins' : issue === 'other_compliance' ? 'View other compliance states' : `View ${issue === 'noncompliant' ? 'noncompliant devices' : issue + ' nodes'}` };
+  return { kind:'health', reason:'The score is below the current operating target. Inspect the underlying records.', issue:'all', label:'View devices' };
 }
 
 function sourceEvidence(freshness, counts) {
@@ -76,7 +116,7 @@ export async function renderLocationScorecards() {
     if (request !== catalogueRequest) return;
     catalogue = response.data.items;
     host.innerHTML = `
-      <div class="location-health-heading"><div><h2>Location health</h2><p>Find a reporting group that needs attention, then open the affected devices.</p></div><button id="locRefresh" type="button" class="btn-filter-reset">Refresh</button></div>
+      <div class="location-health-heading"><div><h2>Location health</h2><p>Find a reporting group that needs attention, then open the affected devices.</p></div><div class="location-header-actions"><button id="locReview" type="button" class="btn-filter-reset">Review location mappings</button><button id="locRefresh" type="button" class="btn-filter-reset">Refresh</button></div></div>
       <div id="locBrowse">
       <div id="locCoverage" class="location-source-evidence">${sourceEvidence(response.data.freshness.sources,response.data.coverage)}</div>
       <div class="grid-toolbar"><label>Search <input id="locSearch" class="filter-select" type="search" placeholder="Location name"></label>
@@ -85,12 +125,12 @@ export async function renderLocationScorecards() {
       <label>Level <select id="locLevel" class="filter-select"><option value="">All levels</option>${[...new Set(catalogue.filter(l => l.id !== 'unassigned').map(l => l.level))].sort().map(level => `<option value="${escapeHtml(level)}">${escapeHtml(level)}</option>`).join('')}</select></label>
       <button id="locReset" type="button" class="btn-filter-reset">Reset</button></div>
       <div id="locSummary" class="location-summary" aria-label="Reporting group status summary"></div>
-      <p class="location-health-note">Reporting groups include cities, offices, countries and cloud groups. Compare scores within the same score mode and level. This is an operational indicator; business service availability is not measured.</p>
+      <p id="locComparison" class="location-health-note location-comparison-note"></p>
       <div id="locUnassigned" class="location-unassigned"></div>
       <div class="location-results"><p id="locResults" role="status"></p><span>Priority: red → warning → insufficient data → green</span></div>
       <div id="locCards" class="location-score-grid"></div><button id="locShowMore" class="btn-filter-reset location-show-more" type="button" hidden>Show more locations</button>
       <details class="location-policy"><summary>How to read the scores</summary><p>Green ≥90; Warning 75–&lt;90; Red &lt;75, or any required component below 75%. Down / Critical nodes or a failed latest refresh prevent Green. Unknown or stale required data gives no score.</p><p>Combined: 40% compliance + 35% nodes Up + 25% check-ins within 7 days. Endpoints: (40 × compliance + 25 × recent check-ins) / 65. Infrastructure: nodes Up / monitored nodes. Unmanaged nodes are excluded. At least 95% known field coverage is required.</p><p>These are provisional operating bands. Counts are source records; the same physical device may appear in both systems. Location assignment does not confirm current physical presence.</p></details></div>
-      <section id="locDetail" class="location-detail" hidden aria-label="Location inventory"></section>`;
+      <section id="locDetail" class="location-detail" hidden aria-label="Location inventory"></section><section id="locationReviewPanel" hidden aria-label="Location mapping review"></section>`;
     const groups = catalogue.filter(l => l.id !== 'unassigned' && l.endpoints + l.nodes > 0);
     document.getElementById('catSitesVal').textContent = formatNumber(groups.length);
     document.getElementById('catSitesSub').textContent = 'Populated reporting groups · mixed levels';
@@ -99,6 +139,23 @@ export async function renderLocationScorecards() {
     document.getElementById('locUnassigned').innerHTML = `<div><strong>${formatNumber(unassignedCount)} unassigned ${unassignedCount === 1 ? 'record' : 'records'}</strong><p>Excluded from location scores. Assign a reporting location to complete coverage.</p></div>${unassignedCount ? '<button type="button" class="btn-filter-reset">Review unassigned devices</button>' : ''}`;
     document.querySelector('#locUnassigned button')?.addEventListener('click', e => openLocation('unassigned','all',e.currentTarget));
     document.getElementById('locRefresh').onclick = renderLocationScorecards;
+    document.getElementById('locReview').onclick = event => {
+      const reviewTrigger = event.currentTarget;
+      clearTimeout(searchTimer); listRequest++; selected=null;
+      document.getElementById('locBrowse').hidden=true;
+      document.getElementById('locDetail').hidden=true;
+      document.getElementById('locRefresh').disabled=true;
+      document.getElementById('locReview').disabled=true;
+      openLocationReviews(document.getElementById('locationReviewPanel'), changed => {
+        if(changed) return renderLocationScorecards();
+        document.getElementById('locBrowse').hidden=false;
+        document.getElementById('locRefresh').disabled=false;
+        document.getElementById('locReview').disabled=false;
+        (reviewTrigger?.isConnected ? reviewTrigger : document.getElementById('locReview')).focus();
+      });
+      document.querySelector('#locationReviewPanel h3')?.setAttribute('tabindex','-1');
+      document.querySelector('#locationReviewPanel h3')?.focus({preventScroll:true});
+    };
     for (const [id,value] of Object.entries(savedFilters)) {
       const control = document.getElementById(id);
       if (value !== undefined && (control.tagName !== 'SELECT' || [...control.options].some(option => option.value === value))) control.value = value;
@@ -128,6 +185,7 @@ function renderCards() {
   const search = document.getElementById('locSearch').value.toLowerCase();
   const status = document.getElementById('locStatus').value, level = document.getElementById('locLevel').value;
   const scope = catalogue.filter(l => l.id !== 'unassigned' && l.endpoints + l.nodes > 0 && l.name.toLowerCase().includes(search) && (!level || l.level === level));
+  document.getElementById('locComparison').textContent = currentMode === 'auto' ? 'By available sources can mix score modes. Choose Endpoints, Infrastructure or Combined and the same reporting level to compare.' : `${modes[currentMode]} uses the same calculation for every group. Compare groups at the same reporting level.`;
   document.getElementById('locSummary').innerHTML = [['','Reporting groups'],['critical','Red · action needed'],['warning','Warning · review'],['unavailable','Insufficient data'],['healthy','Green · within bands']].map(([value,label]) => {
     const count = value ? scope.filter(l => l.scores[modeFor(l)].status === value).length : scope.length;
     return `<button type="button" data-status="${value}" class="location-summary-item summary-${value || 'all'}" aria-pressed="${status === value}"><strong>${formatNumber(count)}</strong><span>${label}</span></button>`;
@@ -144,25 +202,32 @@ function renderCards() {
   document.getElementById('locShowMore').hidden = visibleCards >= locations.length;
   document.getElementById('locCards').innerHTML = locations.length ? locations.slice(0,visibleCards).map(l => {
     const mode = modeFor(l), score = l.scores[mode];
+    const attention = score.status === 'healthy' ? null : cardAttention(l,mode);
+    const explainColour = attention?.kind === 'health' && score.value != null &&
+      (score.status === 'critical' && score.value >= 75 || score.status === 'warning' && score.value >= 90);
     const link = (label, key) => l.issues[key] ? `<button type="button" class="location-issue issue-${['noncompliant','down','critical'].includes(key) ? 'critical' : 'warning'}" data-id="${escapeHtml(l.id)}" data-issue="${key}">${formatNumber(l.issues[key])} ${label}</button>` : '';
     return `<article class="location-score-card score-${score.status}">
       <div class="location-card-title"><button type="button" class="table-location-link" data-id="${escapeHtml(l.id)}" data-issue="all">${escapeHtml(l.name)}</button><span>${escapeHtml(l.level)}</span></div>
       <p class="location-card-scope">${sourceScope(l)}${l.issues.conflict ? ' · Mapping needs review' : ''}</p>
       <div class="location-score-value"><strong>${score.value == null ? '—' : score.value.toFixed(1)}</strong><span>${tones[score.status]} · ${modes[mode]}</span></div>
-      <p class="location-score-reason">${escapeHtml(scoreReason(l,mode))}</p>
+      ${attention ? `<div class="location-card-attention attention-${attention.kind}"><span class="location-attention-label">${attention.kind === 'data' ? 'Data / mapping attention' : 'Health attention'}</span><p class="location-main-reason">${escapeHtml(attention.reason)}</p>${explainColour ? `<p class="location-score-reason">${escapeHtml(scoreReason(l,mode))}</p>` : ''}<button type="button" class="btn-filter-reset location-primary-action" ${attention.action ? `data-action="${attention.action}"` : `data-id="${escapeHtml(l.id)}" data-issue="${attention.issue}"${attention.source ? ` data-source="${attention.source}"` : ''}`} aria-label="${escapeHtml(attention.label)} for ${escapeHtml(l.name)}">${escapeHtml(attention.label)} →</button></div>` : ''}
+      <details class="location-card-details"><summary>${attention ? 'Details and other issues' : 'Details and devices'}</summary>
+      ${attention && !explainColour ? `<p class="location-score-reason">${escapeHtml(scoreReason(l,mode))}</p>` : ''}
       <p>${formatNumber(l.endpoints)} endpoints · ${formatNumber(l.nodes)} infrastructure nodes</p>
       <dl class="location-components">${[['compliance','Compliance'],['node_status','Nodes in Up status'],['recent_checkins','Check-ins within 7 days']].filter(([key]) => key === 'node_status' ? l.nodes : l.endpoints).map(([key,label]) => { const c = l.components[key]; return `<div><dt>${label}</dt><dd>${pct(c)}<small>${formatNumber(c.numerator)} / ${formatNumber(c.denominator)}</small></dd></div>`; }).join('')}</dl>
       <div class="location-issue-links">${link('Down','down')}${link('Critical','critical')}${link('noncompliant','noncompliant')}${link('check-ins >7 days','old_checkins')}${link('unknown check-ins','invalid_checkins')}${link('other compliance','other_compliance')}${link('Warning','warning')}${link('unmanaged','unmanaged')}${link('mapping reviews','conflict')}</div>
-      <div class="location-card-footer"><button type="button" class="table-location-link" data-id="${escapeHtml(l.id)}" data-issue="all" aria-label="View devices for ${escapeHtml(l.name)}">View devices →</button><details><summary>Data evidence</summary><p>${Object.entries(l.freshness).filter(([src]) => src === 'INTUNE' ? l.endpoints : l.nodes).map(([src,f]) => `${sourceName(src)}: ${escapeHtml(f.status)} · ${escapeHtml(observedAt(f.last_synchronized_at))} · latest attempt ${escapeHtml(f.last_attempt_status || 'Unknown')}`).join('<br>')}</p><p>${Object.entries(l.components).filter(([,c]) => c.denominator).map(([key,c]) => `${componentNames[key]} field coverage: ${coverage(c)}`).join('; ')}.</p><p>Policy ${escapeHtml(l.policy_version)}. Issue counts can overlap; do not add them as unique affected devices.</p></details></div>
+      <div class="location-card-footer"><button type="button" class="table-location-link" data-id="${escapeHtml(l.id)}" data-issue="all" aria-label="View devices for ${escapeHtml(l.name)}">View devices →</button></div><p><strong>Data evidence</strong><br>${Object.entries(l.freshness).filter(([src]) => src === 'INTUNE' ? l.endpoints : l.nodes).map(([src,f]) => `${sourceName(src)}: ${escapeHtml(f.status)} · ${escapeHtml(observedAt(f.last_synchronized_at))} · latest attempt ${escapeHtml(f.last_attempt_status || 'Unknown')}`).join('<br>')}</p><p>${Object.entries(l.components).filter(([,c]) => c.denominator).map(([key,c]) => `${componentNames[key]} field coverage: ${coverage(c)}`).join('; ')}.</p><p>Policy ${escapeHtml(l.policy_version)}. Issue counts can overlap; do not add them as unique affected devices. Percentages are rounded for display; colours use exact counts and weights.</p></details>
     </article>`;
   }).join('') : '<p>No locations match these filters.</p>';
-  document.querySelectorAll('#locCards button[data-id]').forEach(button => button.onclick = () => openLocation(button.dataset.id, button.dataset.issue,button));
+  document.querySelectorAll('#locCards button[data-id]').forEach(button => button.onclick = () => openLocation(button.dataset.id, button.dataset.issue,button,button.dataset.source));
+  document.querySelectorAll('#locCards button[data-action="review"]').forEach(button => button.onclick = event => document.getElementById('locReview').onclick(event));
+  document.querySelectorAll('#locCards button[data-action="refresh"]').forEach(button => button.onclick = () => { document.getElementById('locRefresh').focus({preventScroll:true}); renderLocationScorecards(); });
 }
 
-async function openLocation(id, nextIssue, trigger) {
+async function openLocation(id, nextIssue, trigger, nextSource = '') {
   clearTimeout(searchTimer);
   returnFocus = trigger;
-  selected = catalogue.find(l => l.id === id); issue = nextIssue; source = ''; page = 1;
+  selected = catalogue.find(l => l.id === id); issue = nextIssue; source = nextSource; page = 1;
   if (!selected) return;
   document.getElementById('locBrowse').hidden = true;
   const host = document.getElementById('locDetail'); host.hidden = false;
@@ -176,6 +241,7 @@ async function openLocation(id, nextIssue, trigger) {
     <p id="locSelection" class="location-health-note" role="status"></p><div class="grid-scroll"><table class="itom-table"><caption class="sr-only">${escapeHtml(selected.name)} device inventory</caption><thead><tr><th scope="col">Device</th><th scope="col">Source</th><th scope="col">Status</th><th scope="col">Last Intune check-in</th><th scope="col">Location assignment</th></tr></thead><tbody id="locDevices"></tbody></table></div>
     <div class="grid-footer"><button id="locPrev" type="button" class="btn-filter-reset">Previous</button><span id="locPage"></span><button id="locNext" type="button" class="btn-filter-reset">Next</button></div><div id="locHistory"></div>`;
   document.getElementById('locIssue').value = issue;
+  document.getElementById('locSource').value = source;
   document.getElementById('locClose').onclick = () => { clearTimeout(searchTimer); host.hidden = true; listRequest++; selected = null; document.getElementById('locBrowse').hidden = false; if (returnFocus?.isConnected) returnFocus.focus(); };
   document.getElementById('locSource').onchange = e => { source = e.target.value; page = 1; loadDevices(); };
   document.getElementById('locIssue').onchange = e => { issue = e.target.value; page = 1; loadDevices(); };
