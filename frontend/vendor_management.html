@@ -1,0 +1,361 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Vendor Management · ITom companion</title>
+<style>
+:root{--blue:#135bd6;--nav:#104eb4;--nav-muted:#c6dafb;--bg:#f4f7fb;--surface:#fff;--ink:#172a46;--muted:#60718a;--border:#dce4f0;--tint:#eaf2ff;--good:#107650;--error:#b42332;--shadow:0 8px 30px #1834560a;--white:#fff}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}.shell{min-block-size:100vh;display:grid;grid-template-columns:230px 1fr}.sidebar{background:var(--nav);color:var(--white);padding:30px 18px;display:flex;flex-direction:column;gap:30px}.brand{font-size:27px;font-weight:800;letter-spacing:-1px;padding-inline:14px}.brand small{display:block;font-size:11px;letter-spacing:1.6px;font-weight:500;color:var(--nav-muted);text-transform:uppercase}.nav-label{font-size:11px;text-transform:uppercase;letter-spacing:1.5px;padding-inline:14px;color:var(--nav-muted)}.active{display:flex;align-items:center;gap:12px;background:var(--blue);padding:13px 14px;border-radius:9px;font-weight:600}.vendor-icon{border:1px solid currentColor;border-radius:5px;inline-size:25px;block-size:25px;display:inline-grid;place-items:center;font-size:11px;font-weight:800}.sidebar-note{margin-block-start:auto;padding:14px;font-size:12px;color:var(--nav-muted)}.header{background:var(--surface);border-block-end:1px solid var(--border);padding:19px 36px;display:flex;justify-content:space-between;align-items:center}.crumb{color:var(--muted);font-size:13px}.local{background:var(--tint);color:var(--blue);padding:5px 11px;border-radius:20px;font-size:12px;font-weight:600}main{max-inline-size:1300px;margin-inline:auto;padding:32px 36px}h1{font-size:29px;letter-spacing:-.7px;line-height:1.25;margin:0 0 10px}h2{font-size:18px;margin:0 0 6px}p{margin:0 0 16px}.subtext,.helper{color:var(--muted)}.helper{font-size:12px}.intro{margin-block-end:25px}.grid{display:grid;grid-template-columns:minmax(310px,1fr) minmax(330px,1.1fr);gap:24px;align-items:start}.card{background:var(--surface);border:1px solid var(--border);border-radius:13px;box-shadow:var(--shadow);overflow:hidden}.card-head{padding:23px 25px;border-block-end:1px solid var(--border)}.card-head p{margin:0;font-size:13px;color:var(--muted)}.card-body{padding:24px 25px}label.field-label,legend{display:block;font-size:13px;font-weight:650;margin-block-end:8px}select,input[type=text],input[type=email],input[type=search],textarea{font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--border);border-radius:7px;inline-size:100%;padding:11px 12px}select{min-block-size:46px}.field{margin-block-end:22px}fieldset{border:0;padding:0;margin:0 0 24px;min-inline-size:0}legend{padding:0}.choices{display:grid;grid-template-columns:1fr 1fr;gap:10px}.choice{display:flex;align-items:center;gap:10px;padding:13px;border:1px solid var(--border);border-radius:7px;cursor:pointer;font-size:14px}.choice:has(input:checked){border-color:var(--blue);background:var(--tint)}input[type=checkbox]{accent-color:var(--blue);inline-size:17px;block-size:17px;margin:0}.conditional{margin-block-start:14px}.actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap}button{font:inherit;font-size:13px;font-weight:650;border:1px solid var(--border);border-radius:7px;background:var(--surface);color:var(--ink);padding:11px 17px;cursor:pointer}button.primary{background:var(--blue);border-color:var(--blue);color:var(--white)}button:disabled{opacity:.6;cursor:wait}:focus-visible{outline:3px solid var(--blue);outline-offset:3px}.save-note{font-size:12px;color:var(--muted);margin:15px 0 0}.status{font-size:13px;margin-block-start:14px;min-block-size:21px;white-space:pre-wrap}.status.error{color:var(--error)}.status.success{color:var(--good)}.directory-tools{display:flex;align-items:center;gap:10px;margin-block-end:20px}.directory-tools input{min-inline-size:0}.count{color:var(--muted);font-size:12px;margin-block-end:10px}.vendor-list{display:grid;gap:12px}.vendor-row{border:1px solid var(--border);border-radius:9px;padding:16px;overflow-wrap:anywhere}.vendor-row h3{font-size:15px;margin:0 0 10px;display:flex;gap:10px;align-items:center}.vendor-row .vendor-icon{color:var(--blue);background:var(--tint);flex-shrink:0}.tags{display:flex;gap:7px;flex-wrap:wrap}.tag{font-size:12px;background:var(--tint);color:var(--blue);border-radius:5px;padding:4px 9px;overflow-wrap:anywhere;max-inline-size:100%}.empty{padding:24px 12px;text-align:center;color:var(--muted);border:1px dashed var(--border);border-radius:9px}.footnote{font-size:12px;color:var(--muted);margin-block-start:22px}[hidden]{display:none!important}
+@media(prefers-color-scheme:dark){:root{--bg:#101a2b;--surface:#19263a;--ink:#e5edfa;--muted:#a9b9cf;--border:#344660;--tint:#213c65;--blue:#619dff;--nav:#113575;--good:#72d6ae;--error:#ff9ea8;--shadow:none}.primary{color:var(--bg)!important}}
+@media(max-width:1050px){.shell{grid-template-columns:185px 1fr}.grid{grid-template-columns:1fr}.header{padding:18px 24px}main{padding:28px 24px}}
+@media(max-width:650px){.shell{display:block}.sidebar{padding:15px 20px;gap:14px}.brand{font-size:23px;padding:0}.brand small,.nav-label,.sidebar-note{display:none}.active{padding:9px 12px;inline-size:fit-content}.header{padding:14px 20px}main{padding:24px 16px}.card-head,.card-body{padding:20px}h1{font-size:25px}.choices{grid-template-columns:1fr 1fr}}
+.method-steps{border-block-start:1px solid var(--border);padding-block:18px}.method-steps h3{font-size:15px;margin-block:0 14px}.step-list{list-style:none;padding:0;margin-block:0 16px}.step-list li{margin-block-end:14px}.step-line{display:flex;gap:8px;align-items:center}.step-line input{min-inline-size:0}.step-line button{padding-inline:10px}.vendor-row details{margin-block-end:10px}.vendor-row summary{cursor:pointer;color:var(--blue);font-weight:600}.vendor-row a{display:block;color:var(--blue);margin-block-start:12px}dialog{max-inline-size:590px;inline-size:calc(100% - 32px);max-block-size:85vh;overflow:auto;border:1px solid var(--border);border-radius:13px;background:var(--surface);color:var(--ink);padding:28px;box-shadow:var(--shadow)}dialog::backdrop{background:var(--ink);opacity:.5}dialog h2{margin-block-end:14px}input[type=file]{max-inline-size:100%;font:inherit;color:var(--ink);margin-block-end:12px}
+textarea{resize:vertical;min-block-size:90px}.email-values{margin-block:12px}.email-values dt{font-size:13px;font-weight:650}.email-values dd{margin-inline:0;margin-block:4px 14px;white-space:pre-wrap;overflow-wrap:anywhere}
+</style>
+</head>
+<body>
+<div class="shell">
+<aside class="sidebar" aria-label="Companion page">
+<div class="brand">ITom<small>Operations companion</small></div>
+<div><p class="nav-label">Vendor workspace</p><div class="active" aria-current="page"><span class="vendor-icon" aria-hidden="true">VM</span>Vendor Management</div></div>
+<div class="sidebar-note">Standalone local page.<br>Existing ITom navigation and dashboard are unchanged.</div>
+</aside>
+<div>
+<header class="header"><span class="crumb">IT operations / Vendors</span><span class="local">Local workspace</span></header>
+<main>
+<div class="intro"><h1>Vendor Management</h1><p class="subtext">Keep vendor ticket creation methods organized in one place.</p></div>
+<div class="grid">
+<section class="card" aria-labelledby="add-title">
+<div class="card-head"><h2 id="add-title">Add vendor methods</h2><p>Enter a vendor name, then describe how to create tickets for each method.</p></div>
+<div class="card-body">
+<form id="vendor-form">
+<div class="field"><label class="field-label" for="vendor">Vendor name <span aria-hidden="true">*</span></label>
+<input type="text" id="vendor" maxlength="100" required autocomplete="organization" placeholder="Enter vendor name" aria-describedby="vendor-help">
+<span id="vendor-help" class="helper">1–100 characters. Type any vendor name; there is no vendor type or dropdown.</span></div>
+<fieldset aria-describedby="method-help"><legend>Ticket creation methods *</legend><p class="helper" id="method-help">Select one or more. Phone, Portal and Other need 1–30 nonblank ordered steps. Email uses its template details only. Other also requires a method name.</p>
+<div class="choices"><label class="choice"><input type="checkbox" name="method" value="Phone">Phone</label><label class="choice"><input type="checkbox" name="method" value="Email">Email</label><label class="choice"><input type="checkbox" name="method" value="Portal">Portal</label><label class="choice"><input type="checkbox" name="method" value="Other" id="other-method">Other</label></div>
+<div id="custom-method-wrap" class="conditional" hidden><label class="field-label" for="custom-method">Custom method name *</label><input type="text" id="custom-method" maxlength="80" autocomplete="off" disabled aria-describedby="custom-method-help"><span class="helper" id="custom-method-help">1–80 characters, for example Partner help desk.</span></div></fieldset>
+<div id="method-steps"></div>
+<div class="actions"><button type="submit" class="primary" id="save">Submit</button><button type="reset" id="clear">Clear</button></div>
+<p class="save-note">Submit validates this form, then asks about one optional vendor-wide SOP. Saving replaces non-Email steps and the Email template for selected methods only; prior Email notes are retained; other methods and existing SOPs are kept. Toggling methods preserves unsaved steps and email fields. Email templates are stored only; nothing is sent.</p>
+<div id="save-status" class="status" role="status" aria-live="polite"></div>
+</form>
+</div></section>
+<section class="card" aria-labelledby="directory-title"><div class="card-head"><h2 id="directory-title">Vendor directory</h2><p>Your saved vendors and their available ticket creation methods.</p></div>
+<div class="card-body"><div class="directory-tools"><label for="search" hidden>Filter vendors and methods</label><input type="search" id="search" placeholder="Filter vendors or methods" aria-label="Filter vendors or methods"><button id="refresh" type="button">Refresh</button></div><div class="count" id="count"></div><div id="directory-status" class="status" role="status" aria-live="polite">Loading saved vendors…</div><div class="vendor-list" id="vendor-list"></div></div></section>
+</div>
+<p class="footnote">Local single-user companion · Separate vendor_management.db storage · Records configuration only, not actual support tickets. No dashboard integration, vendor API connection, authentication or production multi-user support.</p>
+<noscript><p>JavaScript is required to load and save vendor methods.</p></noscript>
+</main></div></div>
+<dialog id="sop-dialog" aria-labelledby="sop-title" aria-describedby="sop-description">
+<h2 id="sop-title">Do you want to attach SOP?</h2>
+<p id="sop-description">Attach one SOP for this vendor workflow, shared across its methods. No saves immediately without a new attachment; an existing SOP is kept. A new SOP becomes current; earlier revisions remain stored.</p>
+<div class="actions"><button type="button" class="primary" id="sop-yes">Yes, attach SOP</button><button type="button" id="sop-no">No, submit without SOP</button><button type="button" id="sop-cancel">Cancel</button></div>
+<div id="sop-picker" class="conditional" hidden>
+<label class="field-label" for="sop-file">SOP file *</label>
+<input id="sop-file" type="file" accept=".pdf,.docx,.txt" aria-describedby="sop-help">
+<p class="helper" id="sop-help">PDF, DOCX or UTF-8 TXT · Maximum 10 MiB. Restricted document checks reject macros, active/embedded content and unsafe archives; this is not an antivirus scan. Downloads only, never an inline preview.</p>
+<button type="button" class="primary" id="sop-save">Attach SOP and save</button>
+</div>
+<div id="sop-status" class="status" role="status" aria-live="polite"></div>
+</dialog>
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const form = $('vendor-form');
+const methodInputs = Array.from(document.querySelectorAll('input[name="method"]'));
+const stepMethods = methodInputs.map(input => input.value).filter(method => method !== 'Email');
+const drafts = Object.fromEntries(stepMethods.map(method => [method, ['']]));
+const emailFields = [
+  {key: 'address', label: 'Vendor support email', limit: 254, required: true, type: 'email'},
+  {key: 'subject', label: 'Subject template', limit: 200, required: true},
+  {key: 'opening', label: 'Opening / header text (greeting)', limit: 2000, multiline: true},
+  {key: 'body', label: 'Message body template', limit: 10000, multiline: true}
+];
+const dialog = $('sop-dialog');
+let vendors = [];
+let loaded = false;
+let pending = null;
+let saving = false;
+let retry = null;
+function status(id, message, kind = '') { const element = $(id); element.textContent = message; element.className = 'status ' + kind; }
+function selectedMethods() { return methodInputs.filter(input => input.checked).map(input => input.value); }
+function element(tag, text, className) {
+  const node = document.createElement(tag);
+  if (text !== undefined) node.textContent = text;
+  if (className) node.className = className;
+  return node;
+}
+function renderSteps(method, focusIndex = null) {
+  const container = $('steps-' + method);
+  container.replaceChildren();
+  drafts[method].forEach((value, index) => {
+    const row = element('li');
+    const id = 'instruction-' + method + '-' + index;
+    const label = element('label', 'Step ' + (index + 1), 'field-label'); label.htmlFor = id;
+    const line = element('div', undefined, 'step-line');
+    const input = document.createElement('input');
+    input.type = 'text'; input.id = id; input.value = value; input.maxLength = 2000;
+    input.required = true; input.disabled = !selectedMethods().includes(method);
+    input.placeholder = 'Describe what to do';
+    input.addEventListener('input', () => { drafts[method][index] = input.value; });
+    const remove = element('button', 'Remove'); remove.type = 'button';
+    remove.disabled = drafts[method].length === 1;
+    remove.setAttribute('aria-label', 'Remove ' + method + ' step ' + (index + 1));
+    remove.addEventListener('click', () => {
+      drafts[method].splice(index, 1);
+      renderSteps(method, Math.min(index, drafts[method].length - 1));
+    });
+    line.append(input, remove); row.append(label, line); container.append(row);
+  });
+  $('add-step-' + method).disabled = drafts[method].length >= 30;
+  if (focusIndex !== null) $('instruction-' + method + '-' + focusIndex).focus();
+}
+function toggleMethods() {
+  const selected = selectedMethods();
+  const other = selected.includes('Other');
+  $('custom-method-wrap').hidden = !other;
+  $('custom-method').disabled = !other;
+  $('custom-method').required = other;
+  for (const input of methodInputs) {
+    const active = selected.includes(input.value);
+    $('method-section-' + input.value).hidden = !active;
+    if (input.value !== 'Email') {
+      for (const field of $('steps-' + input.value).querySelectorAll('input')) field.disabled = !active;
+    }
+  }
+  for (const field of emailFields) {
+    const input = $('email-' + field.key);
+    input.disabled = !selected.includes('Email');
+    input.required = selected.includes('Email') && !!field.required;
+  }
+}
+function buildSteps() {
+  const target = $('method-steps');
+  for (const checkbox of methodInputs) {
+    const method = checkbox.value;
+    const section = element('section', undefined, 'method-steps'); section.id = 'method-section-' + method;
+    const title = element('h3', method === 'Email' ? 'Email ticket details' : method + ' · Ticket creation steps'); title.id = 'method-title-' + method;
+    section.setAttribute('aria-labelledby', title.id);
+    section.append(title);
+    if (method === 'Email') {
+      section.append(element('p', 'Email uses the details below; no numbered steps are required.', 'helper'));
+      const help = element('p', 'Store a reusable email template, not an outgoing email. Opening / header means greeting text, not SMTP headers. Address and subject are required; greeting and body are optional.', 'helper');
+      help.id = 'email-help'; section.append(help);
+      for (const field of emailFields) {
+        const wrapper = element('div', undefined, 'field');
+        const label = element('label', field.label + (field.required ? ' *' : ' (optional)'), 'field-label');
+        label.htmlFor = 'email-' + field.key;
+        const input = element(field.multiline ? 'textarea' : 'input');
+        input.id = label.htmlFor; input.maxLength = field.limit;
+        if (field.multiline) input.rows = field.key === 'body' ? 6 : 3;
+        else input.type = field.type || 'text';
+        input.setAttribute('aria-describedby', 'email-help');
+        input.setAttribute('autocomplete', 'off');
+        wrapper.append(label, input); section.append(wrapper);
+      }
+    }
+    target.append(section);
+    if (method !== 'Email') {
+      const list = element('ol', undefined, 'step-list'); list.id = 'steps-' + method;
+      const add = element('button', '+ Add step'); add.type = 'button'; add.id = 'add-step-' + method;
+      add.setAttribute('aria-label', 'Add ' + method + ' step');
+      add.addEventListener('click', () => {
+        if (drafts[method].length >= 30) return;
+        drafts[method].push(''); renderSteps(method, drafts[method].length - 1);
+      });
+      section.append(list, add); renderSteps(method);
+    }
+  }
+  toggleMethods();
+}
+function cleanCustom(input, label, limit) {
+  const raw = input.value;
+  if (/\p{C}/u.test(raw)) throw new Error(label + ' cannot contain control or invisible format characters.');
+  const text = raw.normalize('NFKC').trim().replace(/\s+/gu, ' ');
+  if (!text || Array.from(text).length > limit) throw new Error(label + ' must contain 1–' + limit + ' characters.');
+  return text;
+}
+function collectEmail() {
+  const raw = $('email-address').value;
+  if (/\p{C}/u.test(raw)) throw new Error('Vendor support email cannot contain controls.');
+  const address = raw.normalize('NFKC').trim();
+  const parts = address.split('@');
+  const local = parts[0]; const domain = parts[1] || '';
+  const labels = domain.split('.');
+  if (parts.length !== 2 || address.length > 254 || local.length > 64 ||
+      !/^[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+)*$/.test(local) ||
+      domain.length > 253 || labels.length < 2 ||
+      labels.some(label => !/^[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?$/.test(label)) ||
+      !/[A-Za-z]/.test(labels[labels.length - 1])) {
+    throw new Error('Enter one plain vendor support email address, for example support@vendor.com.');
+  }
+  const value = {address: local + '@' + domain.toLowerCase(), subject: cleanCustom($('email-subject'), 'Subject template', 200)};
+  for (const field of emailFields.filter(field => field.multiline)) {
+    const text = $('email-' + field.key).value.normalize('NFKC').replace(/\r\n?/g, '\n');
+    if (/\p{C}/u.test(text.replace(/[\n\t]/g, '')) || Array.from(text).length > field.limit) {
+      throw new Error(field.label + ' allows newlines/tabs, no other controls, and at most ' + field.limit + ' characters.');
+    }
+    value[field.key] = text;
+  }
+  return value;
+}
+function collectPayload() {
+  const methods = selectedMethods();
+  if (!methods.length) throw new Error('Select at least one ticket creation method.');
+  const custom = methods.includes('Other') ? cleanCustom($('custom-method'), 'Custom method', 80) : '';
+  if (custom.toLowerCase() === 'email') throw new Error('Select Email and complete its email details instead of naming Other Email.');
+  if (methods.some(method => method !== 'Other' && method.toLowerCase() === custom.toLowerCase())) {
+    throw new Error('Other duplicates a selected method. Use a distinct method name.');
+  }
+  const steps = {};
+  for (const method of methods.filter(method => method !== 'Email')) {
+    steps[method] = drafts[method].map((text, index) => cleanCustom({value: text}, method + ' step ' + (index + 1), 2000));
+  }
+  return {vendor: cleanCustom($('vendor'), 'Vendor name', 100), methods, custom_method: custom, steps, ...(methods.includes('Email') ? {email_details: collectEmail()} : {})};
+}
+function render() {
+  const list = $('vendor-list'); list.replaceChildren();
+  const query = $('search').value.trim().toLocaleLowerCase();
+  const visible = vendors.filter(v => [v.name, ...v.methods].join(' ').toLocaleLowerCase().includes(query));
+  $('count').textContent = loaded ? visible.length + ' shown · ' + vendors.length + ' saved vendors' : '';
+  if (!loaded) return;
+  if (!visible.length) { list.append(element('div', vendors.length ? 'No vendors match your filter.' : 'No vendors yet. Add your first vendor using the form.', 'empty')); return; }
+  for (const vendor of visible) {
+    const row = element('article', undefined, 'vendor-row');
+    const heading = element('h3');
+    const icon = element('span', 'VM', 'vendor-icon'); icon.setAttribute('aria-hidden', 'true');
+    heading.append(icon, element('span', vendor.name)); row.append(heading);
+    for (const method of vendor.methods) {
+      const details = element('details');
+      details.append(element('summary', method));
+      const isEmail = method.normalize('NFKC').trim().toLowerCase() === 'email';
+      if (isEmail) {
+        if (vendor.email_details) {
+          const values = element('dl', undefined, 'email-values');
+          for (const field of emailFields) {
+            values.append(element('dt', field.label), element('dd', vendor.email_details[field.key] || 'Not provided'));
+          }
+          details.append(values);
+        } else {
+          details.append(element('p', 'Legacy Email method — email details not yet recorded.', 'helper'));
+        }
+      }
+      const instructions = vendor.steps[method] || [];
+      if (isEmail) {
+        if (instructions.length) {
+          details.append(element('p', 'Prior Email notes (read-only) — retained for reference; no step entry required.', 'helper'));
+          const notes = element('ul');
+          for (const text of instructions) notes.append(element('li', text));
+          details.append(notes);
+        }
+      } else {
+        const list = element('ol');
+        for (const text of instructions) list.append(element('li', text));
+        details.append(instructions.length ? list : element('p', 'Legacy method — steps not yet recorded.', 'helper'));
+      }
+      row.append(details);
+    }
+    if (vendor.sop && /^[0-9a-f]{32}$/.test(vendor.sop.id)) {
+      const link = element('a', 'Download SOP: ' + vendor.sop.name);
+      link.href = '/api/sops/' + vendor.sop.id; link.download = vendor.sop.name;
+      row.append(link, element('p', 'Current vendor-wide SOP · ' + vendor.sop.size.toLocaleString() + ' bytes', 'helper'));
+    }
+    list.append(row);
+  }
+}
+async function request(options = {}) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 20000);
+  try {
+    const response = await fetch('/api/vendors', {...options, signal: controller.signal, credentials: 'same-origin', cache: 'no-store'});
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Request failed.');
+    return data;
+  } catch (error) {
+    if (error.name === 'AbortError') throw new Error('Request timed out. Retry the same choice/file safely; its submission ID is retained.');
+    if (error instanceof TypeError || error instanceof SyntaxError) throw new Error('Cannot reach the vendor service. Start it and open http://127.0.0.1:8081/vendor_management.html. Retry the same choice/file safely.');
+    throw error;
+  } finally { clearTimeout(timeout); }
+}
+async function refresh() {
+  $('refresh').disabled = true; status('directory-status', 'Loading saved vendors…');
+  try {
+    const data = await request(); vendors = data.vendors; loaded = true; render(); status('directory-status', '');
+  } catch (error) { status('directory-status', error.message + (loaded ? ' Previously loaded data is still shown.' : ''), 'error'); }
+  finally { $('refresh').disabled = false; }
+}
+function busy(value) {
+  saving = value;
+  for (const id of ['sop-yes', 'sop-no', 'sop-cancel', 'sop-save', 'sop-file', 'save', 'clear']) $(id).disabled = value;
+  dialog.setAttribute('aria-busy', String(value));
+}
+function closeDialog() {
+  if (saving) return;
+  pending = null; $('sop-file').value = ''; dialog.close(); $('save').focus();
+}
+function readFile(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result).split(',')[1]);
+    reader.onerror = () => reject(new Error('Cannot read this SOP file. Choose it again.'));
+    reader.onabort = () => reject(new Error('File reading was cancelled.'));
+    reader.readAsDataURL(file);
+  });
+}
+async function finalSave(attach) {
+  if (saving || !pending) return;
+  busy(true); status('sop-status', 'Saving…');
+  try {
+    let sop = null;
+    if (attach) {
+      const file = $('sop-file').files[0];
+      if (!file) throw new Error('Choose an SOP file before saving.');
+      if (!/\.(pdf|docx|txt)$/i.test(file.name) || !file.size || file.size > 10 * 1024 * 1024) {
+        throw new Error('Choose a nonempty PDF, DOCX or TXT file, up to 10 MiB.');
+      }
+      sop = {name: file.name, data: await readFile(file)};
+    }
+    const content = {...pending, sop};
+    const key = JSON.stringify(content);
+    if (!retry || retry.key !== key) retry = {key, id: crypto.randomUUID().replace(/-/g, '')};
+    const data = await request({method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({...content, request_id: retry.id})});
+    retry = null; busy(false); closeDialog();
+    status('save-status', data.message + (attach ? ' New vendor-wide SOP attached.' : ' No new SOP attached.'), 'success');
+    refresh();
+  } catch (error) { status('sop-status', error.message, 'error'); }
+  finally { busy(false); }
+}
+for (const input of methodInputs) input.addEventListener('change', toggleMethods);
+$('search').addEventListener('input', render);
+$('refresh').addEventListener('click', refresh);
+$('sop-yes').addEventListener('click', () => { $('sop-picker').hidden = false; status('sop-status', ''); $('sop-file').focus(); });
+$('sop-no').addEventListener('click', () => finalSave(false));
+$('sop-save').addEventListener('click', () => finalSave(true));
+$('sop-cancel').addEventListener('click', closeDialog);
+dialog.addEventListener('cancel', event => { event.preventDefault(); closeDialog(); });
+form.addEventListener('reset', () => {
+  if (saving) return;
+  setTimeout(() => {
+    for (const method of Object.keys(drafts)) { drafts[method] = ['']; renderSteps(method); }
+    for (const field of emailFields) $('email-' + field.key).value = '';
+    toggleMethods();
+  }, 0);
+  status('save-status', '');
+});
+form.addEventListener('submit', event => {
+  event.preventDefault();
+  if (saving) return;
+  status('save-status', '');
+  if (!form.reportValidity()) return;
+  try { pending = collectPayload(); }
+  catch (error) { status('save-status', error.message, 'error'); return; }
+  $('sop-picker').hidden = true; $('sop-file').value = ''; status('sop-status', '');
+  dialog.showModal(); $('sop-yes').focus();
+});
+buildSteps(); refresh();
+</script>
+</body>
+</html>
