@@ -13,6 +13,8 @@
 @media(max-width:650px){.shell{display:block}.sidebar{padding:15px 20px;gap:14px}.brand{font-size:23px;padding:0}.brand small,.nav-label,.sidebar-note{display:none}.active{padding:9px 12px;inline-size:fit-content}.header{padding:14px 20px}main{padding:24px 16px}.card-head,.card-body{padding:20px}h1{font-size:25px}.choices{grid-template-columns:1fr 1fr}}
 .method-steps{border-block-start:1px solid var(--border);padding-block:18px}.method-steps h3{font-size:15px;margin-block:0 14px}.step-list{list-style:none;padding:0;margin-block:0 16px}.step-list li{margin-block-end:14px}.step-line{display:flex;gap:8px;align-items:center}.step-line input{min-inline-size:0}.step-line button{padding-inline:10px}.vendor-row details{margin-block-end:10px}.vendor-row summary{cursor:pointer;color:var(--blue);font-weight:600}.vendor-row a{display:block;color:var(--blue);margin-block-start:12px}dialog{max-inline-size:590px;inline-size:calc(100% - 32px);max-block-size:85vh;overflow:auto;border:1px solid var(--border);border-radius:13px;background:var(--surface);color:var(--ink);padding:28px;box-shadow:var(--shadow)}dialog::backdrop{background:var(--ink);opacity:.5}dialog h2{margin-block-end:14px}input[type=file]{max-inline-size:100%;font:inherit;color:var(--ink);margin-block-end:12px}
 textarea{resize:vertical;min-block-size:90px}.email-values{margin-block:12px}.email-values dt{font-size:13px;font-weight:650}.email-values dd{margin-inline:0;margin-block:4px 14px;white-space:pre-wrap;overflow-wrap:anywhere}
+.portal-fields{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px}.portal-fields .field{min-inline-size:0}
+@media(max-width:650px){.portal-fields{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -34,24 +36,24 @@ textarea{resize:vertical;min-block-size:90px}.email-values{margin-block:12px}.em
 <div class="field"><label class="field-label" for="vendor">Vendor name <span aria-hidden="true">*</span></label>
 <input type="text" id="vendor" maxlength="100" required autocomplete="organization" placeholder="Enter vendor name" aria-describedby="vendor-help">
 <span id="vendor-help" class="helper">1–100 characters. Type any vendor name; there is no vendor type or dropdown.</span></div>
-<fieldset aria-describedby="method-help"><legend>Ticket creation methods *</legend><p class="helper" id="method-help">Select one or more. Phone, Portal and Other need 1–30 nonblank ordered steps. Email uses its template details only. Other also requires a method name.</p>
+<fieldset aria-describedby="method-help"><legend>Ticket creation methods *</legend><p class="helper" id="method-help">Select one or more. Portal requires What to do, How to do and a new SOP upload. Phone requires contact details. Email uses template details. Only Other requires a custom name and 1–30 ordered steps.</p>
 <div class="choices"><label class="choice"><input type="checkbox" name="method" value="Phone">Phone</label><label class="choice"><input type="checkbox" name="method" value="Email">Email</label><label class="choice"><input type="checkbox" name="method" value="Portal">Portal</label><label class="choice"><input type="checkbox" name="method" value="Other" id="other-method">Other</label></div>
 <div id="custom-method-wrap" class="conditional" hidden><label class="field-label" for="custom-method">Custom method name *</label><input type="text" id="custom-method" maxlength="80" autocomplete="off" disabled aria-describedby="custom-method-help"><span class="helper" id="custom-method-help">1–80 characters, for example Partner help desk.</span></div></fieldset>
 <div id="method-steps"></div>
 <div class="actions"><button type="submit" class="primary" id="save">Submit</button><button type="reset" id="clear">Clear</button></div>
-<p class="save-note">Submit validates this form, then asks about one optional vendor-wide SOP. Saving replaces non-Email steps and the Email template for selected methods only; prior Email notes are retained; other methods and existing SOPs are kept. Toggling methods preserves unsaved steps and email fields. Email templates are stored only; nothing is sent.</p>
+<p class="save-note">Submit validates the selected details, then asks about an SOP. Portal requires a new Portal SOP upload each submission, even with other methods selected. Without Portal, the SOP is optional and vendor-wide. Only Other has numbered steps. Selected details replace their previous values; prior notes, unselected methods and SOP revisions are retained. Toggling preserves drafts. Nothing is sent to a vendor.</p>
 <div id="save-status" class="status" role="status" aria-live="polite"></div>
 </form>
 </div></section>
 <section class="card" aria-labelledby="directory-title"><div class="card-head"><h2 id="directory-title">Vendor directory</h2><p>Your saved vendors and their available ticket creation methods.</p></div>
 <div class="card-body"><div class="directory-tools"><label for="search" hidden>Filter vendors and methods</label><input type="search" id="search" placeholder="Filter vendors or methods" aria-label="Filter vendors or methods"><button id="refresh" type="button">Refresh</button></div><div class="count" id="count"></div><div id="directory-status" class="status" role="status" aria-live="polite">Loading saved vendors…</div><div class="vendor-list" id="vendor-list"></div></div></section>
 </div>
-<p class="footnote">Local single-user companion · Separate vendor_management.db storage · Records configuration only, not actual support tickets. No dashboard integration, vendor API connection, authentication or production multi-user support.</p>
+<p class="footnote">Fields revision 2026-10-14 · Portal: What to do / How to do · Phone: contact person name optional · Local single-user companion · Separate vendor_management.db storage · Records configuration only, not actual support tickets. No dashboard integration, vendor API connection, authentication or production multi-user support.</p>
 <noscript><p>JavaScript is required to load and save vendor methods.</p></noscript>
 </main></div></div>
 <dialog id="sop-dialog" aria-labelledby="sop-title" aria-describedby="sop-description">
 <h2 id="sop-title">Do you want to attach SOP?</h2>
-<p id="sop-description">Attach one SOP for this vendor workflow, shared across its methods. No saves immediately without a new attachment; an existing SOP is kept. A new SOP becomes current; earlier revisions remain stored.</p>
+<p id="sop-description">Portal requires a new Portal SOP upload. Without Portal, an optional vendor-wide SOP can be attached. Earlier revisions are retained.</p>
 <div class="actions"><button type="button" class="primary" id="sop-yes">Yes, attach SOP</button><button type="button" id="sop-no">No, submit without SOP</button><button type="button" id="sop-cancel">Cancel</button></div>
 <div id="sop-picker" class="conditional" hidden>
 <label class="field-label" for="sop-file">SOP file *</label>
@@ -66,13 +68,22 @@ textarea{resize:vertical;min-block-size:90px}.email-values{margin-block:12px}.em
 const $ = id => document.getElementById(id);
 const form = $('vendor-form');
 const methodInputs = Array.from(document.querySelectorAll('input[name="method"]'));
-const stepMethods = methodInputs.map(input => input.value).filter(method => method !== 'Email');
+const stepMethods = methodInputs.map(input => input.value).filter(method => method === 'Other');
 const drafts = Object.fromEntries(stepMethods.map(method => [method, ['']]));
 const emailFields = [
   {key: 'address', label: 'Vendor support email', limit: 254, required: true, type: 'email'},
   {key: 'subject', label: 'Subject template', limit: 200, required: true},
   {key: 'opening', label: 'Opening / header text (greeting)', limit: 2000, multiline: true},
   {key: 'body', label: 'Message body template', limit: 10000, multiline: true}
+];
+const phoneFields = [
+  {key: 'number', label: 'Phone number', limit: 40, required: true},
+  {key: 'contact_name', label: 'Contact person name', limit: 100, required: false},
+  {key: 'account_id', label: 'Account ID', limit: 100, required: true}
+];
+const portalFields = [
+  {key: 'what_to_do', label: 'What to do', limit: 2000, required: true},
+  {key: 'how_to_do', label: 'How to do', limit: 2000, required: true}
 ];
 const dialog = $('sop-dialog');
 let vendors = [];
@@ -122,14 +133,16 @@ function toggleMethods() {
   for (const input of methodInputs) {
     const active = selected.includes(input.value);
     $('method-section-' + input.value).hidden = !active;
-    if (input.value !== 'Email') {
+    if (input.value === 'Other') {
       for (const field of $('steps-' + input.value).querySelectorAll('input')) field.disabled = !active;
     }
   }
-  for (const field of emailFields) {
-    const input = $('email-' + field.key);
-    input.disabled = !selected.includes('Email');
-    input.required = selected.includes('Email') && !!field.required;
+  for (const [method, fields] of [['Email', emailFields], ['Phone', phoneFields], ['Portal', portalFields]]) {
+    for (const field of fields) {
+      const input = $(method.toLowerCase() + '-' + field.key);
+      input.disabled = !selected.includes(method);
+      input.required = selected.includes(method) && !!field.required;
+    }
   }
 }
 function buildSteps() {
@@ -137,28 +150,45 @@ function buildSteps() {
   for (const checkbox of methodInputs) {
     const method = checkbox.value;
     const section = element('section', undefined, 'method-steps'); section.id = 'method-section-' + method;
-    const title = element('h3', method === 'Email' ? 'Email ticket details' : method + ' · Ticket creation steps'); title.id = 'method-title-' + method;
+    const title = element('h3', method === 'Other' ? 'Other · Ticket creation steps' : method + (method === 'Portal' ? ' · Required SOP' : ' ticket details')); title.id = 'method-title-' + method;
     section.setAttribute('aria-labelledby', title.id);
     section.append(title);
-    if (method === 'Email') {
-      section.append(element('p', 'Email uses the details below; no numbered steps are required.', 'helper'));
-      const help = element('p', 'Store a reusable email template, not an outgoing email. Opening / header means greeting text, not SMTP headers. Address and subject are required; greeting and body are optional.', 'helper');
-      help.id = 'email-help'; section.append(help);
-      for (const field of emailFields) {
+    if (method === 'Portal') {
+      section.append(element('p', 'Portal requires a new SOP upload each submission; no numbered steps are required. Submit, then choose Yes to attach a PDF, DOCX or TXT (maximum 10 MiB). Existing SOPs do not replace this upload.', 'helper'));
+      const help = element('p', 'What to do and How to do are both required, up to 2,000 characters each. Newlines and tabs are allowed.', 'helper');
+      help.id = 'portal-help'; section.append(help);
+      const cells = element('div', undefined, 'portal-fields');
+      for (const field of portalFields) {
+        const wrapper = element('div', undefined, 'field');
+        const label = element('label', field.label + ' *', 'field-label');
+        label.htmlFor = 'portal-' + field.key;
+        const input = element('textarea'); input.id = label.htmlFor;
+        input.maxLength = field.limit; input.rows = 5;
+        input.setAttribute('aria-describedby', 'portal-help');
+        wrapper.append(label, input); cells.append(wrapper);
+      }
+      section.append(cells);
+    }
+    if (method === 'Email' || method === 'Phone') {
+      const prefix = method.toLowerCase() + '-';
+      section.append(element('p', method + ' uses the details below; no numbered steps are required.', 'helper'));
+      const help = element('p', method === 'Email' ? 'Store a reusable email template, not an outgoing email. Opening / header means greeting text, not SMTP headers. Address and subject are required; greeting and body are optional.' : 'Phone number and account ID are required; contact person name is optional. Number: 3–20 digits, optional leading +, spaces, parentheses, dots or hyphens. No call is made.', 'helper');
+      help.id = prefix + 'help'; section.append(help);
+      for (const field of method === 'Email' ? emailFields : phoneFields) {
         const wrapper = element('div', undefined, 'field');
         const label = element('label', field.label + (field.required ? ' *' : ' (optional)'), 'field-label');
-        label.htmlFor = 'email-' + field.key;
+        label.htmlFor = prefix + field.key;
         const input = element(field.multiline ? 'textarea' : 'input');
         input.id = label.htmlFor; input.maxLength = field.limit;
         if (field.multiline) input.rows = field.key === 'body' ? 6 : 3;
         else input.type = field.type || 'text';
-        input.setAttribute('aria-describedby', 'email-help');
+        input.setAttribute('aria-describedby', prefix + 'help');
         input.setAttribute('autocomplete', 'off');
         wrapper.append(label, input); section.append(wrapper);
       }
     }
     target.append(section);
-    if (method !== 'Email') {
+    if (method === 'Other') {
       const list = element('ol', undefined, 'step-list'); list.id = 'steps-' + method;
       const add = element('button', '+ Add step'); add.type = 'button'; add.id = 'add-step-' + method;
       add.setAttribute('aria-label', 'Add ' + method + ' step');
@@ -171,11 +201,11 @@ function buildSteps() {
   }
   toggleMethods();
 }
-function cleanCustom(input, label, limit) {
+function cleanCustom(input, label, limit, allowEmpty = false) {
   const raw = input.value;
   if (/\p{C}/u.test(raw)) throw new Error(label + ' cannot contain control or invisible format characters.');
   const text = raw.normalize('NFKC').trim().replace(/\s+/gu, ' ');
-  if (!text || Array.from(text).length > limit) throw new Error(label + ' must contain 1–' + limit + ' characters.');
+  if ((!text && !allowEmpty) || Array.from(text).length > limit) throw new Error(label + ' must contain ' + (allowEmpty ? '0' : '1') + '–' + limit + ' characters.');
   return text;
 }
 function collectEmail() {
@@ -202,19 +232,43 @@ function collectEmail() {
   }
   return value;
 }
+function collectPhone() {
+  const number = cleanCustom($('phone-number'), 'Phone number', 40);
+  const digits = (number.match(/[0-9]/g) || []).length;
+  if (!/^\+?[0-9(][0-9 () .-]*[0-9)]$/.test(number) || digits < 3 || digits > 20) {
+    throw new Error('Phone number needs 3–20 digits; use an optional leading +, spaces, parentheses, dots or hyphens.');
+  }
+  const value = {number};
+  for (const key of ['contact_name', 'account_id']) {
+    value[key] = cleanCustom($('phone-' + key), key === 'contact_name' ? 'Contact person name' : 'Account ID', 100, key === 'contact_name');
+    if (value[key] && !/[\p{L}\p{N}]/u.test(value[key])) throw new Error('Contact person name and account ID must contain a letter or digit when provided.');
+  }
+  return value;
+}
+function collectPortal() {
+  const value = {};
+  for (const field of portalFields) {
+    const text = $('portal-' + field.key).value.normalize('NFKC').replace(/\r\n?/g, '\n');
+    if (!text.trim() || /\p{C}/u.test(text.replace(/[\n\t]/g, '')) || Array.from(text).length > field.limit) {
+      throw new Error(field.label + ' is required, allows newlines/tabs, no other controls, and at most ' + field.limit + ' characters.');
+    }
+    value[field.key] = text;
+  }
+  return value;
+}
 function collectPayload() {
   const methods = selectedMethods();
   if (!methods.length) throw new Error('Select at least one ticket creation method.');
   const custom = methods.includes('Other') ? cleanCustom($('custom-method'), 'Custom method', 80) : '';
-  if (custom.toLowerCase() === 'email') throw new Error('Select Email and complete its email details instead of naming Other Email.');
+  if (['email', 'phone', 'portal'].includes(custom.toLowerCase())) throw new Error('Select the Email, Phone or Portal checkbox instead of naming Other after a built-in method.');
   if (methods.some(method => method !== 'Other' && method.toLowerCase() === custom.toLowerCase())) {
     throw new Error('Other duplicates a selected method. Use a distinct method name.');
   }
   const steps = {};
-  for (const method of methods.filter(method => method !== 'Email')) {
+  for (const method of methods.filter(method => method === 'Other')) {
     steps[method] = drafts[method].map((text, index) => cleanCustom({value: text}, method + ' step ' + (index + 1), 2000));
   }
-  return {vendor: cleanCustom($('vendor'), 'Vendor name', 100), methods, custom_method: custom, steps, ...(methods.includes('Email') ? {email_details: collectEmail()} : {})};
+  return {vendor: cleanCustom($('vendor'), 'Vendor name', 100), methods, custom_method: custom, steps, ...(methods.includes('Email') ? {email_details: collectEmail()} : {}), ...(methods.includes('Phone') ? {phone_details: collectPhone()} : {}), ...(methods.includes('Portal') ? {portal_details: collectPortal()} : {})};
 }
 function render() {
   const list = $('vendor-list'); list.replaceChildren();
@@ -243,10 +297,30 @@ function render() {
           details.append(element('p', 'Legacy Email method — email details not yet recorded.', 'helper'));
         }
       }
+      const canonical = method.normalize('NFKC').trim().toLowerCase();
+      if (canonical === 'phone') {
+        if (vendor.phone_details) {
+          const values = element('dl', undefined, 'email-values');
+          for (const field of phoneFields) values.append(element('dt', field.label), element('dd', vendor.phone_details[field.key] || 'Not provided'));
+          details.append(values);
+        } else details.append(element('p', 'Legacy Phone method — phone details not yet recorded.', 'helper'));
+      }
+      if (canonical === 'portal') {
+        if (vendor.portal_details) {
+          const values = element('dl', undefined, 'email-values');
+          for (const field of portalFields) values.append(element('dt', field.label), element('dd', vendor.portal_details[field.key]));
+          details.append(values);
+        } else details.append(element('p', 'Legacy Portal method — What to do and How to do not yet recorded.', 'helper'));
+        if (vendor.portal_sop && /^[0-9a-f]{32}$/.test(vendor.portal_sop.id)) {
+          const link = element('a', 'Download current Portal SOP: ' + vendor.portal_sop.name);
+          link.href = '/api/sops/' + vendor.portal_sop.id; link.download = vendor.portal_sop.name;
+          details.append(link);
+        } else details.append(element('p', 'Legacy Portal method — Portal SOP not yet recorded. A vendor-wide SOP does not count as a Portal SOP.', 'helper'));
+      }
       const instructions = vendor.steps[method] || [];
-      if (isEmail) {
+      if (['email', 'phone', 'portal'].includes(canonical)) {
         if (instructions.length) {
-          details.append(element('p', 'Prior Email notes (read-only) — retained for reference; no step entry required.', 'helper'));
+          details.append(element('p', 'Prior ' + method + ' notes (read-only) — retained for reference; no step entry required.', 'helper'));
           const notes = element('ul');
           for (const text of instructions) notes.append(element('li', text));
           details.append(notes);
@@ -309,6 +383,8 @@ async function finalSave(attach) {
   if (saving || !pending) return;
   busy(true); status('sop-status', 'Saving…');
   try {
+    const portal = pending.methods.includes('Portal');
+    if (portal && !attach) throw new Error('Portal requires a new SOP upload. Choose Yes and attach a file.');
     let sop = null;
     if (attach) {
       const file = $('sop-file').files[0];
@@ -323,7 +399,7 @@ async function finalSave(attach) {
     if (!retry || retry.key !== key) retry = {key, id: crypto.randomUUID().replace(/-/g, '')};
     const data = await request({method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({...content, request_id: retry.id})});
     retry = null; busy(false); closeDialog();
-    status('save-status', data.message + (attach ? ' New vendor-wide SOP attached.' : ' No new SOP attached.'), 'success');
+    status('save-status', data.message + (attach ? (portal ? ' New Portal SOP attached.' : ' New vendor-wide SOP attached.') : ' No new SOP attached.'), 'success');
     refresh();
   } catch (error) { status('sop-status', error.message, 'error'); }
   finally { busy(false); }
@@ -340,7 +416,7 @@ form.addEventListener('reset', () => {
   if (saving) return;
   setTimeout(() => {
     for (const method of Object.keys(drafts)) { drafts[method] = ['']; renderSteps(method); }
-    for (const field of emailFields) $('email-' + field.key).value = '';
+    for (const [prefix, fields] of [['email-', emailFields], ['phone-', phoneFields], ['portal-', portalFields]]) for (const field of fields) $(prefix + field.key).value = '';
     toggleMethods();
   }, 0);
   status('save-status', '');
@@ -352,6 +428,10 @@ form.addEventListener('submit', event => {
   if (!form.reportValidity()) return;
   try { pending = collectPayload(); }
   catch (error) { status('save-status', error.message, 'error'); return; }
+  const portal = pending.methods.includes('Portal');
+  $('sop-title').textContent = portal ? 'Portal SOP is mandatory' : 'Do you want to attach SOP?';
+  $('sop-description').textContent = portal ? 'Choose Yes and upload a new Portal SOP for this submission, including when other methods are selected. Existing Portal or vendor-wide SOPs cannot replace this upload. Earlier revisions remain stored. Cancel returns to your draft.' : 'Attach an optional vendor-wide SOP. No saves without a new attachment and retains existing SOPs. This does not change any saved Portal SOP.';
+  $('sop-no').hidden = portal;
   $('sop-picker').hidden = true; $('sop-file').value = ''; status('sop-status', '');
   dialog.showModal(); $('sop-yes').focus();
 });

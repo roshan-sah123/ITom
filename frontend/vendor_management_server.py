@@ -24,19 +24,19 @@ MAX_ZIP_ENTRIES = 256
 MAX_ZIP_TOTAL = 32 * 1024 * 1024
 MAX_ZIP_ENTRY = 8 * 1024 * 1024
 MIME_TYPES = {".pdf": "application/pdf", ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document", ".txt": "text/plain; charset=utf-8"}
-SAVE_MESSAGE = "Vendor methods, ordered steps and any Email template saved. Unselected methods and existing SOPs were kept."
+SAVE_MESSAGE = "Vendor methods and selected details saved. Unselected methods, prior notes and SOP revisions were kept."
 HERE = Path(__file__).resolve().parent
 DEFAULT_DATABASE = HERE.parent / "data" / "vendor_management.db"
 
 
-def clean_text(value, label, limit):
+def clean_text(value, label, limit, allow_empty=False):
     if not isinstance(value, str):
         raise ValueError(label + " must be text.")
     if any(unicodedata.category(c).startswith("C") for c in value):
         raise ValueError(label + " cannot contain control or invisible format characters.")
     value = " ".join(unicodedata.normalize("NFKC", value).split())
-    if not value or len(value) > limit:
-        raise ValueError(label + " must contain 1 to " + str(limit) + " characters.")
+    if (not value and not allow_empty) or len(value) > limit:
+        raise ValueError(label + " must contain " + ("0" if allow_empty else "1") + " to " + str(limit) + " characters.")
     return value
 
 
@@ -76,6 +76,42 @@ def validate_email(value):
             "subject": clean_text(value["subject"], "Subject template", 200),
             "opening": email_template(value.get("opening", ""), "Opening / header text", 2000),
             "body": email_template(value.get("body", ""), "Message body template", 10000)}
+
+
+def validate_phone(value):
+    if (not isinstance(value, dict) or not {"number", "account_id"} <= set(value)
+            or set(value) - {"number", "contact_name", "account_id", "extension", "notes"}):
+        raise ValueError("Phone details require number and account_id; only optional contact_name, extension and notes are allowed.")
+    number = clean_text(value["number"], "Phone number", 40)
+    if (not re.fullmatch(r"\+?[0-9(][0-9 () .-]*[0-9)]", number)
+            or not 3 <= len(re.findall(r"[0-9]", number)) <= 20):
+        raise ValueError("Phone number needs 3–20 digits; use an optional leading +, spaces, parentheses, dots or hyphens (maximum 40 characters).")
+    result = {"number": number}
+    for key, label in (("contact_name", "Contact person name"), ("account_id", "Account ID")):
+        text = clean_text(value.get(key, ""), label, 100, allow_empty=key == "contact_name")
+        if text and not any(c.isalnum() for c in text):
+            raise ValueError(label + " must contain a letter or digit.")
+        result[key] = text
+    extension = value.get("extension", "")
+    if extension != "":
+        extension = clean_text(extension, "Extension", 10)
+        if not re.fullmatch(r"[0-9]{1,10}", extension):
+            raise ValueError("Extension must contain 1–10 digits or be empty.")
+    result["extension"] = extension
+    result["notes"] = email_template(value.get("notes", ""), "Phone notes", 2000)
+    return result
+
+
+def validate_portal(value):
+    if not isinstance(value, dict) or set(value) != {"what_to_do", "how_to_do"}:
+        raise ValueError("Portal details require What to do and How to do only.")
+    result = {}
+    for key, label in (("what_to_do", "What to do"), ("how_to_do", "How to do")):
+        text = email_template(value[key], label, 2000)
+        if not text.strip():
+            raise ValueError(label + " is required.")
+        result[key] = text
+    return result
 
 
 def safe_xml(data):
@@ -217,7 +253,7 @@ def validate_sop(value):
 
 
 def validate(payload):
-    fields = {"vendor", "methods", "custom_method", "steps", "sop", "request_id", "email_details"}
+    fields = {"vendor", "methods", "custom_method", "steps", "sop", "request_id", "email_details", "phone_details", "portal_details"}
     if not isinstance(payload, dict) or set(payload) - fields:
         raise ValueError("Expected vendor name, methods, steps, request_id and optional SOP/custom method.")
     vendor = clean_text(payload.get("vendor"), "Vendor name", 100)
@@ -232,8 +268,8 @@ def validate(payload):
     custom = payload.get("custom_method", "")
     if "Other" in methods:
         custom = clean_text(custom, "Custom method", 80)
-        if custom.casefold() == "email":
-            raise ValueError("For Email, select the Email checkbox and complete its email details, not Other.")
+        if custom.casefold() in {"email", "phone", "portal"}:
+            raise ValueError("Select the Email, Phone or Portal checkbox instead of naming Other after a built-in method.")
     elif custom != "":
         raise ValueError("Custom method is only allowed when Other is selected.")
     email = None
@@ -241,9 +277,22 @@ def validate(payload):
         email = validate_email(payload.get("email_details"))
     elif "email_details" in payload:
         raise ValueError("Email details are only allowed when Email is selected.")
+    phone = None
+    if "Phone" in methods:
+        phone = validate_phone(payload.get("phone_details"))
+    elif "phone_details" in payload:
+        raise ValueError("Phone details are only allowed when Phone is selected.")
+    portal = None
+    if "Portal" in methods:
+        portal = validate_portal(payload.get("portal_details"))
+    elif "portal_details" in payload:
+        raise ValueError("Portal details are only allowed when Portal is selected.")
+    sop = validate_sop(payload.get("sop"))
+    if "Portal" in methods and sop is None:
+        raise ValueError("Portal requires a new SOP upload with every submission, including mixed methods. Existing SOPs do not satisfy this requirement.")
     steps = payload.get("steps")
-    if not isinstance(steps, dict) or set(steps) != set(methods) - {"Email"}:
-        raise ValueError("Provide steps for selected non-Email methods only; use an empty steps object for Email only.")
+    if not isinstance(steps, dict) or set(steps) != set(methods) & {"Other"}:
+        raise ValueError("Provide steps for Other only; use an empty steps object when Other is not selected.")
     result = {}
     for method in methods:
         label = custom if method == "Other" else method
@@ -253,11 +302,17 @@ def validate(payload):
         if method == "Email":
             result[key] = {"label": label, "email_details": email}
             continue
+        if method == "Phone":
+            result[key] = {"label": label, "phone_details": phone}
+            continue
+        if method == "Portal":
+            result[key] = {"label": label, "portal_details": portal}
+            continue
         values = steps[method]
         if not isinstance(values, list) or not 1 <= len(values) <= MAX_STEPS:
             raise ValueError(method + " needs 1–30 ordered steps.")
         result[key] = {"label": label, "steps": [clean_text(s, method + " step", MAX_STEP_TEXT) for s in values]}
-    return vendor, result, validate_sop(payload.get("sop")), request_id
+    return vendor, result, sop, request_id
 
 
 def connect(database):
@@ -279,6 +334,9 @@ def initialize(database):
             connection.execute("CREATE INDEX IF NOT EXISTS vm_sops_vendor ON vm_sops(vendor_key)")
             connection.execute("CREATE TABLE IF NOT EXISTS vm_submissions (request_id TEXT PRIMARY KEY, payload_hash TEXT NOT NULL)")
             connection.execute("CREATE TABLE IF NOT EXISTS vm_email_details (vendor_key TEXT NOT NULL, method_key TEXT NOT NULL CHECK(method_key = 'email'), address TEXT NOT NULL, subject TEXT NOT NULL, opening TEXT NOT NULL, body TEXT NOT NULL, PRIMARY KEY(vendor_key, method_key), FOREIGN KEY(vendor_key, method_key) REFERENCES vm_vendor_methods(vendor_key, method_key))")
+            connection.execute("CREATE TABLE IF NOT EXISTS vm_phone_details (vendor_key TEXT NOT NULL, method_key TEXT NOT NULL CHECK(method_key = 'phone'), number TEXT NOT NULL, contact_name TEXT NOT NULL, account_id TEXT NOT NULL, extension TEXT NOT NULL, notes TEXT NOT NULL, PRIMARY KEY(vendor_key, method_key), FOREIGN KEY(vendor_key, method_key) REFERENCES vm_vendor_methods(vendor_key, method_key))")
+            connection.execute("CREATE TABLE IF NOT EXISTS vm_portal_details (vendor_key TEXT NOT NULL, method_key TEXT NOT NULL CHECK(method_key = 'portal'), what_to_do TEXT NOT NULL, how_to_do TEXT NOT NULL, PRIMARY KEY(vendor_key, method_key), FOREIGN KEY(vendor_key, method_key) REFERENCES vm_vendor_methods(vendor_key, method_key))")
+            connection.execute("CREATE TABLE IF NOT EXISTS vm_portal_sops (sop_id TEXT PRIMARY KEY REFERENCES vm_sops(id), vendor_key TEXT NOT NULL, method_key TEXT NOT NULL CHECK(method_key = 'portal'), FOREIGN KEY(vendor_key, method_key) REFERENCES vm_vendor_methods(vendor_key, method_key))")
     finally:
         connection.close()
 
@@ -300,15 +358,30 @@ def save(database, payload):
             connection.execute("INSERT OR IGNORE INTO vm_vendors(vendor_key, name) VALUES (?, ?)", (key, vendor))
             for method_key, value in methods.items():
                 connection.execute("INSERT OR IGNORE INTO vm_vendor_methods(vendor_key, method_key, label) VALUES (?, ?, ?)", (key, method_key, value["label"]))
-                # Email saves replace details only; historical instruction rows remain intact.
+                # Only Other saves replace steps; canonical methods retain historical notes.
                 if "steps" in value:
                     connection.execute("DELETE FROM vm_method_steps WHERE vendor_key = ? AND method_key = ?", (key, method_key))
                     connection.executemany("INSERT INTO vm_method_steps(vendor_key, method_key, position, instruction) VALUES (?, ?, ?, ?)", [(key, method_key, n, text) for n, text in enumerate(value["steps"], 1)])
                 if "email_details" in value:
                     email = value["email_details"]
                     connection.execute("INSERT INTO vm_email_details(vendor_key, method_key, address, subject, opening, body) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(vendor_key, method_key) DO UPDATE SET address=excluded.address, subject=excluded.subject, opening=excluded.opening, body=excluded.body", (key, method_key, email["address"], email["subject"], email["opening"], email["body"]))
+                if "phone_details" in value:
+                    phone = value["phone_details"]
+                    # The three-field form must not erase older optional Phone values.
+                    previous_phone = connection.execute("SELECT extension, notes FROM vm_phone_details WHERE vendor_key = ? AND method_key = ?", (key, method_key)).fetchone()
+                    if previous_phone:
+                        for index, field in enumerate(("extension", "notes")):
+                            if field not in payload["phone_details"]:
+                                phone[field] = previous_phone[index]
+                    connection.execute("INSERT INTO vm_phone_details(vendor_key, method_key, number, contact_name, account_id, extension, notes) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT(vendor_key, method_key) DO UPDATE SET number=excluded.number, contact_name=excluded.contact_name, account_id=excluded.account_id, extension=excluded.extension, notes=excluded.notes", (key, method_key, phone["number"], phone["contact_name"], phone["account_id"], phone["extension"], phone["notes"]))
+                if "portal_details" in value:
+                    portal = value["portal_details"]
+                    connection.execute("INSERT INTO vm_portal_details(vendor_key, method_key, what_to_do, how_to_do) VALUES (?, ?, ?, ?) ON CONFLICT(vendor_key, method_key) DO UPDATE SET what_to_do=excluded.what_to_do, how_to_do=excluded.how_to_do", (key, method_key, portal["what_to_do"], portal["how_to_do"]))
             if sop:
-                connection.execute("INSERT INTO vm_sops(id, vendor_key, name, mime, size, sha256, data) VALUES (?, ?, ?, ?, ?, ?, ?)", (uuid.uuid4().hex, key, sop["name"], sop["mime"], sop["size"], sop["sha256"], sop["data"]))
+                sop_id = uuid.uuid4().hex
+                connection.execute("INSERT INTO vm_sops(id, vendor_key, name, mime, size, sha256, data) VALUES (?, ?, ?, ?, ?, ?, ?)", (sop_id, key, sop["name"], sop["mime"], sop["size"], sop["sha256"], sop["data"]))
+                if "portal" in methods:
+                    connection.execute("INSERT INTO vm_portal_sops(sop_id, vendor_key, method_key) VALUES (?, ?, 'portal')", (sop_id, key))
             connection.execute("INSERT INTO vm_submissions(request_id, payload_hash) VALUES (?, ?)", (request_id, payload_hash))
     finally:
         connection.close()
@@ -322,13 +395,16 @@ def load(database):
             connection.execute("BEGIN")
             rows = connection.execute("SELECT v.vendor_key, v.name, m.method_key, m.label FROM vm_vendors v LEFT JOIN vm_vendor_methods m ON m.vendor_key = v.vendor_key ORDER BY v.vendor_key, m.method_key").fetchall()
             steps = connection.execute("SELECT vendor_key, method_key, instruction FROM vm_method_steps ORDER BY vendor_key, method_key, position").fetchall()
-            sops = connection.execute("SELECT id, vendor_key, name, mime, size, sha256, created_at FROM vm_sops WHERE rowid IN (SELECT MAX(rowid) FROM vm_sops GROUP BY vendor_key)").fetchall()
+            sops = connection.execute("SELECT id, vendor_key, name, mime, size, sha256, created_at FROM vm_sops WHERE rowid IN (SELECT MAX(rowid) FROM vm_sops WHERE id NOT IN (SELECT sop_id FROM vm_portal_sops) GROUP BY vendor_key)").fetchall()
             emails = connection.execute("SELECT vendor_key, address, subject, opening, body FROM vm_email_details").fetchall()
+            phones = connection.execute("SELECT vendor_key, number, contact_name, account_id, extension, notes FROM vm_phone_details").fetchall()
+            portals = connection.execute("SELECT vendor_key, what_to_do, how_to_do FROM vm_portal_details").fetchall()
+            portal_sops = connection.execute("SELECT s.id, s.vendor_key, s.name, s.mime, s.size, s.sha256, s.created_at FROM vm_sops s JOIN vm_portal_sops p ON p.sop_id = s.id AND p.vendor_key = s.vendor_key WHERE s.rowid IN (SELECT MAX(s2.rowid) FROM vm_sops s2 JOIN vm_portal_sops p2 ON p2.sop_id = s2.id AND p2.vendor_key = s2.vendor_key GROUP BY s2.vendor_key)").fetchall()
     finally:
         connection.close()
     vendors = {}
     for key, name, method_key, label in rows:
-        value = vendors.setdefault(key, {"name": name, "methods": [], "steps": {}, "sop": None, "email_details": None})
+        value = vendors.setdefault(key, {"name": name, "methods": [], "steps": {}, "sop": None, "email_details": None, "phone_details": None, "portal_details": None, "portal_sop": None})
         if method_key is not None:
             value["methods"].append(label)
             value["steps"][label] = []
@@ -339,6 +415,12 @@ def load(database):
         vendors[key]["sop"] = {"id": identifier, "name": name, "mime": mime, "size": size, "sha256": digest, "created_at": created_at}
     for key, address, subject, opening, body in emails:
         vendors[key]["email_details"] = {"address": address, "subject": subject, "opening": opening, "body": body}
+    for key, number, contact_name, account_id, extension, notes in phones:
+        vendors[key]["phone_details"] = {"number": number, "contact_name": contact_name, "account_id": account_id, "extension": extension, "notes": notes}
+    for key, what_to_do, how_to_do in portals:
+        vendors[key]["portal_details"] = {"what_to_do": what_to_do, "how_to_do": how_to_do}
+    for identifier, key, name, mime, size, digest, created_at in portal_sops:
+        vendors[key]["portal_sop"] = {"id": identifier, "name": name, "mime": mime, "size": size, "sha256": digest, "created_at": created_at}
     return list(vendors.values())
 
 
@@ -368,8 +450,10 @@ class VendorServer(ThreadingHTTPServer):
 
     def __init__(self, database, port=8081):
         self.database = Path(database)
-        self.page = (HERE / "vendor_management.html").read_bytes()
-        text = self.page.decode("utf-8")
+        text = (HERE / "vendor_management.html").read_bytes().decode("utf-8")
+        # Match browser HTML newline normalization before hashing and serving.
+        text = text.replace("\r\n", "\n").replace("\r", "\n")
+        self.page = text.encode("utf-8")
         hashes = {}
         for tag in ("script", "style"):
             hashes[tag] = " ".join("'sha256-" + base64.b64encode(hashlib.sha256(s.encode()).digest()).decode() + "'" for s in re.findall(r"<" + tag + r">(.*?)</" + tag + r">", text, re.S))

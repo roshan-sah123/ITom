@@ -1,0 +1,33 @@
+/* Scoped to this launcher; deliberately does not use the portal's nav-tab class. */
+nav .vendor-management-nav-link {
+  --vm-nav-accent: var(--primary-color, var(--primary, LinkText));
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  box-sizing: border-box;
+  min-block-size: 3.25rem;
+  padding-block: 0.75rem;
+  padding-inline: 1rem;
+  border: 0;
+  border-block-end: 2px solid transparent;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 500;
+  line-height: 1.4;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+}
+nav .vendor-management-nav-link:hover {
+  color: var(--vm-nav-accent);
+  border-block-end-color: currentColor;
+}
+nav .vendor-management-nav-link:focus-visible {
+  outline: 2px solid var(--vm-nav-accent);
+  outline-offset: -3px;
+}
+nav .vendor-management-nav-item {
+  list-style: none;
+}
