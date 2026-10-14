@@ -147,7 +147,7 @@ def plan(original):
     newline = "\r\n" if "\r\n" in text else "\n"
     link = ('<a id="%s" class="vendor-management-nav-link" href="%s" target="_blank" '
             'rel="noopener" title="Local Vendor Management companion (opens in a new tab)">'
-            '<span aria-hidden="true">&#9635;</span><span>Vendor Management</span></a>') % (LINK_ID, URL)
+            '<span>Vendor Management</span></a>') % (LINK_ID, URL)
     after = target.end
     if target.parent.tag == "li":
         if target.parent.end is None or target.parent.parent.tag not in {"ul", "ol"}:

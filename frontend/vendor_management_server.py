@@ -496,7 +496,7 @@ class Handler(BaseHTTPRequestHandler):
         self.close_connection = True
         self.wfile.write(content)
 
-    def allowed(self, write=False):
+    def allowed(self, write=False, page_navigation=False):
         hosts = self.headers.get_all("Host", [])
         port = self.server.server_port
         if len(hosts) != 1 or hosts[0] not in (f"127.0.0.1:{port}", f"localhost:{port}"):
@@ -507,15 +507,24 @@ class Handler(BaseHTTPRequestHandler):
         if len(origins) > 1 or (origins and origins[0] != expected) or (write and not origins):
             self.respond(403, {"error": "Same-origin requests only; writes require Origin."})
             return False
-        if self.headers.get("Sec-Fetch-Site") not in (None, "same-origin", "none"):
+        # A clicked link may cross ports; only the HTML document may navigate in.
+        navigation = (
+            page_navigation and not write and self.command == "GET"
+            and self.headers.get_all("Sec-Fetch-Site", []) in (["same-site"], ["cross-site"])
+            and self.headers.get_all("Sec-Fetch-Mode", []) == ["navigate"]
+            and self.headers.get_all("Sec-Fetch-Dest", []) == ["document"]
+            and self.headers.get_all("Sec-Fetch-User", []) == ["?1"]
+        )
+        if self.headers.get("Sec-Fetch-Site") not in (None, "same-origin", "none") and not navigation:
             self.respond(403, {"error": "Cross-origin requests are not allowed."})
             return False
         return True
 
     def do_GET(self):
-        if not self.allowed():
+        is_page = self.path in ("/", "/vendor_management.html")
+        if not self.allowed(page_navigation=is_page):
             return
-        if self.path in ("/", "/vendor_management.html"):
+        if is_page:
             self.respond(200, self.server.page, "text/html; charset=utf-8")
         elif self.path == "/api/vendors":
             try:

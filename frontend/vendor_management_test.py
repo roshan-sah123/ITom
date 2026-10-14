@@ -163,6 +163,106 @@ class VendorManagementTests(unittest.TestCase):
                     digest = base64.b64encode(vm.hashlib.sha256(block.encode()).digest()).decode()
                     self.assertIn("sha256-" + digest, headers["Content-Security-Policy"])
 
+    def navigation_headers(self, site="same-site"):
+        return {"Sec-Fetch-Site": site, "Sec-Fetch-Mode": "navigate",
+                "Sec-Fetch-Dest": "document", "Sec-Fetch-User": "?1",
+                "Referer": "http://127.0.0.1:8080/"}
+
+    def test_clicked_cross_port_page_navigation(self):
+        for site in ("same-site", "cross-site"):
+            for path in ("/", "/vendor_management.html"):
+                with self.subTest(site=site, path=path):
+                    status, headers, body = self.request(path=path, headers=self.navigation_headers(site))
+                    self.assertEqual(status, 200)
+                    self.assertEqual(body, self.server.page)
+                    self.assertTrue(headers["Content-Type"].startswith("text/html"))
+                    self.assertNotIn("Access-Control-Allow-Origin", headers)
+                    self.assertEqual(headers["Content-Security-Policy"], self.server.csp)
+                    self.assertIn("connect-src 'self'", self.server.csp)
+                    self.assertIn("frame-ancestors 'none'", self.server.csp)
+                    self.assertNotIn("unsafe-inline", self.server.csp)
+                    self.assertEqual(headers["X-Frame-Options"], "DENY")
+                    for tag in ("style", "script"):
+                        for block in re.findall(r"<" + tag + r">(.*?)</" + tag + r">", body.decode(), re.S):
+                            digest = base64.b64encode(vm.hashlib.sha256(block.encode()).digest()).decode()
+                            self.assertIn("sha256-" + digest, self.server.csp)
+        self.assertEqual(vm.load(self.database), [])
+
+    def test_direct_address_and_same_origin_page_requests(self):
+        for path in ("/", "/vendor_management.html"):
+            for headers in ({}, self.navigation_headers("none"),
+                            {"Sec-Fetch-Site": "same-origin", "Sec-Fetch-Mode": "cors",
+                             "Sec-Fetch-Dest": "empty", "Origin": self.origin}):
+                with self.subTest(path=path, headers=headers):
+                    self.assertEqual(self.request(path=path, headers=headers)[0], 200)
+
+    def test_cross_origin_page_non_navigation_rejected(self):
+        for site in ("same-site", "cross-site"):
+            for change in ({"Sec-Fetch-Dest": "iframe"}, {"Sec-Fetch-Dest": "frame"},
+                           {"Sec-Fetch-Mode": "cors", "Sec-Fetch-Dest": "empty"},
+                           {"Sec-Fetch-Mode": "no-cors", "Sec-Fetch-Dest": "script"},
+                           {"Sec-Fetch-Mode": None}, {"Sec-Fetch-Dest": None},
+                           {"Sec-Fetch-User": None}, {"Sec-Fetch-User": "?0"},
+                           {"Sec-Fetch-Site": "unknown"}):
+                headers = self.navigation_headers(site)
+                headers.update(change)
+                headers = {key: value for key, value in headers.items() if value is not None}
+                for path in ("/", "/vendor_management.html"):
+                    with self.subTest(site=site, change=change, path=path):
+                        self.assertEqual(self.request(path=path, headers=headers)[0], 403)
+
+    def test_navigation_keeps_exact_host_and_origin_checks(self):
+        for change in ({"Host": "evil.example"}, {"Host": "127.0.0.1:8080"},
+                       {"Origin": "http://127.0.0.1:8080"}, {"Origin": "null"},
+                       {"Origin": "https://evil.example"},
+                       {"Host": f"localhost:{self.port}", "Origin": self.origin}):
+            with self.subTest(change=change):
+                headers = {**self.navigation_headers(), **change}
+                self.assertEqual(self.request(path="/vendor_management.html", headers=headers)[0], 403)
+
+    def test_navigation_cannot_bypass_api_download_or_post_checks(self):
+        vm.save(self.database, payload(sop=attachment()))
+        snapshot = vm.load(self.database)
+        sop_path = "/api/sops/" + snapshot[0]["sop"]["id"]
+        for site in ("same-site", "cross-site"):
+            for path in ("/api/vendors", sop_path, "/unknown", "/vendor_management.html?navigation=1"):
+                for mode, dest in (("navigate", "document"), ("cors", "empty")):
+                    with self.subTest(site=site, path=path, mode=mode):
+                        headers = {**self.navigation_headers(site), "Sec-Fetch-Mode": mode, "Sec-Fetch-Dest": dest}
+                        self.assertEqual(self.request(path=path, headers=headers)[0], 403)
+            for path in ("/", "/vendor_management.html", "/api/vendors"):
+                for origin in (self.origin, "http://127.0.0.1:8080"):
+                    with self.subTest(site=site, path=path, origin=origin):
+                        headers = {**self.navigation_headers(site), "Origin": origin}
+                        self.assertEqual(self.request("POST", path=path, payload=payload("Rejected"), headers=headers)[0], 403)
+        self.assertEqual(vm.load(self.database), snapshot)
+
+    def test_same_origin_api_and_download_after_navigation(self):
+        self.assertEqual(self.request(path="/vendor_management.html", headers=self.navigation_headers())[0], 200)
+        headers = {"Sec-Fetch-Site": "same-origin", "Sec-Fetch-Mode": "cors",
+                   "Sec-Fetch-Dest": "empty", "Origin": self.origin,
+                   "Referer": self.origin + "/vendor_management.html"}
+        self.assertEqual(self.request("POST", payload=payload(sop=attachment()), headers=headers)[0], 200)
+        status, response_headers, body = self.request(headers=headers)
+        self.assertEqual(status, 200)
+        self.assertNotIn("Access-Control-Allow-Origin", response_headers)
+        saved = json.loads(body)["vendors"]
+        self.assertEqual(len(saved), 1)
+        status, response_headers, body = self.request(path="/api/sops/" + saved[0]["sop"]["id"], headers=headers)
+        self.assertEqual(status, 200)
+        self.assertEqual(body, base64.b64decode(attachment()["data"]))
+        self.assertTrue(response_headers["Content-Disposition"].startswith("attachment;"))
+
+    def test_navigation_rejects_duplicate_headers(self):
+        values = {"Host": f"127.0.0.1:{self.port}", "Origin": self.origin, **self.navigation_headers()}
+        for header in ("Host", "Origin", "Sec-Fetch-Site", "Sec-Fetch-Mode", "Sec-Fetch-Dest", "Sec-Fetch-User"):
+            with self.subTest(header=header):
+                lines = ["GET /vendor_management.html HTTP/1.1"] + [k + ": " + v for k, v in values.items()] + [header + ": " + values[header], "Connection: close", "", ""]
+                with socket.create_connection(("127.0.0.1", self.port), timeout=5) as connection:
+                    connection.sendall("\r\n".join(lines).encode())
+                    code = connection.recv(4096).split(b"\r\n")[0]
+                    self.assertIn(b"403", code)
+
     def assert_page_line_endings(self, line_ending):
         original = (vm.HERE / "vendor_management.html").read_bytes()
         normalized = original.decode("utf-8").replace("\r\n", "\n").replace("\r", "\n")

@@ -13,6 +13,20 @@ modified or imported. Runtime: Python 3.9+ standard library and a modern
 browser supporting native dialog, Unicode property escapes and Web Crypto.
 There are no runtime dependencies to install.
 
+CROSS-PORT NAVIGATION FIX — 14 October 2026
+This patch changes only vendor_management_server.py, vendor_management_test.py
+and this README. Keep the current vendor_management.html, installed main-nav
+icon and installer assets unchanged. A clicked link from ITom on port 8080
+was incorrectly rejected because browsers mark port 8081 as same-site but
+not same-origin. The companion now admits user-activated top-level GET
+navigation to / and /vendor_management.html only. It does not enable CORS
+or permit cross-origin API reads, saves, SOP downloads or iframe embedding.
+Copy the updated server/test/README into frontend, then stop and restart only
+the companion using the SAME --database path as before. No IIS/SSO change,
+main ITom restart, database replacement or navigation reinstall is required.
+Until restarted, typing http://127.0.0.1:8081/vendor_management.html directly
+into a new browser address bar is a workaround (Sec-Fetch-Site: none).
+
 RESTART / START (from the ITom project root)
 1. Stop the existing vendor companion with Ctrl+C in its own terminal.
 2. Back up data/vendor_management.db (or your existing --database path)
@@ -241,8 +255,17 @@ compressed PDFs, Word page fields, external links or embedded objects). Use
 a simple static PDF/DOCX or plain TXT; do not merely rename an unsafe file.
 
 HTTP protections retained: exact Host and same-origin Origin on writes,
-fetch-site checks, JSON-only, duplicate-header/JSON-field checks, no CORS,
-10-second socket timeouts, safe DOM textContent and hash-based script/style
+fetch-site checks, JSON-only, duplicate-header/JSON-field checks, no CORS.
+The sole cross-site/same-site fetch-metadata exception is a GET to exactly
+/ or /vendor_management.html with single Sec-Fetch-Mode: navigate,
+Sec-Fetch-Dest: document and Sec-Fetch-User: ?1 headers. Exact Host and any
+supplied Origin are still checked first. Missing navigation metadata,
+iframes, scripts, AJAX and query-string lookalikes receive no exception;
+POST, vendor API reads and SOP downloads retain their original checks.
+After navigation the document and its embedded hash-authorized CSS/JS belong
+to port 8081; its relative API calls remain same-origin. No external assets,
+permissive CORS or unsafe-inline were added. Frame embedding remains denied.
+Other protections include 10-second socket timeouts, safe DOM textContent and hash-based script/style
 CSP. The October 13 CSP fix is retained: HTML CRLF and lone CR normalize to
 LF BEFORE both hashing and serving; script/style hashes therefore match the
 browser. No unsafe-inline permission was added. Requests are capped at 14 MiB including base64/JSON; SOPs at 10 MiB.
@@ -308,11 +331,19 @@ old IDs for changed content.
 
 VALIDATION (from the project root; no production database is accessed)
   python -B frontend/vendor_management_test.py
-71 unittest cases passed at delivery, including the optional Node.js mocked
-DOM interaction case with 386 assertions (zero skips). The original 65 tests /
-334 DOM assertions passed before editing. Their relevant coverage is retained
-and adapted to Portal fields and the three-field Phone form. Six added cases
-cover Portal schema, both required multiline field bounds/controls, additive
+80 unittest cases passed after the cross-port navigation fix, including the
+optional Node.js mocked DOM interaction case with 409 assertions (zero skips).
+The current 73-test / 409-DOM-assertion baseline passed before this patch.
+The new clicked-navigation regression failed against the old server for both
+HTML routes and both same-site/cross-site headers, then passed with the fix.
+Seven added tests cover clicked navigation, direct-address/same-origin access,
+iframe/AJAX/script rejection, exact Host/Origin checks, protected APIs/SOPs and
+POST (even with forged navigation headers), same-origin saves/downloads after
+navigation, and duplicate-header rejection. Tests use browser-style headers
+and a port-8080 Referer with an ephemeral companion port; no real browser or
+installed port-8081 process was controlled in this validation.
+Existing Portal/Phone and optional-contact coverage is retained, including
+Portal schema, both required multiline field bounds/controls, additive
 migration without fabricated details, restart/retry/non-Portal preservation,
 atomic rollback with SOP/receipt, and legacy Phone extension/notes retention.
 It covers all 15 nonempty method combinations; Portal mandatory-SOP server
