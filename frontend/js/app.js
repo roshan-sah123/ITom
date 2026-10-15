@@ -5,12 +5,12 @@ import { initHeader } from './components/header.js?v=4';
 import { initModal } from './components/modal.js';
 import { initDrawer } from './components/drawer.js?v=3';
 import { renderHome } from './components/home.js?v=10';
-import { renderInfrastructureWorkspace } from './components/infraWorkspace.js?v=22';
+import { renderInfrastructureWorkspace } from './components/infraWorkspace.js?v=27';
 import { renderEndpoints } from './components/endpoints.js?v=13';
-import { renderCmdb } from './components/cmdb.js?v=13';
+import { renderCmdb } from './components/cmdb.js?v=14';
 import { renderSyncLedger } from './components/syncLedger.js?v=3';
 import { renderSyncSchedule } from './components/syncSchedule.js?v=1';
-import { initWorkspaceFreshness, renderWorkspaceFreshness } from './components/workspaceFreshness.js?v=1';
+import { initWorkspaceFreshness, renderWorkspaceFreshness } from './components/workspaceFreshness.js?v=2';
 
 let activeView = 'home';
 let navigationVersion = 0;

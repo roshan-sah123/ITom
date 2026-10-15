@@ -6,7 +6,7 @@
 import { itomApi } from '../api.js?v=8';
 import { formatNumber, formatPercent, formatLatency, escapeHtml, calculateNewPageAnchor, debounce, exportToCsv, fetchAllFilteredRows, destroyChartSafe, generatePaginationControls } from '../utils.js';
 import { openCiDrawer } from './drawer.js?v=3';
-import { renderLocationScorecards } from './locations.js?v=9';
+import { renderLocationScorecards } from './locations.js?v=14';
 
 const resourcePercent = (value) => {
   if (value == null || typeof value === 'boolean' || String(value).trim() === '') return 'Unavailable';
@@ -41,10 +41,20 @@ let currentNetPageSize = 25;
 let activeNetSearch = '';
 let activeNetType = '';
 let activeNetLocation = '';
+let activeNetHealth = '';
 let allFetchedNetDevices = [];
 let cachedTotalNetworks = 0;
 
 let serverFiltersInitialized = false;
+let networkFiltersInitialized = false;
+
+const healthLabel = tier => ['High', 'Medium', 'Low'].find(label => label.toLowerCase() === String(tier || '').toLowerCase()) || 'Unknown';
+const healthStatusClass = tier => ({ High: 'healthy', Medium: 'warning', Low: 'critical' }[healthLabel(tier)] || 'unknown');
+const operationalStatusClass = status => {
+  const normalized = String(status || '').toLowerCase();
+  return normalized === 'up' ? 'healthy' : normalized === 'warning' ? 'warning'
+    : ['down', 'critical'].includes(normalized) ? 'critical' : 'unknown';
+};
 
 export function parseServerFilter(filterParam) {
   if (!filterParam) return {};
@@ -149,6 +159,7 @@ function showUnsupportedInfrastructureViews() {
 export function switchInfraSubtab(subtabName, filterParam = '') {
   activeSubtab = subtabName;
   document.querySelectorAll('.category-card-tab').forEach(tab => {
+    tab.setAttribute('aria-pressed', String(tab.dataset.subtab === subtabName));
     if (tab.dataset.subtab === subtabName) {
       tab.classList.add('active');
     } else {
@@ -212,8 +223,10 @@ async function loadInfraCategoryMetrics() {
       : 'No current SolarWinds data';
     if (catNetVal) catNetVal.textContent = networkResponse.total != null ? formatNumber(networkResponse.total) : 'Unavailable';
     if (catNetSub) catNetSub.textContent = networkResponse.total != null ? 'SolarWinds node inventory' : 'Network inventory unavailable';
-    if (catSitesVal) catSitesVal.textContent = sites ? formatNumber(sites.length) : 'Unavailable';
-    if (catSitesSub) catSitesSub.textContent = 'Populated reporting groups · mixed levels';
+    if (!document.getElementById('locMode')) {
+      if (catSitesVal) catSitesVal.textContent = sites ? formatNumber(sites.length) : 'Unavailable';
+      if (catSitesSub) catSitesSub.textContent = 'Populated reporting groups · mixed levels';
+    }
     if (catBaseVal) catBaseVal.textContent = 'Coming soon';
     if (catBaseSub) catBaseSub.textContent = 'Volume and alert APIs required';
 
@@ -532,7 +545,7 @@ async function loadServerGrid() {
       const ram = n.attributes?.memory_used ?? n.attributes?.percent_memory_used ?? n.attributes?.PercentMemoryUsed ?? n.memory_used;
       const cpuText = resourcePercent(cpu), ramText = resourcePercent(ram);
       const latency = n.attributes?.latency_ms ?? n.attributes?.response_time_ms ?? n.latency_ms;
-      const healthTier = n.health_tier || 'Unknown';
+      const healthTier = healthLabel(n.health_tier);
 
       return `
         <tr>
@@ -541,7 +554,7 @@ async function loadServerGrid() {
           <td>${escapeHtml(n.status || 'Unavailable')}</td>
           <td>${escapeHtml(n.ci_type || 'Unavailable')}</td>
           <td>${escapeHtml(n.vendor || 'Unavailable')}</td>
-          <td><span class="status-pill status-${healthTier.toLowerCase() === 'high' ? 'healthy' : healthTier.toLowerCase() === 'medium' ? 'warning' : 'critical'}">${escapeHtml(healthTier)}</span></td>
+          <td><span class="status-pill status-${healthStatusClass(healthTier)}">${escapeHtml(healthTier)}</span></td>
           <td class="font-mono" style="color: ${cpuText === 'Unavailable' ? '#64748B' : Number(cpu) >= 75 ? '#B45309' : '#15803D'};">${cpuText}</td>
           <td class="font-mono" style="color: ${ramText === 'Unavailable' ? '#64748B' : Number(ram) >= 80 ? '#B45309' : '#15803D'};">${ramText}</td>
           <td class="font-mono">${latency != null ? `${Number(latency).toFixed(1)}ms` : 'Unavailable'}</td>
@@ -690,7 +703,7 @@ function initServerFilters() {
         status: n.status || 'Unavailable',
         device_type: n.ci_type || 'Unavailable',
         vendor: n.vendor || 'Unavailable',
-        health_tier: n.health_tier || 'Unknown',
+        health_tier: healthLabel(n.health_tier),
         cpu: resourcePercent(n.attributes?.cpu_load ?? n.attributes?.CPULoad ?? n.cpu_load),
         ram: resourcePercent(n.attributes?.memory_used ?? n.attributes?.percent_memory_used ?? n.attributes?.PercentMemoryUsed ?? n.memory_used),
         latency: (n.attributes?.latency_ms ?? n.attributes?.response_time_ms ?? n.latency_ms) != null ? `${n.attributes?.latency_ms ?? n.attributes?.response_time_ms ?? n.latency_ms}ms` : 'Unavailable'
@@ -725,6 +738,7 @@ async function loadNetworkGrid() {
       ...(activeNetSearch ? { search: activeNetSearch } : {}),
       ...(activeNetType ? { ci_type: activeNetType } : {}),
       ...(activeNetLocation ? { location: activeNetLocation } : {}),
+      ...(activeNetHealth ? { health_tier: activeNetHealth } : {}),
     };
 
     const res = await itomApi.getSolarWindsNetworkDevices(params);
@@ -748,22 +762,28 @@ async function loadNetworkGrid() {
       return;
     }
 
-    tbody.innerHTML = allFetchedNetDevices.map(dev => {
-      const healthClass = (dev.health_tier || 'High').toLowerCase() === 'high' ? 'healthy' : (dev.health_tier || '').toLowerCase() === 'medium' ? 'warning' : 'critical';
+    tbody.innerHTML = allFetchedNetDevices.map((dev, idx) => {
+      const healthClass = healthStatusClass(dev.health_tier);
 
       return `
         <tr>
-          <td><strong>${escapeHtml(dev.name)}</strong></td>
+          <td><button type="button" class="ci-name-link" data-net-idx="${idx}" title="View device details">${escapeHtml(dev.name)}</button></td>
           <td class="font-mono">${escapeHtml(dev.ip_address || dev.attributes?.ip_address || 'Unavailable')}</td>
-          <td><span class="status-pill status-healthy">${escapeHtml(dev.ci_type || 'Unavailable')}</span></td>
+          <td><span class="status-pill status-neutral">${escapeHtml(dev.ci_type || 'Unavailable')}</span></td>
           <td>${escapeHtml(dev.vendor || 'Unavailable')}</td>
-          <td>${escapeHtml(dev.status || 'Unavailable')}</td>
-          <td><span class="status-pill status-${healthClass}">${escapeHtml(dev.health_tier || 'High')}</span></td>
+          <td><span class="status-pill status-${operationalStatusClass(dev.status)}">${escapeHtml(dev.status || 'Unknown')}</span></td>
+          <td><span class="status-pill status-${healthClass}">${escapeHtml(healthLabel(dev.health_tier))}</span></td>
           <td class="font-mono">${dev.attributes?.latency_ms != null ? `${Number(dev.attributes.latency_ms).toFixed(1)}ms` : 'Unavailable'}</td>
         </tr>
       `;
     }).join('');
 
+    tbody.querySelectorAll('.ci-name-link').forEach(link => {
+      link.addEventListener('click', () => {
+        const device = allFetchedNetDevices[Number(link.dataset.netIdx)];
+        if (device) openCiDrawer(device);
+      });
+    });
 
     if (tableContainer) tableContainer.scrollTop = 0;
 
@@ -779,11 +799,21 @@ async function loadNetworkGrid() {
 }
 
 function initNetworkFilters() {
+  if (networkFiltersInitialized) return;
+  networkFiltersInitialized = true;
   const searchInput = document.getElementById('netSearchInput');
   const typeSelect = document.getElementById('netFilterType');
   const locationSelect = document.getElementById('netLocationSelect');
   const pageSizeSelect = document.getElementById('netPageSizeSelect');
   const exportBtn = document.getElementById('netExportCsv');
+  const healthSelect = document.getElementById('netFilterHealth');
+  if (healthSelect) {
+    healthSelect.onchange = () => {
+      activeNetHealth = healthSelect.value;
+      currentNetPage = 1;
+      loadNetworkGrid();
+    };
+  }
 
   if (searchInput) {
     searchInput.addEventListener('input', debounce((e) => {
@@ -834,6 +864,7 @@ function initNetworkFilters() {
           ...(activeNetSearch ? { search: activeNetSearch } : {}),
           ...(activeNetType ? { ci_type: activeNetType } : {}),
           ...(activeNetLocation ? { location: activeNetLocation } : {}),
+          ...(activeNetHealth ? { health_tier: activeNetHealth } : {}),
         };
         const devices = await fetchAllFilteredRows(params => itomApi.getSolarWindsNetworkDevices(params), filters);
         if (!devices.length) { window.alert('No network devices match the active filters.'); return; }
@@ -846,7 +877,7 @@ function initNetworkFilters() {
         const rows = devices.map(dev => ({
           name: dev.name, ip: dev.ip_address || dev.attributes?.ip_address || 'Unavailable',
           type: dev.ci_type || 'Unavailable', vendor: dev.vendor || 'Unavailable',
-          status: dev.status || 'Unavailable', health: dev.health_tier || 'High',
+          status: dev.status || 'Unknown', health: healthLabel(dev.health_tier),
           latency: dev.attributes?.latency_ms ?? 'Unavailable',
         }));
         exportToCsv('SolarWinds_Network_Devices_Filtered', headers, rows);

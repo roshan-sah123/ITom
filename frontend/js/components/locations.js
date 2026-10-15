@@ -6,7 +6,7 @@ import { openLocationReviews } from './locationReviews.js?v=1';
 let catalogue = [], currentMode = 'auto', selected = null, issue = 'all', source = '', page = 1;
 let listRequest = 0, catalogueRequest = 0, visibleCards = 24, returnFocus = null;
 let searchTimer;
-const tones = { healthy: 'Green', warning: 'Warning', critical: 'Red', unavailable: 'Insufficient data' };
+const tones = { healthy: 'Green', warning: 'Amber', critical: 'Red', unavailable: 'Insufficient data' };
 const modes = { endpoints: 'Endpoints', infrastructure: 'Infrastructure', combined: 'Combined' };
 const pct = component => component?.value == null ? 'Unavailable' : `${component.value.toFixed(1)}%${component.usable ? '' : component.reason === 'Source data is stale or unavailable' ? ' (stale)' : ' (incomplete data)'}`;
 const coverage = component => component.coverage_pct == null ? 'Unavailable' : `${component.coverage_pct}%`;
@@ -14,7 +14,7 @@ const statusTone = status => {
   const value = (status || '').trim().toLowerCase();
   if (['noncompliant', 'down', 'critical'].includes(value)) return 'critical';
   if (['compliant', 'up'].includes(value)) return 'healthy';
-  return 'warning';
+  return value === 'warning' ? 'warning' : 'unknown';
 };
 const modeFor = location => currentMode !== 'auto' ? currentMode : location.endpoints && location.nodes ? 'combined' : location.endpoints ? 'endpoints' : 'infrastructure';
 const apiPath = (id, suffix, params = {}) => `/api/v1/locations/${encodeURIComponent(id)}/${suffix}?${new URLSearchParams(params)}`;
@@ -25,6 +25,20 @@ const sourceScope = l => l.endpoints && l.nodes ? 'Both sources' : l.endpoints ?
 const utcDate = raw => new Date(/Z$|[+-]\d\d:\d\d$/.test(raw) ? raw : `${raw}Z`);
 const observedAt = raw => raw ? utcDate(raw).toLocaleString() : 'No successful refresh';
 const issueOptions = [['all','All devices'],['noncompliant','Noncompliant'],['other_compliance','Other compliance states'],['old_checkins','Check-in over 7 days'],['old_30d','Check-in over 30 days'],['invalid_checkins','Unknown check-in'],['up','Up'],['down','Down'],['critical','Critical'],['warning','Warning'],['unmanaged','Unmanaged'],['conflict','Mapping conflict / review']];
+const nodeIssues = ['up','down','critical','warning','unmanaged'];
+const endpointIssues = ['noncompliant','other_compliance','old_checkins','old_30d','invalid_checkins'];
+const defaultSource = () => currentMode === 'infrastructure' ? 'SOLARWINDS' : currentMode === 'endpoints' ? 'INTUNE' : '';
+const inModeScope = location => currentMode === 'infrastructure' ? location.nodes > 0 : currentMode === 'endpoints' ? location.endpoints > 0 : location.endpoints + location.nodes > 0;
+
+function updateInventoryControls() {
+  const options = issueOptions.filter(([value]) => !(source === 'SOLARWINDS' && endpointIssues.includes(value)) && !(source === 'INTUNE' && nodeIssues.includes(value)));
+  if (!options.some(([value]) => value === issue)) issue = 'all';
+  const control = document.getElementById('locIssue');
+  control.innerHTML = options.map(([value,label]) => `<option value="${value}">${label}</option>`).join('');
+  control.value = issue;
+  const columns = ['Device','Source','Status', ...(source === 'SOLARWINDS' ? [] : ['Last Intune check-in']), 'Location assignment'];
+  document.querySelector('#locDetail thead tr').innerHTML = columns.map(label => `<th scope="col">${label}</th>`).join('');
+}
 const componentRatio = component => component.denominator ? 100 * component.numerator / component.denominator : null;
 const componentCounts = component => `${formatNumber(component.numerator)} / ${formatNumber(component.denominator)}`;
 const componentIssues = { compliance: ['noncompliant','other_compliance'], recent_checkins: ['old_checkins','invalid_checkins'], node_status: ['down','critical','warning'] };
@@ -96,7 +110,7 @@ function sourceEvidence(freshness, counts) {
   return ['INTUNE','SOLARWINDS'].map(src => {
     const f = freshness[src], count = counts?.[src];
     const tone = f.status === 'FRESH' ? 'healthy' : 'warning';
-    return `<div><span class="status-pill status-${tone}">${sourceName(src)} · ${f.status === 'FRESH' ? 'Fresh' : f.status === 'STALE' ? 'Stale' : 'No successful refresh'}</span><span>Last success: ${escapeHtml(observedAt(f.last_synchronized_at))}${count ? ` · ${formatNumber(count.assigned)} / ${formatNumber(count.total)} assigned` : ''}${['FAILED','PARTIAL'].includes(f.last_attempt_status) ? ' · Latest refresh failed or incomplete' : ''}</span></div>`;
+    return `<div data-source="${src}"><span class="status-pill status-${tone}">${sourceName(src)} · ${f.status === 'FRESH' ? 'Fresh at load' : f.status === 'STALE' ? 'Stale at load' : 'No successful refresh'}</span><span>Last success: ${escapeHtml(observedAt(f.last_synchronized_at))}${count ? ` · ${formatNumber(count.assigned)} / ${formatNumber(count.total)} assigned` : ''}${['FAILED','PARTIAL'].includes(f.last_attempt_status) ? ' · Latest refresh failed or incomplete' : ''}</span></div>`;
   }).join('');
 }
 
@@ -116,28 +130,21 @@ export async function renderLocationScorecards() {
     if (request !== catalogueRequest) return;
     catalogue = response.data.items;
     host.innerHTML = `
-      <div class="location-health-heading"><div><h2>Location health</h2><p>Find a reporting group that needs attention, then open the affected devices.</p></div><div class="location-header-actions"><button id="locReview" type="button" class="btn-filter-reset">Review location mappings</button><button id="locRefresh" type="button" class="btn-filter-reset">Refresh</button></div></div>
+      <div class="location-health-heading"><div><h2>Location health</h2></div><div class="location-header-actions"><button id="locReview" type="button" class="btn-filter-reset" aria-label="Review location mappings">Review mappings</button><button id="locRefresh" type="button" class="btn-filter-reset">Refresh</button></div></div>
       <div id="locBrowse">
       <div id="locCoverage" class="location-source-evidence">${sourceEvidence(response.data.freshness.sources,response.data.coverage)}</div>
       <div class="grid-toolbar"><label>Search <input id="locSearch" class="filter-select" type="search" placeholder="Location name"></label>
       <label>Score <select id="locMode" class="filter-select"><option value="auto">By available sources</option><option value="combined">Combined · both sources</option><option value="endpoints">Endpoints · Intune</option><option value="infrastructure">Infrastructure · SolarWinds</option></select></label>
-      <label>Status <select id="locStatus" class="filter-select"><option value="">All statuses</option><option value="critical">Red</option><option value="warning">Warning</option><option value="healthy">Green</option><option value="unavailable">Insufficient data</option></select></label>
+      <label>Status <select id="locStatus" class="filter-select"><option value="">All statuses</option><option value="critical">Red</option><option value="warning">Amber</option><option value="healthy">Green</option><option value="unavailable">Insufficient data</option></select></label>
       <label>Level <select id="locLevel" class="filter-select"><option value="">All levels</option>${[...new Set(catalogue.filter(l => l.id !== 'unassigned').map(l => l.level))].sort().map(level => `<option value="${escapeHtml(level)}">${escapeHtml(level)}</option>`).join('')}</select></label>
       <button id="locReset" type="button" class="btn-filter-reset">Reset</button></div>
       <div id="locSummary" class="location-summary" aria-label="Reporting group status summary"></div>
-      <p id="locComparison" class="location-health-note location-comparison-note"></p>
+      <details class="location-comparison"><summary>Comparison guidance</summary><p id="locComparison" class="location-health-note location-comparison-note"></p></details>
       <div id="locUnassigned" class="location-unassigned"></div>
-      <div class="location-results"><p id="locResults" role="status"></p><span>Priority: red → warning → insufficient data → green</span></div>
+      <div class="location-results"><p id="locResults" role="status"></p></div>
       <div id="locCards" class="location-score-grid"></div><button id="locShowMore" class="btn-filter-reset location-show-more" type="button" hidden>Show more locations</button>
-      <details class="location-policy"><summary>How to read the scores</summary><p>Green ≥90; Warning 75–&lt;90; Red &lt;75, or any required component below 75%. Down / Critical nodes or a failed latest refresh prevent Green. Unknown or stale required data gives no score.</p><p>Combined: 40% compliance + 35% nodes Up + 25% check-ins within 7 days. Endpoints: (40 × compliance + 25 × recent check-ins) / 65. Infrastructure: nodes Up / monitored nodes. Unmanaged nodes are excluded. At least 95% known field coverage is required.</p><p>These are provisional operating bands. Counts are source records; the same physical device may appear in both systems. Location assignment does not confirm current physical presence.</p></details></div>
+      <details class="location-policy"><summary>Score policy and data limits</summary><p>Green ≥90; Amber 75–&lt;90; Red &lt;75, or any required component below 75%. Down / Critical nodes or a failed latest refresh prevent Green. Unknown or stale required data gives no score.</p><p>Combined: 40% compliance + 35% nodes Up + 25% check-ins within 7 days. Endpoints: (40 × compliance + 25 × recent check-ins) / 65. Infrastructure: nodes Up / monitored nodes. Unmanaged nodes are excluded. At least 95% known field coverage is required.</p><p>These are provisional operating bands. Counts are source records; the same physical device may appear in both systems. Location assignment does not confirm current physical presence.</p></details></div>
       <section id="locDetail" class="location-detail" hidden aria-label="Location inventory"></section><section id="locationReviewPanel" hidden aria-label="Location mapping review"></section>`;
-    const groups = catalogue.filter(l => l.id !== 'unassigned' && l.endpoints + l.nodes > 0);
-    document.getElementById('catSitesVal').textContent = formatNumber(groups.length);
-    document.getElementById('catSitesSub').textContent = 'Populated reporting groups · mixed levels';
-    const unassigned = catalogue.find(l => l.id === 'unassigned');
-    const unassignedCount = unassigned ? unassigned.endpoints + unassigned.nodes : 0;
-    document.getElementById('locUnassigned').innerHTML = `<div><strong>${formatNumber(unassignedCount)} unassigned ${unassignedCount === 1 ? 'record' : 'records'}</strong><p>Excluded from location scores. Assign a reporting location to complete coverage.</p></div>${unassignedCount ? '<button type="button" class="btn-filter-reset">Review unassigned devices</button>' : ''}`;
-    document.querySelector('#locUnassigned button')?.addEventListener('click', e => openLocation('unassigned','all',e.currentTarget));
     document.getElementById('locRefresh').onclick = renderLocationScorecards;
     document.getElementById('locReview').onclick = event => {
       const reviewTrigger = event.currentTarget;
@@ -165,7 +172,6 @@ export async function renderLocationScorecards() {
     document.getElementById('locShowMore').onclick = () => { visibleCards += 24; renderCards(); };
     document.getElementById('locReset').onclick = () => {
       for (const id of ['locSearch', 'locStatus', 'locLevel']) document.getElementById(id).value = '';
-      document.getElementById('locMode').value = 'auto';
       document.getElementById('locDetail').hidden = true;
       document.getElementById('locBrowse').hidden = false;
       visibleCards = 24; selected = null; listRequest++;
@@ -182,11 +188,21 @@ export async function renderLocationScorecards() {
 
 function renderCards() {
   currentMode = document.getElementById('locMode').value;
+  const groups = catalogue.filter(l => l.id !== 'unassigned' && inModeScope(l));
+  document.getElementById('catSitesVal').textContent = formatNumber(groups.length);
+  document.getElementById('catSitesSub').textContent = `${currentMode === 'infrastructure' ? 'SolarWinds' : currentMode === 'endpoints' ? 'Intune' : 'All sources ·'} reporting groups · mixed levels`;
+  document.querySelector('#locCoverage [data-source="INTUNE"]').hidden = currentMode === 'infrastructure';
+  document.querySelector('#locCoverage [data-source="SOLARWINDS"]').hidden = currentMode === 'endpoints';
+  const unassigned = catalogue.find(l => l.id === 'unassigned');
+  const unassignedCount = currentMode === 'infrastructure' ? unassigned?.nodes || 0 : currentMode === 'endpoints' ? unassigned?.endpoints || 0 : unassigned ? unassigned.endpoints + unassigned.nodes : 0;
+  const recordLabel = currentMode === 'infrastructure' ? (unassignedCount === 1 ? 'node' : 'nodes') : (unassignedCount === 1 ? 'record' : 'records');
+  document.getElementById('locUnassigned').innerHTML = `<div><strong>${formatNumber(unassignedCount)} unassigned ${recordLabel}</strong><p>Excluded from location scores. Assign a reporting location to complete coverage.</p></div>${unassignedCount ? '<button type="button" class="btn-filter-reset">Review unassigned devices</button>' : ''}`;
+  document.querySelector('#locUnassigned button')?.addEventListener('click', e => openLocation('unassigned','all',e.currentTarget,defaultSource()));
   const search = document.getElementById('locSearch').value.toLowerCase();
   const status = document.getElementById('locStatus').value, level = document.getElementById('locLevel').value;
-  const scope = catalogue.filter(l => l.id !== 'unassigned' && l.endpoints + l.nodes > 0 && l.name.toLowerCase().includes(search) && (!level || l.level === level));
+  const scope = groups.filter(l => l.name.toLowerCase().includes(search) && (!level || l.level === level));
   document.getElementById('locComparison').textContent = currentMode === 'auto' ? 'By available sources can mix score modes. Choose Endpoints, Infrastructure or Combined and the same reporting level to compare.' : `${modes[currentMode]} uses the same calculation for every group. Compare groups at the same reporting level.`;
-  document.getElementById('locSummary').innerHTML = [['','Reporting groups'],['critical','Red · action needed'],['warning','Warning · review'],['unavailable','Insufficient data'],['healthy','Green · within bands']].map(([value,label]) => {
+  document.getElementById('locSummary').innerHTML = [['','All groups'],['critical','Red'],['warning','Amber'],['unavailable','Insufficient data'],['healthy','Green']].map(([value,label]) => {
     const count = value ? scope.filter(l => l.scores[modeFor(l)].status === value).length : scope.length;
     return `<button type="button" data-status="${value}" class="location-summary-item summary-${value || 'all'}" aria-pressed="${status === value}"><strong>${formatNumber(count)}</strong><span>${label}</span></button>`;
   }).join('');
@@ -200,20 +216,21 @@ function renderCards() {
   locations.sort((a, b) => order[a.scores[modeFor(a)].status] - order[b.scores[modeFor(b)].status] || a.name.localeCompare(b.name));
   document.getElementById('locResults').textContent = `Showing ${formatNumber(Math.min(visibleCards,locations.length))} of ${formatNumber(locations.length)} reporting groups · ${currentMode === 'auto' ? 'Status uses each group’s available sources' : modes[currentMode] + ' scores'} · As of ${observedAt(scope[0]?.as_of || catalogue[0]?.as_of)}`;
   document.getElementById('locShowMore').hidden = visibleCards >= locations.length;
-  document.getElementById('locCards').innerHTML = locations.length ? locations.slice(0,visibleCards).map(l => {
+  document.getElementById('locCards').classList.toggle('location-rows', currentMode === 'infrastructure');
+  document.getElementById('locCards').innerHTML = currentMode === 'infrastructure' ? solarWindsRows(locations.slice(0,visibleCards)) : locations.length ? locations.slice(0,visibleCards).map(l => {
     const mode = modeFor(l), score = l.scores[mode];
     const attention = score.status === 'healthy' ? null : cardAttention(l,mode);
     const explainColour = attention?.kind === 'health' && score.value != null &&
       (score.status === 'critical' && score.value >= 75 || score.status === 'warning' && score.value >= 90);
-    const link = (label, key) => l.issues[key] ? `<button type="button" class="location-issue issue-${['noncompliant','down','critical'].includes(key) ? 'critical' : 'warning'}" data-id="${escapeHtml(l.id)}" data-issue="${key}">${formatNumber(l.issues[key])} ${label}</button>` : '';
+    const link = (label, key) => l.issues[key] && !(currentMode === 'endpoints' && nodeIssues.includes(key)) && !(currentMode === 'infrastructure' && endpointIssues.includes(key)) ? `<button type="button" class="location-issue issue-${['noncompliant','down','critical'].includes(key) ? 'critical' : 'warning'}" data-id="${escapeHtml(l.id)}" data-issue="${key}">${formatNumber(l.issues[key])} ${label}</button>` : '';
     return `<article class="location-score-card score-${score.status}">
       <div class="location-card-title"><button type="button" class="table-location-link" data-id="${escapeHtml(l.id)}" data-issue="all">${escapeHtml(l.name)}</button><span>${escapeHtml(l.level)}</span></div>
       <p class="location-card-scope">${sourceScope(l)}${l.issues.conflict ? ' · Mapping needs review' : ''}</p>
+      <p class="location-record-counts">${formatNumber(l.endpoints)} endpoints · ${formatNumber(l.nodes)} nodes</p>
       <div class="location-score-value"><strong>${score.value == null ? '—' : score.value.toFixed(1)}</strong><span>${tones[score.status]} · ${modes[mode]}</span></div>
       ${attention ? `<div class="location-card-attention attention-${attention.kind}"><span class="location-attention-label">${attention.kind === 'data' ? 'Data / mapping attention' : 'Health attention'}</span><p class="location-main-reason">${escapeHtml(attention.reason)}</p>${explainColour ? `<p class="location-score-reason">${escapeHtml(scoreReason(l,mode))}</p>` : ''}<button type="button" class="btn-filter-reset location-primary-action" ${attention.action ? `data-action="${attention.action}"` : `data-id="${escapeHtml(l.id)}" data-issue="${attention.issue}"${attention.source ? ` data-source="${attention.source}"` : ''}`} aria-label="${escapeHtml(attention.label)} for ${escapeHtml(l.name)}">${escapeHtml(attention.label)} →</button></div>` : ''}
       <details class="location-card-details"><summary>${attention ? 'Details and other issues' : 'Details and devices'}</summary>
       ${attention && !explainColour ? `<p class="location-score-reason">${escapeHtml(scoreReason(l,mode))}</p>` : ''}
-      <p>${formatNumber(l.endpoints)} endpoints · ${formatNumber(l.nodes)} infrastructure nodes</p>
       <dl class="location-components">${[['compliance','Compliance'],['node_status','Nodes in Up status'],['recent_checkins','Check-ins within 7 days']].filter(([key]) => key === 'node_status' ? l.nodes : l.endpoints).map(([key,label]) => { const c = l.components[key]; return `<div><dt>${label}</dt><dd>${pct(c)}<small>${formatNumber(c.numerator)} / ${formatNumber(c.denominator)}</small></dd></div>`; }).join('')}</dl>
       <div class="location-issue-links">${link('Down','down')}${link('Critical','critical')}${link('noncompliant','noncompliant')}${link('check-ins >7 days','old_checkins')}${link('unknown check-ins','invalid_checkins')}${link('other compliance','other_compliance')}${link('Warning','warning')}${link('unmanaged','unmanaged')}${link('mapping reviews','conflict')}</div>
       <div class="location-card-footer"><button type="button" class="table-location-link" data-id="${escapeHtml(l.id)}" data-issue="all" aria-label="View devices for ${escapeHtml(l.name)}">View devices →</button></div><p><strong>Data evidence</strong><br>${Object.entries(l.freshness).filter(([src]) => src === 'INTUNE' ? l.endpoints : l.nodes).map(([src,f]) => `${sourceName(src)}: ${escapeHtml(f.status)} · ${escapeHtml(observedAt(f.last_synchronized_at))} · latest attempt ${escapeHtml(f.last_attempt_status || 'Unknown')}`).join('<br>')}</p><p>${Object.entries(l.components).filter(([,c]) => c.denominator).map(([key,c]) => `${componentNames[key]} field coverage: ${coverage(c)}`).join('; ')}.</p><p>Policy ${escapeHtml(l.policy_version)}. Issue counts can overlap; do not add them as unique affected devices. Percentages are rounded for display; colours use exact counts and weights.</p></details>
@@ -224,7 +241,21 @@ function renderCards() {
   document.querySelectorAll('#locCards button[data-action="refresh"]').forEach(button => button.onclick = () => { document.getElementById('locRefresh').focus({preventScroll:true}); renderLocationScorecards(); });
 }
 
-async function openLocation(id, nextIssue, trigger, nextSource = '') {
+function solarWindsRows(locations) {
+  return `<div class="grid-scroll" tabindex="0" role="region" aria-label="SolarWinds location health table">
+    <table class="itom-table location-health-table"><caption class="sr-only">SolarWinds location health</caption>
+    <thead><tr>${['Location name','Total nodes','Up','Warning','Down/Critical','Health score','Status'].map(label => `<th scope="col">${label}</th>`).join('')}</tr></thead>
+    <tbody id="locSolarWindsRows">${locations.map(l => {
+      const score = l.scores.infrastructure;
+      return `<tr><td><button type="button" class="table-location-link" data-id="${escapeHtml(l.id)}" data-issue="all" data-source="SOLARWINDS">${escapeHtml(l.name)}</button></td>
+        <td>${formatNumber(l.nodes)}</td><td>${formatNumber(l.issues.up)}</td><td>${formatNumber(l.issues.warning)}</td><td>${formatNumber(l.issues.down + l.issues.critical)}</td>
+        <td><span title="${escapeHtml(`${componentCounts(l.components.node_status)} monitored nodes Up. ${scoreReason(l,'infrastructure')}`)}">${score.value == null ? '—' : score.value.toFixed(1) + '%'}</span></td>
+        <td><button type="button" class="status-pill location-status-link status-${score.status === 'unavailable' ? 'unknown' : score.status}" data-id="${escapeHtml(l.id)}" data-issue="all" data-source="SOLARWINDS" aria-label="View ${tones[score.status]} inventory for ${escapeHtml(l.name)}" title="${escapeHtml(scoreReason(l,'infrastructure'))}">${tones[score.status]}</button></td></tr>`;
+    }).join('')}</tbody>${locations.length ? '' : '<tbody><tr><td colspan="7">No SolarWinds locations match these filters.</td></tr></tbody>'}</table></div>
+    <p class="location-row-note">Total includes unmanaged and other node states. Score uses monitored nodes; stale or incomplete evidence is unscored.</p>`;
+}
+
+async function openLocation(id, nextIssue, trigger, nextSource = defaultSource()) {
   clearTimeout(searchTimer);
   returnFocus = trigger;
   selected = catalogue.find(l => l.id === id); issue = nextIssue; source = nextSource; page = 1;
@@ -240,13 +271,13 @@ async function openLocation(id, nextIssue, trigger, nextSource = '') {
     <button id="locClearDetail" type="button" class="btn-filter-reset">Reset filters</button><a id="locExport" class="btn-filter-reset">Export CSV</a></div>
     <p id="locSelection" class="location-health-note" role="status"></p><div class="grid-scroll"><table class="itom-table"><caption class="sr-only">${escapeHtml(selected.name)} device inventory</caption><thead><tr><th scope="col">Device</th><th scope="col">Source</th><th scope="col">Status</th><th scope="col">Last Intune check-in</th><th scope="col">Location assignment</th></tr></thead><tbody id="locDevices"></tbody></table></div>
     <div class="grid-footer"><button id="locPrev" type="button" class="btn-filter-reset">Previous</button><span id="locPage"></span><button id="locNext" type="button" class="btn-filter-reset">Next</button></div><div id="locHistory"></div>`;
-  document.getElementById('locIssue').value = issue;
   document.getElementById('locSource').value = source;
+  updateInventoryControls();
   document.getElementById('locClose').onclick = () => { clearTimeout(searchTimer); host.hidden = true; listRequest++; selected = null; document.getElementById('locBrowse').hidden = false; if (returnFocus?.isConnected) returnFocus.focus(); };
-  document.getElementById('locSource').onchange = e => { source = e.target.value; page = 1; loadDevices(); };
+  document.getElementById('locSource').onchange = e => { source = e.target.value; page = 1; updateInventoryControls(); loadDevices(); };
   document.getElementById('locIssue').onchange = e => { issue = e.target.value; page = 1; loadDevices(); };
   document.getElementById('locDeviceSearch').oninput = () => { clearTimeout(searchTimer); searchTimer = setTimeout(() => { page = 1; loadDevices(); }, 250); };
-  document.getElementById('locClearDetail').onclick = () => { source = ''; issue = 'all'; page = 1; for (const id of ['locSource','locDeviceSearch']) document.getElementById(id).value = ''; document.getElementById('locIssue').value = 'all'; loadDevices(); };
+  document.getElementById('locClearDetail').onclick = () => { source = defaultSource(); issue = 'all'; page = 1; document.getElementById('locSource').value = source; document.getElementById('locDeviceSearch').value = ''; updateInventoryControls(); loadDevices(); };
   document.getElementById('locPrev').onclick = () => { page--; loadDevices(); };
   document.getElementById('locNext').onclick = () => { page++; loadDevices(); };
   document.getElementById('locDetailTitle').focus({ preventScroll: true });
@@ -258,8 +289,9 @@ async function openLocation(id, nextIssue, trigger, nextSource = '') {
 
 async function loadDevices() {
   const request = ++listRequest;
+  const columns = source === 'SOLARWINDS' ? 4 : 5;
   const params = { issue, page, page_size: 25, search: document.getElementById('locDeviceSearch').value, ...(source ? { source } : {}) };
-  document.getElementById('locDevices').innerHTML = '<tr><td colspan="5">Loading inventory…</td></tr>';
+  document.getElementById('locDevices').innerHTML = `<tr><td colspan="${columns}">Loading inventory…</td></tr>`;
   document.getElementById('locPrev').disabled = true;
   document.getElementById('locNext').disabled = true;
   const exportParams = { issue, search: params.search, ...(source ? { source } : {}) };
@@ -272,14 +304,14 @@ async function loadDevices() {
     const expected = issue === 'all' ? selected.endpoints + selected.nodes : selected.issues[issue];
     document.getElementById('locSelection').textContent = `${selected.name} · ${source ? sourceName(source) : 'All available sources'} · ${issueOptions.find(([value]) => value === issue)?.[1] || issue} · ${formatNumber(data.total)} matching records · As of ${observedAt(data.as_of)}${!source && !params.search && expected !== data.total ? ' · Inventory changed since the card was loaded; refresh cards for current counts.' : ''}`;
     const assignments = {mapped:'Assigned',review:'Review needed',conflict:'Conflict',unassigned:'Unassigned'};
-    document.getElementById('locDevices').innerHTML = data.items.length ? data.items.map(ci => `<tr><td><button class="table-location-link" data-ci="${escapeHtml(ci.id)}">${escapeHtml(ci.name)}</button></td><td>${sourceName(ci.source_system)}</td><td><span class="status-pill status-${statusTone(ci.status)}">${escapeHtml(ci.status || 'Unknown')}</span></td><td>${lastCheckin(ci)}</td><td>${escapeHtml(assignments[ci.location_resolution] || 'Unassigned')}</td></tr>`).join('') : '<tr><td colspan="5">No devices found for this selection.</td></tr>';
+    document.getElementById('locDevices').innerHTML = data.items.length ? data.items.map(ci => `<tr><td><button class="table-location-link" data-ci="${escapeHtml(ci.id)}">${escapeHtml(ci.name)}</button></td><td>${sourceName(ci.source_system)}</td><td><span class="status-pill status-${statusTone(ci.status)}">${escapeHtml(ci.status || 'Unknown')}</span></td>${source === 'SOLARWINDS' ? '' : `<td>${lastCheckin(ci)}</td>`}<td>${escapeHtml(assignments[ci.location_resolution] || 'Unassigned')}</td></tr>`).join('') : `<tr><td colspan="${columns}">No devices found for this selection.</td></tr>`;
     document.querySelectorAll('#locDevices button[data-ci]').forEach(b => b.onclick = () => openCiDrawer(b.dataset.ci));
     document.getElementById('locPage').textContent = `Page ${page} of ${data.total_pages}`;
     document.getElementById('locPrev').disabled = page <= 1;
     document.getElementById('locNext').disabled = page >= data.total_pages;
   } catch (error) {
     if (request !== listRequest) return;
-    document.getElementById('locDevices').innerHTML = '<tr><td colspan="5" class="inline-error">Inventory unavailable. Change or reset filters to retry.</td></tr>';
+    document.getElementById('locDevices').innerHTML = `<tr><td colspan="${columns}" class="inline-error">Inventory unavailable. Change or reset filters to retry.</td></tr>`;
     document.getElementById('locSelection').textContent = 'Data could not be loaded; this does not mean there are zero devices.';
   }
 }

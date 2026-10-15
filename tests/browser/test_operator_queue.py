@@ -168,8 +168,10 @@ def test_location_catalogue_progressive_disclosure(portal_url, catalogue_invento
     expect(page.locator('#locCards .location-score-card')).to_have_count(1)
     expect(page.locator('#locSummary button[data-status="healthy"]')).to_contain_text('1')
     page.locator('#locMode').select_option('infrastructure')
-    expect(page.locator('#locSummary button[data-status="unavailable"]')).to_contain_text('1')
-    expect(page.locator('#locCards')).to_contain_text('No SolarWinds records')
+    # An Intune-only location is outside a SolarWinds-only inventory scope.
+    expect(page.locator('#locSummary button[data-status="unavailable"]')).to_contain_text('0')
+    expect(page.locator('#locSolarWindsRows tr')).to_have_count(0)
+    expect(page.locator('#locCards')).to_contain_text('No SolarWinds locations match')
     page.close()
 
 

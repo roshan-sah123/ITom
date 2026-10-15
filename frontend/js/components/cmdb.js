@@ -16,6 +16,8 @@ let activeCmdbFilterLabel = '';
 let allFetchedCis = [];
 let cachedTotalCis = 0;
 let globalSearchInitialized = false;
+let cmdbFiltersInitialized = false;
+const healthLabel = tier => ['High', 'Medium', 'Low'].find(label => label.toLowerCase() === String(tier || '').toLowerCase()) || 'Unknown';
 
 export async function renderCmdb() {
   await loadCmdbKpis();
@@ -162,7 +164,8 @@ async function loadCmdbGrid() {
     }
 
     tbody.innerHTML = allFetchedCis.map((ci, idx) => {
-      const healthClass = (ci.health_tier || 'high').toLowerCase();
+      const healthTier = healthLabel(ci.health_tier);
+      const healthClass = { High: 'healthy', Medium: 'warning', Low: 'critical' }[healthTier] || 'unknown';
       const isSw = (ci.source_system || '').toUpperCase() === 'SOLARWINDS';
 
       return `
@@ -176,7 +179,7 @@ async function loadCmdbGrid() {
           <td>${escapeHtml(ci.ci_type || 'Unavailable')}</td>
           <td>${escapeHtml(ci.vendor || 'Unavailable')}</td>
           <td>${escapeHtml(ci.location || 'Unassigned')}</td>
-          <td><span class="status-pill status-${healthClass === 'high' ? 'healthy' : healthClass === 'medium' ? 'warning' : 'critical'}">${escapeHtml(ci.health_tier || 'Unknown')}</span></td>
+          <td><span class="status-pill status-${healthClass}">${escapeHtml(healthTier)}</span></td>
           <td class="font-mono">${escapeHtml(ci.serial_number || 'N/A')}</td>
         </tr>
       `;
@@ -206,6 +209,8 @@ async function loadCmdbGrid() {
 }
 
 function initCmdbFilters() {
+  if (cmdbFiltersInitialized) return;
+  cmdbFiltersInitialized = true;
   const sourceSelect = document.getElementById('cmdbFilterSource');
   const healthSelect = document.getElementById('cmdbFilterHealth');
   const searchInput = document.getElementById('cmdbSearchInput');
@@ -313,7 +318,7 @@ function initCmdbFilters() {
         { label: 'Health Tier', key: 'health_tier' },
         { label: 'Serial Number', key: 'serial_number' }
       ];
-      exportToCsv('CMDB_Configuration_Items_Filtered', headers, exportCis);
+      exportToCsv('CMDB_Configuration_Items_Filtered', headers, exportCis.map(ci => ({ ...ci, health_tier: healthLabel(ci.health_tier) })));
       } catch (error) {
         console.error('CMDB CSV export failed:', error);
         window.alert(`CSV export failed: ${error.message}`);

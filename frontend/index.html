@@ -16,7 +16,7 @@
   
   <!-- Master Obsidian Design System & Favicon -->
   <link rel="icon" type="image/png" href="logo.png?v=2">
-  <link rel="stylesheet" href="css/style.css?v=21">
+  <link rel="stylesheet" href="css/style.css?v=25">
 </head>
 <body>
   <div class="app-container">
@@ -269,41 +269,41 @@
         <!-- 4 Primary Category Cards (Top Sub-Tabs) -->
         <div class="infra-category-grid">
           
-          <div class="category-card-tab active" data-subtab="servers">
-            <div class="cat-header">
+          <button type="button" aria-pressed="true" class="category-card-tab active" data-subtab="servers">
+            <span class="cat-header">
               <span>CLASSIFIED SERVERS</span>
               <span>🖥️</span>
-            </div>
-            <div class="cat-value" id="catServersVal">—</div>
-            <div class="cat-sub" id="catServersSub">Loading SolarWinds data</div>
-          </div>
+            </span>
+            <span class="cat-value" id="catServersVal">—</span>
+            <span class="cat-sub" id="catServersSub">Loading SolarWinds data</span>
+          </button>
 
-          <div class="category-card-tab" data-subtab="networks">
-            <div class="cat-header">
+          <button type="button" aria-pressed="false" class="category-card-tab" data-subtab="networks">
+            <span class="cat-header">
               <span>NETWORK INFRASTRUCTURE</span>
               <span>🌐</span>
-            </div>
-            <div class="cat-value" id="catNetworksVal">—</div>
-            <div class="cat-sub" id="catNetworksSub">Loading SolarWinds inventory</div>
-          </div>
+            </span>
+            <span class="cat-value" id="catNetworksVal">—</span>
+            <span class="cat-sub" id="catNetworksSub">Loading SolarWinds inventory</span>
+          </button>
 
-          <div class="category-card-tab" data-subtab="sites">
-            <div class="cat-header">
+          <button type="button" aria-pressed="false" class="category-card-tab" data-subtab="sites">
+            <span class="cat-header">
               <span>LOCATION HEALTH</span>
               <span>🏢</span>
-            </div>
-            <div class="cat-value" id="catSitesVal">—</div>
-            <div class="cat-sub" id="catSitesSub">Populated reporting groups · mixed levels</div>
-          </div>
+            </span>
+            <span class="cat-value" id="catSitesVal">—</span>
+            <span class="cat-sub" id="catSitesSub">Populated reporting groups · mixed levels</span>
+          </button>
 
-          <div class="category-card-tab" data-subtab="baseline">
-            <div class="cat-header">
+          <button type="button" aria-pressed="false" class="category-card-tab" data-subtab="baseline">
+            <span class="cat-header">
               <span>CAPACITY & ALERT ANALYTICS</span>
               <span>🛡️</span>
-            </div>
-            <div class="cat-value" id="catBaselineVal">Coming soon</div>
-            <div class="cat-sub" id="catBaselineSub">Volume and alert APIs required</div>
-          </div>
+            </span>
+            <span class="cat-value" id="catBaselineVal">Coming soon</span>
+            <span class="cat-sub" id="catBaselineSub">Volume and alert APIs required</span>
+          </button>
 
         </div>
 
@@ -421,13 +421,13 @@
                   <span class="search-icon">🔍</span>
                   <input type="text" class="search-input" id="swSearchInput" placeholder="Search node name, IP, serial, vendor...">
                 </div>
-                <select class="filter-select" id="swFilterHealth">
+                <select class="filter-select" id="swFilterHealth" aria-label="Node health tier">
                   <option value="">Health Tier (All)</option>
-                  <option value="High">High Health</option>
-                  <option value="Medium">Medium Health</option>
-                  <option value="Low">Low / Critical</option>
+                  <option value="High">Green · High</option>
+                  <option value="Medium">Amber · Medium</option>
+                  <option value="Low">Red · Low / Critical</option>
                 </select>
-                <select class="filter-select" id="swFilterStatus">
+                <select class="filter-select" id="swFilterStatus" aria-label="Node operational status">
                   <option value="">Status (All)</option>
                   <option value="Up">Up</option>
                   <option value="Warning">Warning</option>
@@ -435,7 +435,7 @@
                   <option value="Down">Down</option>
                   <option value="Unmanaged">Unmanaged</option>
                 </select>
-                <select class="filter-select" id="swLocationSelect">
+                <select class="filter-select" id="swLocationSelect" aria-label="Node location">
                   <option value="">Campus Location (All)</option>
                 </select>
                 <button class="btn-filter-reset" id="swResetFilters">Reset</button>
@@ -502,14 +502,20 @@
                   <span class="search-icon">🔍</span>
                   <input type="text" class="search-input" id="netSearchInput" placeholder="Search appliance, IP, switch name...">
                 </div>
-                <select class="filter-select" id="netFilterType">
+                <select class="filter-select" id="netFilterType" aria-label="Network device type">
                   <option value="">Device Type (All)</option>
                   <option value="switch">Switches</option>
                   <option value="router">Routers</option>
                   <option value="firewall">Firewalls</option>
                   <option value="appliance">Network Appliances</option>
                 </select>
-                <select class="filter-select" id="netLocationSelect">
+                <select class="filter-select" id="netFilterHealth" aria-label="Network health">
+                  <option value="">Health (All)</option>
+                  <option value="High">Green · High</option>
+                  <option value="Medium">Amber · Medium</option>
+                  <option value="Low">Red · Low / Critical</option>
+                </select>
+                <select class="filter-select" id="netLocationSelect" aria-label="Network location">
                   <option value="">Location (All)</option>
                 </select>
               </div>
@@ -732,7 +738,7 @@
                 <span class="search-icon">🔍</span>
                 <input type="text" class="search-input" id="epSearchInput" placeholder="Search device name, user, serial...">
               </div>
-              <select class="filter-select" id="epFilterStatus">
+              <select class="filter-select" id="epFilterStatus" aria-label="Endpoint compliance status">
                 <option value="">Compliance Status (All)</option>
                 <option value="Compliant">Compliant</option>
                 <option value="Noncompliant">Noncompliant</option>
@@ -891,18 +897,18 @@
                 <span class="search-icon">🔍</span>
                 <input type="text" class="search-input" id="cmdbSearchInput" placeholder="Search CI name, serial number, IP address...">
               </div>
-              <select class="filter-select" id="cmdbFilterSource">
+              <select class="filter-select" id="cmdbFilterSource" aria-label="Discovery source">
                 <option value="">Discovery Source (All)</option>
                 <option value="SOLARWINDS">SolarWinds Orion</option>
                 <option value="INTUNE">Microsoft Intune</option>
               </select>
-              <select class="filter-select" id="cmdbFilterHealth">
+              <select class="filter-select" id="cmdbFilterHealth" aria-label="Record health tier">
                 <option value="">Health Tier (All)</option>
-                <option value="High">High Health</option>
-                <option value="Medium">Medium Health</option>
-                <option value="Low">Low / Critical</option>
+                <option value="High">Green · High</option>
+                <option value="Medium">Amber · Medium</option>
+                <option value="Low">Red · Low / Critical</option>
               </select>
-              <select class="filter-select" id="cmdbLocationSelect">
+              <select class="filter-select" id="cmdbLocationSelect" aria-label="Record location">
                 <option value="">Location (All)</option>
               </select>
               <button class="btn-filter-reset" id="cmdbResetFilters">Reset</button>
@@ -1053,8 +1059,8 @@
           <button class="footer-link footer-operation-link" type="button" data-target-view="sync">Sync runs</button>
           <button class="footer-link footer-operation-link" type="button" data-target-view="sync-schedule">Sync &amp; schedule</button>
         </nav>
-        <a href="http://localhost:8000/docs" target="_blank" class="footer-link">FastAPI Docs</a>
-        <a href="http://localhost:8000/redoc" target="_blank" class="footer-link">ReDoc</a>
+        <a href="/docs" target="_blank" class="footer-link">FastAPI Docs</a>
+        <a href="/redoc" target="_blank" class="footer-link">ReDoc</a>
         <a href="#top" class="footer-link">Back to Top</a>
       </div>
     </footer>
@@ -1099,6 +1105,6 @@
   </aside>
 
   <!-- Master ES6 Application Bootstrap -->
-    <script type="module" src="js/app.js?v=32"></script>
+    <script type="module" src="js/app.js?v=37"></script>
 </body>
 </html>

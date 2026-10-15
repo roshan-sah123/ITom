@@ -5,6 +5,7 @@ import { escapeHtml } from '../utils.js';
 const sourcesByView = { infrastructure: ['SOLARWINDS'], endpoints: ['INTUNE'], cmdb: ['INTUNE', 'SOLARWINDS'] };
 const names = { SOLARWINDS: 'SolarWinds Orion', INTUNE: 'Microsoft Intune' };
 let requestVersion = 0;
+let ageTimer = null;
 
 function age(seconds) {
   if (!Number.isFinite(seconds) || seconds < 0) return 'Age unavailable';
@@ -21,12 +22,14 @@ function timestamp(value) {
   return Number.isNaN(date.getTime()) ? null : date.toLocaleString();
 }
 
-function sourceRow(source, freshness, sync) {
+function sourceRow(source, freshness, sync, checkedAt, elapsedSeconds) {
   const evidence = freshness?.sources?.[source];
   const state = ['FRESH', 'STALE', 'UNKNOWN'].includes(evidence?.status) ? evidence.status : 'UNAVAILABLE';
-  const label = { FRESH: 'Fresh', STALE: 'Stale', UNKNOWN: 'Unknown', UNAVAILABLE: 'Freshness unavailable' }[state];
+  const label = { FRESH: 'Fresh at load', STALE: 'Stale at load', UNKNOWN: 'Unknown', UNAVAILABLE: 'Freshness unavailable' }[state];
   const observed = timestamp(evidence?.last_synchronized_at);
-  const snapshot = observed ? `Snapshot updated ${observed} · ${age(evidence.age_seconds)}`
+  const seconds = Number.isFinite(evidence?.age_seconds) && evidence.age_seconds >= 0
+    ? evidence.age_seconds + elapsedSeconds : null;
+  const snapshot = observed ? `Snapshot updated ${observed} · ${age(seconds)}`
     : state === 'UNKNOWN' ? 'No successful sync recorded' : 'Snapshot time unavailable';
   const attempt = sync?.[source.toLowerCase()]?.status;
   const outcome = typeof attempt === 'string' ? attempt.toUpperCase() : 'UNAVAILABLE';
@@ -37,7 +40,8 @@ function sourceRow(source, freshness, sync) {
   const note = warning ? observed ? 'Showing last successful snapshot.' : 'No successful snapshot confirmed.' : '';
   return `<div class="workspace-source-evidence" data-source="${source}" data-status="${state.toLowerCase()}" data-attempt="${warning ? 'warning' : 'normal'}">
     <div class="workspace-source-title"><strong>${names[source]}</strong><span class="evidence-state">${label}</span></div>
-    <p>${escapeHtml(snapshot)}</p><p class="sync-attempt">${escapeHtml(outcomeText)}${note ? ` · ${note}` : ''}</p></div>`;
+    <p>${escapeHtml(snapshot)}</p><p class="sync-attempt">${escapeHtml(outcomeText)}${note ? ` · ${note}` : ''}</p>
+    <p class="sync-attempt">Freshness checked at ${escapeHtml(timestamp(checkedAt))}</p></div>`;
 }
 
 export function initWorkspaceFreshness(reload) {
@@ -49,6 +53,8 @@ export function initWorkspaceFreshness(reload) {
 export async function renderWorkspaceFreshness(view) {
   // Increment even on unrelated navigation, invalidating pending evidence.
   const version = ++requestVersion;
+  clearInterval(ageTimer);
+  ageTimer = null;
   const sources = sourcesByView[view];
   if (!sources) return;
   const panel = document.getElementById(`workspaceFreshness-${view}`);
@@ -62,8 +68,17 @@ export async function renderWorkspaceFreshness(view) {
   const results = await Promise.allSettled([itomApi.getFreshness(), itomApi.getSyncStatus()]);
   if (version !== requestVersion) return;
   const [freshness, sync] = results.map(result => result.status === 'fulfilled' ? result.value : null);
-  const content = sources.map(source => sourceRow(source, freshness, sync)).join('');
-  rows.innerHTML = content;
-  if (compact) compact.innerHTML = content;
+  const checkedAt = Date.now();
+  const updateAge = () => {
+    if (version !== requestVersion) return;
+    const elapsedSeconds = Math.max(0, (Date.now() - checkedAt) / 1000);
+    const content = sources.map(source => sourceRow(source, freshness, sync, checkedAt, elapsedSeconds)).join('');
+    rows.innerHTML = content;
+    if (compact) compact.innerHTML = content;
+  };
+  // Age only the loaded evidence; fetching newer metadata would misrepresent
+  // the inventory still on screen. Reload snapshot refreshes both together.
+  updateAge();
+  ageTimer = setInterval(updateAge, 60000);
   button.disabled = false;
 }
