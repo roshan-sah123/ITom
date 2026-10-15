@@ -46,6 +46,8 @@ frontend/exports/
 backups/
 
 # Local analysis outputs and browser reports
+output/
+.task-temp/
 outputs/
 scratch/
 test-results/

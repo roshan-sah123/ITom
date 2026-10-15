@@ -29,6 +29,8 @@ backups/
 logs/
 exports/
 outputs/
+output/
+.task-temp/
 data/*.db
 data/*.sqlite
 data/*.db-journal

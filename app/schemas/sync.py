@@ -74,6 +74,19 @@ class SyncErrorLogRead(SyncErrorLogBase):
     sync_run_id: uuid.UUID
     occurred_at: datetime
 
+    # Stored diagnostics can contain connection details, including old records.
+    @field_serializer("error_message")
+    def public_error_message(self, value: str) -> str:
+        return "Synchronization failed. Contact the administrator with the sync run ID."
+
+    @field_serializer("stack_trace")
+    def private_stack_trace(self, value: Optional[str]) -> None:
+        return None
+
+    @field_serializer("context_data")
+    def private_context(self, value: Dict[str, Any]) -> Dict[str, Any]:
+        return {}
+
     @field_serializer("occurred_at")
     def serialize_occurred_at(self, value: datetime) -> str:
         return _utc_datetime(value).isoformat()

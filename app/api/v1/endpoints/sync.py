@@ -148,7 +148,7 @@ async def get_sync_run_by_id(
     run_id: str,
     sync_repo: SyncRepository = Depends(get_sync_repository),
 ) -> Any:
-    """Retrieve details and error diagnostic traces for a specific sync execution."""
+    """Retrieve a sync execution with safe public error summaries."""
     run = await sync_repo.get_by_id(run_id)
     if not run:
         return JSONResponse(

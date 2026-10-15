@@ -12,6 +12,30 @@ from tests.factories import make_ci, make_run
 LIST_ROUTES = ["cmdb/cis", "intune/devices", "solarwinds/nodes", "solarwinds/network-devices"]
 
 
+async def test_sync_audit_hides_stored_private_diagnostics(api_client, session):
+    from app.models.sync import SyncErrorLog
+
+    run = make_run("INTUNE", "FAILED")
+    session.add(run)
+    await session.flush()
+    session.add(SyncErrorLog(
+        sync_run_id=run.id, error_code="RuntimeError",
+        error_message="private-diagnostic database connection failed",
+        stack_trace="Traceback private-diagnostic C:/internal/service.py",
+        context_data={"connection": "private-diagnostic"},
+    ))
+    await session.commit()
+    for path in ["/runs", "/runs/latest", f"/runs/{run.id}"]:
+        response = await api_client.get("/api/v1/sync" + path)
+        assert response.status_code == 200
+        assert "private-diagnostic" not in response.text
+        data = response.json()
+        error = (data[0] if isinstance(data, list) else data)["error_logs"][0]
+        assert error["error_code"] == "RuntimeError"
+        assert error["stack_trace"] is None
+        assert error["context_data"] == {}
+
+
 @pytest.fixture
 async def inventory(session):
     records = [

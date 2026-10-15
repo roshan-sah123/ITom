@@ -31,7 +31,7 @@ Use a separately configured authenticated TLS reverse proxy for shared-network a
 
 ## Containers
 
-`Dockerfile` runs FastAPI on port 8000 as a non-root user. `docker-compose.yml` adds PostgreSQL and an NGINX portal on the configured host port (default 8080).
+`Dockerfile` runs FastAPI on port 8000 as a non-root user. Compose adds PostgreSQL and NGINX, bound to `127.0.0.1:8080` by default. Set `POSTGRES_PASSWORD` in the Compose environment or local `.env` before starting; there is no fallback password. If it contains URL-reserved characters, encode it for the API connection URL or configure `DATABASE_URL` separately.
 
 ```bash
 docker compose up --build -d
@@ -39,7 +39,9 @@ docker compose ps
 docker compose logs api
 ```
 
-The supplied Compose file currently forwards only database configuration and `PORT` to the API. Host `.env` files are not automatically forwarded into the container, and `.dockerignore` excludes them from the image. Configure explicit runtime environment/secrets for source credentials, proxy settings, `ENVIRONMENT=production` and a strong `SECRET_KEY`. Replace the fallback database password.
+Compose forwards only database configuration and `PORT` to the API. Configure explicit runtime environment/secrets for source credentials, proxy settings, `ENVIRONMENT=production` and a strong `SECRET_KEY`; `.env` is excluded from the image. Raw `data/` files are not mounted into the web root, and NGINX rejects `/data` requests.
+
+Keep the loopback binding unless an authenticated gateway protects inventory, exports, and manual sync. The application has no sign-in or sync rate limit. Sync API responses hide stored messages, stack traces, and diagnostic context; administrators can investigate the run ID using restricted backend records/logs.
 
 Apply Alembic migrations against the intended database before starting the production API. Production startup does not create tables. The supplied container health check uses `/healthz`; independently verify `/ready` before allowing traffic. The [audit](CODEBASE_AUDIT_2026-10-08.md) records remaining deployment and migration limitations.
 

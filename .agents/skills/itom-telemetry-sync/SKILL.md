@@ -22,6 +22,7 @@ description: Verify and operate ITOM Microsoft Graph and SolarWinds SWIS ingesti
 4. To intentionally persist a live sync, use `scripts/run_live_sync.py --source intune`, `--source solarwinds`, or `--source all`. Confirm the target database and credentials first; this updates the configured CMDB.
 5. Compare extracted, normalized, rejected, persisted, and active-row counts. A failed or partial run must not advance freshness or retire source records.
 6. Never print `.env` values in logs or reports. Keep secret-bearing environment files out of Git.
+7. Never expose `data/` snapshots or databases through static hosting. Sync API errors omit private diagnostics; investigate using the run ID and restricted backend records/logs. Shared access requires authentication at the deployment boundary.
 
 ## Legacy artifacts
 
