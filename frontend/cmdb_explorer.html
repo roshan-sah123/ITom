@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Coforge ITOM - Universal Enterprise CMDB Explorer with live multi-source discovery reconciliation across 28,984 Configuration Items.">
+  <meta name="description" content="Coforge ITOM - Universal Enterprise CMDB Explorer with stored Intune and SolarWinds source records.">
   <title>CMDB Explorer | Coforge ITOM Portal</title>
   
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -265,12 +265,18 @@
       </div>
       <div class="filter-right">
         <div class="live-indicator">
-          <div class="live-pulse"></div>
-          <span>Live SWIS & Graph Reconciliation</span>
+          <span>Stored source records</span>
         </div>
-        <span id="cmdbFreshnessText" style="color: var(--text-muted); font-size: 12px;">Reconciled 1m ago (HEALTHY)</span>
+        <span id="cmdbFreshnessText" style="color: var(--text-muted); font-size: 12px;">Loading source sync evidence…</span>
       </div>
     </div>
+
+    <section class="chart-box" aria-label="Summary and source sync evidence" style="margin-bottom: 16px; overflow-wrap: anywhere;">
+      <p id="cmdbSummaryStatus" role="status" data-state="loading">Loading summary…</p>
+      <p>Cached CMDB counts have no observation timestamp. Source sync times below do not date these counts.</p>
+      <div><strong>Microsoft Intune</strong><p id="cmdbIntuneSuccess">Loading last successful source sync…</p><p id="cmdbIntuneAttempt">Loading latest recorded attempt…</p></div>
+      <div><strong>SolarWinds</strong><p id="cmdbSolarwindsSuccess">Loading last successful source sync…</p><p id="cmdbSolarwindsAttempt">Loading latest recorded attempt…</p></div>
+    </section>
 
     <div class="kpi-grid">
       <div class="kpi-card">
@@ -278,8 +284,8 @@
           <span class="kpi-title">Configuration Items (CIs)</span>
           <span class="kpi-tag orange">Universal Catalog</span>
         </div>
-        <div class="kpi-number" id="kpiTotalCis">28,984</div>
-        <div class="kpi-subtext">Total Verified Multi-Domain Infrastructure CIs</div>
+        <div class="kpi-number" id="kpiTotalCis">Loading…</div>
+        <div class="kpi-subtext">Active source records, not unique physical assets</div>
       </div>
 
       <div class="kpi-card">
@@ -287,34 +293,36 @@
           <span class="kpi-title">Digital Workplace Endpoints</span>
           <span class="kpi-tag cyan">Microsoft Graph</span>
         </div>
-        <div class="kpi-number" id="kpiEndpointsCount">Unavailable</div>
-        <div class="kpi-subtext">Corporate Laptops, Tablets & Mobile CIs (94.6%)</div>
+        <div class="kpi-number" id="kpiEndpointsCount">Loading…</div>
+        <div class="kpi-subtext">Intune source records · <span id="cmdbEndpointShare">Loading…</span></div>
         <div class="progress-bar-sm">
-          <div class="progress-fill" style="width: 94.6%; background: var(--accent-cyan);"></div>
+          <div class="progress-fill" id="cmdbIntuneBar" style="width: 0%; background: var(--accent-cyan);"></div>
         </div>
       </div>
 
       <div class="kpi-card">
         <div class="kpi-card-header">
-          <span class="kpi-title">Hybrid Server Infrastructure</span>
+          <span class="kpi-title">SolarWinds Source Records</span>
           <span class="kpi-tag green">SolarWinds SWIS</span>
         </div>
-        <div class="kpi-number" id="kpiServersCount">1,572</div>
-        <div class="kpi-subtext">Bare-Metal, VMs & Hypervisors (5.4%)</div>
+        <div class="kpi-number" id="kpiServersCount">Loading…</div>
+        <div class="kpi-subtext">Servers, network and unclassified · <span id="cmdbSolarwindsShare">Loading…</span></div>
         <div class="progress-bar-sm">
-          <div class="progress-fill" style="width: 5.4%; background: var(--accent-green);"></div>
+          <div class="progress-fill" id="cmdbSolarwindsBar" style="width: 0%; background: var(--accent-green);"></div>
         </div>
       </div>
 
       <div class="kpi-card">
         <div class="kpi-card-header">
-          <span class="kpi-title">Fleet Health Compliance</span>
-          <span class="kpi-tag green">96.8% High</span>
+          <span class="kpi-title">Derived Health Tiers</span>
+          <span class="kpi-tag" id="cmdbHealthShare">Loading…</span>
         </div>
-        <div class="kpi-number" style="color: var(--accent-green);" id="kpiPassedControls">28,056</div>
-        <div class="kpi-subtext"><span style="color: var(--accent-amber); font-weight: 600;" id="kpiAlertCount">928</span> Warning or Critical CIs</div>
+        <div class="kpi-number" style="color: var(--accent-green);" id="kpiPassedControls">Loading…</div>
+        <p>High tier source records</p>
+        <p id="cmdbHealthEvidence">Loading health population…</p>
+        <div class="kpi-subtext"><span style="color: var(--accent-amber); font-weight: 600;" id="kpiAlertCount">Loading…</span> Medium or Low tier source records</div>
         <div class="progress-bar-sm">
-          <div class="progress-fill" style="width: 96.8%; background: var(--accent-green);"></div>
+          <div class="progress-fill" id="cmdbHealthBar" style="width: 0%; background: var(--accent-green);"></div>
         </div>
       </div>
     </div>
@@ -324,27 +332,27 @@
         <div class="chart-header">
           <div class="chart-title-group">
             <h3>Discovery Source Architecture</h3>
-            <p>Authoritative external CMDB extraction pipelines</p>
+            <p>Stored source-record distribution</p>
           </div>
-          <span style="font-size: 11px; color: var(--accent-orange); font-weight: 600;">Zero-Hallucination</span>
+          <span style="font-size: 11px; color: var(--accent-orange); font-weight: 600;">Snapshot evidence</span>
         </div>
         <div style="display: flex; flex-direction: column; gap: 14px; margin-top: 8px;">
           <div>
             <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px;">
               <span style="color: var(--accent-cyan); font-weight: 600;">● Microsoft Graph Intune API</span>
-              <span style="font-family: var(--font-mono); font-weight: 700;" id="chartIntuneCount">Unavailable</span>
+              <span style="font-family: var(--font-mono); font-weight: 700;" id="chartIntuneCount">Loading…</span>
             </div>
             <div class="progress-bar-sm" style="margin-top: 0; height: 8px;">
-              <div class="progress-fill" style="width: 94.6%; background: var(--accent-cyan);"></div>
+              <div class="progress-fill" id="cmdbIntuneChartBar" style="width: 0%; background: var(--accent-cyan);"></div>
             </div>
           </div>
           <div>
             <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px;">
               <span style="color: var(--accent-green); font-weight: 600;">● SolarWinds Orion SWIS API</span>
-              <span style="font-family: var(--font-mono); font-weight: 700;" id="chartSwCount">1,572 CIs (5.4%)</span>
+              <span style="font-family: var(--font-mono); font-weight: 700;" id="chartSwCount">Loading…</span>
             </div>
             <div class="progress-bar-sm" style="margin-top: 0; height: 8px;">
-              <div class="progress-fill" style="width: 5.4%; background: var(--accent-green);"></div>
+              <div class="progress-fill" id="cmdbSolarwindsChartBar" style="width: 0%; background: var(--accent-green);"></div>
             </div>
           </div>
         </div>
@@ -354,20 +362,20 @@
         <div class="chart-header">
           <div class="chart-title-group">
             <h3>CMDB Ingestion & Change Detection Engine</h3>
-            <p>Automated 10-minute cadence with SHA-256 fingerprinting</p>
+            <p>Collection timing is configured by the running service</p>
           </div>
-          <span style="font-size: 11px; color: var(--accent-green); font-weight: 600; background: rgba(16, 185, 129, 0.1); padding: 4px 8px; border-radius: 6px;">600s Cadence</span>
+          <span style="font-size: 11px; color: var(--accent-green); font-weight: 600; background: rgba(16, 185, 129, 0.1); padding: 4px 8px; border-radius: 6px;">Schedule not checked here</span>
         </div>
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 4px;">
           <div style="background: #181820; border: 1px solid var(--border-subtle); padding: 14px; border-radius: 8px;">
             <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; margin-bottom: 4px;">Deduplication Invariant</div>
             <div style="font-size: 20px; font-weight: 800; color: #FFFFFF; font-family: var(--font-mono);">Unavailable</div>
-            <div style="font-size: 11px; color: var(--accent-green); margin-top: 4px;">Zero Redundant History</div>
+            <div style="font-size: 11px; color: var(--accent-green); margin-top: 4px;">Not measured on this page</div>
           </div>
           <div style="background: #181820; border: 1px solid var(--border-subtle); padding: 14px; border-radius: 8px;">
             <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; margin-bottom: 4px;">Persistence Layer</div>
-            <div style="font-size: 20px; font-weight: 800; color: #FFFFFF; font-family: var(--font-mono);">SQLite (configured)</div>
-            <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">Relational Ingestion Verified</div>
+            <div style="font-size: 20px; font-weight: 800; color: #FFFFFF; font-family: var(--font-mono);">Stored inventory</div>
+            <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">Persistence state not checked on this page</div>
           </div>
         </div>
       </div>
@@ -473,34 +481,123 @@
       }, 3000);
     }
 
-    async function initCmdb() {
-      try {
-        const summary = await ITOM_SERVICES.fetchCmdbSummary();
-        if (summary) {
-          const total = summary.total_cis || 28984;
-          document.getElementById('kpiTotalCis').textContent = total.toLocaleString();
+    const summaryValueIds = ['kpiTotalCis', 'kpiEndpointsCount', 'kpiServersCount', 'kpiPassedControls', 'kpiAlertCount'];
+    const sourceCountFields = ['total_cis', 'total_endpoints', 'total_servers', 'total_network_devices', 'total_unclassified'];
+    const healthCountFields = ['high_health_count', 'medium_health_count', 'low_health_count'];
+    const validCount = value => Number.isSafeInteger(value) && value >= 0;
+    const put = (id, value) => { document.getElementById(id).textContent = value; };
+    const width = (id, value) => { document.getElementById(id).style.width = `${value}%`; };
 
-          const sw = summary.source_distribution?.SOLARWINDS || 1572;
-          const intune = summary.source_distribution?.INTUNE || (total - sw);
-          document.getElementById('kpiEndpointsCount').textContent = intune.toLocaleString();
-          document.getElementById('kpiServersCount').textContent = sw.toLocaleString();
-          document.getElementById('chartIntuneCount').textContent = `${intune.toLocaleString()} CIs (${((intune / total) * 100).toFixed(1)}%)`;
-          document.getElementById('chartSwCount').textContent = `${sw.toLocaleString()} CIs (${((sw / total) * 100).toFixed(1)}%)`;
+    function summaryProblem(state, message) {
+      summaryValueIds.forEach(id => put(id, 'Unavailable'));
+      ['chartIntuneCount', 'chartSwCount', 'cmdbEndpointShare', 'cmdbSolarwindsShare', 'cmdbHealthShare', 'cmdbHealthEvidence'].forEach(id => put(id, 'Unavailable'));
+      ['cmdbIntuneBar', 'cmdbSolarwindsBar', 'cmdbIntuneChartBar', 'cmdbSolarwindsChartBar', 'cmdbHealthBar'].forEach(id => width(id, 0));
+      document.getElementById('cmdbSummaryStatus').dataset.state = state;
+      put('cmdbSummaryStatus', message);
+    }
 
-          const high = summary.health_distribution?.High || 28056;
-          document.getElementById('kpiPassedControls').textContent = high.toLocaleString();
-          document.getElementById('kpiAlertCount').textContent = (total - high).toLocaleString();
-        }
+    function countProblem(data, fields) {
+      if (fields.some(key => data[key] == null)) return 'missing';
+      return fields.every(key => validCount(data[key])) ? null : 'invalid';
+    }
 
-        const syncStatus = await ITOM_SERVICES.fetchSyncStatus();
-        if (syncStatus) {
-          const ageMins = syncStatus.age_seconds ? Math.floor(syncStatus.age_seconds / 60) : 1;
-          document.getElementById('cmdbFreshnessText').textContent = `Reconciled ${ageMins}m ago (${syncStatus.sync_state || 'HEALTHY'})`;
-        }
-      } catch (err) {
-        console.warn('CMDB summary error:', err);
+    function renderCmdbSummary(summary) {
+      if (!summary || typeof summary !== 'object' || Array.isArray(summary)) {
+        summaryProblem('invalid', 'Invalid summary response. Counts cannot be verified.');
+        return;
       }
+      if (summary.data_available === false) {
+        summaryProblem('unavailable', 'Summary unavailable: empty inventory and datastore failure cannot be distinguished by this response.');
+        return;
+      }
+      const problem = summary.data_available == null ? 'missing'
+        : summary.data_available !== true ? 'invalid' : countProblem(summary, sourceCountFields);
+      if (problem) {
+        summaryProblem(problem, `${problem === 'missing' ? 'Missing' : 'Invalid'} summary fields. Counts cannot be verified.`);
+        return;
+      }
+      const total = summary.total_cis;
+      const intune = summary.total_endpoints;
+      const solarwinds = summary.total_servers + summary.total_network_devices + summary.total_unclassified;
+      if (!validCount(solarwinds) || intune + solarwinds !== total) {
+        summaryProblem('inconsistent', 'Inconsistent source totals. Source distribution cannot be verified.');
+        return;
+      }
+      put('kpiTotalCis', total.toLocaleString());
+      put('kpiEndpointsCount', intune.toLocaleString());
+      put('kpiServersCount', solarwinds.toLocaleString());
+      const share = count => total ? `${(100 * count / total).toFixed(1)}% of source records` : 'No population';
+      put('cmdbEndpointShare', share(intune));
+      put('cmdbSolarwindsShare', share(solarwinds));
+      put('chartIntuneCount', `${intune.toLocaleString()} records · ${share(intune)}`);
+      put('chartSwCount', `${solarwinds.toLocaleString()} records · ${share(solarwinds)}`);
+      ['cmdbIntuneBar', 'cmdbIntuneChartBar'].forEach(id => width(id, total ? 100 * intune / total : 0));
+      ['cmdbSolarwindsBar', 'cmdbSolarwindsChartBar'].forEach(id => width(id, total ? 100 * solarwinds / total : 0));
+      document.getElementById('cmdbSummaryStatus').dataset.state = 'valid';
+      put('cmdbSummaryStatus', 'Source counts reconcile to the total. These are source records, not unique physical assets.');
 
+      const healthProblem = countProblem(summary, healthCountFields);
+      const healthTotal = summary.high_health_count + summary.medium_health_count + summary.low_health_count;
+      if (healthProblem || !validCount(healthTotal) || healthTotal !== total) {
+        put('kpiPassedControls', 'Unavailable');
+        put('kpiAlertCount', 'Unavailable');
+        put('cmdbHealthShare', 'Unavailable');
+        put('cmdbHealthEvidence', healthProblem === 'missing' ? 'Missing health fields.'
+          : healthProblem === 'invalid' ? 'Invalid health fields.' : 'Health tiers do not reconcile to the total source-record population.');
+        width('cmdbHealthBar', 0);
+        return;
+      }
+      put('kpiPassedControls', summary.high_health_count.toLocaleString());
+      put('kpiAlertCount', (summary.medium_health_count + summary.low_health_count).toLocaleString());
+      put('cmdbHealthShare', share(summary.high_health_count));
+      put('cmdbHealthEvidence', `High / all source records: ${summary.high_health_count.toLocaleString()} / ${total.toLocaleString()}. Derived tiers across both sources; not endpoint compliance.`);
+      width('cmdbHealthBar', total ? 100 * summary.high_health_count / total : 0);
+    }
+
+    const syncSources = [['INTUNE', 'intune', 'Intune'], ['SOLARWINDS', 'solarwinds', 'Solarwinds']];
+    const validTimestamp = value => typeof value === 'string' && value.trim() && Number.isFinite(Date.parse(value));
+
+    function renderSourceFreshness(report, requestFailed = false) {
+      const states = syncSources.map(([source, , id]) => {
+        const item = report?.sources?.[source];
+        const known = ['FRESH', 'STALE'].includes(item?.status)
+          && validTimestamp(item.last_synchronized_at) && validCount(item.age_seconds);
+        put(`cmdb${id}Success`, requestFailed ? 'Last successful source sync unavailable: request failed.' : known
+          ? `Last successful source sync: ${item.last_synchronized_at} · ${item.status} · ${item.age_seconds}s old at check`
+          : item?.status === 'UNKNOWN' ? 'Last successful source sync not confirmed (UNKNOWN).'
+          : 'Last successful source sync unavailable: missing or invalid evidence.');
+        return known ? item.status : item?.status === 'UNKNOWN' ? 'UNKNOWN' : null;
+      });
+      const overall = states.includes(null) ? null : states.includes('UNKNOWN') ? 'UNKNOWN'
+        : states.includes('STALE') ? 'STALE' : 'FRESH';
+      put('cmdbFreshnessText', requestFailed ? 'Source sync evidence unavailable: request failed.' : overall && overall === report?.overall_status
+        ? `Source sync evidence: ${overall}` : 'Source sync evidence unavailable or inconsistent');
+    }
+
+    function renderLatestAttempts(report, requestFailed = false) {
+      syncSources.forEach(([, source, id]) => {
+        const item = report?.[source];
+        const known = ['SUCCESS', 'FAILED', 'PARTIAL', 'RUNNING', 'SKIPPED'].includes(item?.status);
+        put(`cmdb${id}Attempt`, requestFailed ? 'Latest recorded attempt unavailable: status request failed.' : known
+          ? `Latest recorded attempt: ${item.status} · ${validTimestamp(item.last_completed) ? `Completed: ${item.last_completed}` : 'Completion time not recorded'}`
+          : item?.status === 'UNKNOWN' ? 'Latest recorded attempt not confirmed (UNKNOWN).'
+          : item?.status == null ? 'Latest recorded attempt unavailable: missing status evidence.'
+          : 'Latest recorded attempt unavailable: invalid status evidence.');
+      });
+    }
+
+    async function initCmdb() {
+      const apiBase = ITOM_CONSTANTS.ENDPOINTS.API_BASE;
+      // Use API-only fetches: legacy JSON snapshots have no verified provenance.
+      // Each renderer settles independently so one failed request cannot hide another.
+      await Promise.allSettled([
+        ITOM_SERVICES.fetchJson(ITOM_CONSTANTS.ENDPOINTS.API_CMDB_SUMMARY).then(renderCmdbSummary,
+          () => summaryProblem('failed', 'Summary request failed. Counts are unavailable.')),
+        ITOM_SERVICES.fetchJson(`${apiBase}/system/freshness`).then(renderSourceFreshness,
+          () => renderSourceFreshness(null, true)),
+        ITOM_SERVICES.fetchJson(`${apiBase}/sync/status`).then(renderLatestAttempts,
+          () => renderLatestAttempts(null, true))
+      ]);
       await loadCmdbCis();
     }
 
