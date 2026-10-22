@@ -3,10 +3,10 @@
  * 4 Primary Category Cards (classified servers, networks, campus sites, CMDB baseline),
  * Sub-tab switching, location-wise filtration, interactive chart slicing, and full pagination.
  */
-import { itomApi } from '../api.js?v=8';
+import { itomApi } from '../api.js?v=11';
 import { formatNumber, formatPercent, formatLatency, escapeHtml, calculateNewPageAnchor, debounce, exportToCsv, fetchAllFilteredRows, destroyChartSafe, generatePaginationControls } from '../utils.js';
-import { openCiDrawer } from './drawer.js?v=3';
-import { renderLocationScorecards } from './locations.js?v=14';
+import { openCiDrawer } from './drawer.js?v=4';
+import { renderLocationScorecards } from './locations.js?v=17';
 
 const resourcePercent = (value) => {
   if (value == null || typeof value === 'boolean' || String(value).trim() === '') return 'Unavailable';
@@ -195,16 +195,16 @@ async function loadInfraCategoryMetrics() {
   try {
     const [swSum, sitesResponse, networkResponse] = await Promise.all([
       itomApi.getSolarWindsSummary(),
-      itomApi.getLocations().catch(() => null),
-      itomApi.getSolarWindsNetworkDevices({ page: 1, page_size: 10 }).catch(() => ({ total: null })),
+      itomApi.getGroupOverview().catch(() => null),
+      itomApi.getSolarWindsNodes({ category: 'Network', page: 1, page_size: 10 }).catch(() => ({ total: null })),
     ]);
     const metrics = swSum.metrics || {};
     const totalNodes = metrics.total_server_nodes;
-    const totalServers = metrics.server_nodes_count;
-    const totalNetworkDevices = metrics.network_devices_count;
+    const totalServers = sitesResponse?.data?.fleet?.server_count;
+    const totalNetworkDevices = sitesResponse?.data?.fleet?.network_count;
     const unclassifiedNodes = metrics.unclassified_nodes_count;
     const highHealthPct = metrics.high_health_pct;
-    const sites = sitesResponse?.data?.items?.filter(site => site.id !== 'unassigned' && site.endpoints + site.nodes > 0);
+    const sites = sitesResponse?.data?.data_available ? sitesResponse.data.items : null;
 
     cachedTotalServers = totalServers;
 
@@ -219,13 +219,13 @@ async function loadInfraCategoryMetrics() {
 
     if (catServVal) catServVal.textContent = totalServers != null ? formatNumber(totalServers) : 'Unavailable';
     if (catServSub) catServSub.textContent = totalNodes != null
-      ? `Classified servers of ${formatNumber(totalNodes)} SolarWinds nodes`
+      ? `Source Server category · ${formatNumber(totalNodes)} total nodes`
       : 'No current SolarWinds data';
     if (catNetVal) catNetVal.textContent = networkResponse.total != null ? formatNumber(networkResponse.total) : 'Unavailable';
-    if (catNetSub) catNetSub.textContent = networkResponse.total != null ? 'SolarWinds node inventory' : 'Network inventory unavailable';
+    if (catNetSub) catNetSub.textContent = networkResponse.total != null ? 'Source Network category' : 'Network inventory unavailable';
     if (!document.getElementById('locMode')) {
       if (catSitesVal) catSitesVal.textContent = sites ? formatNumber(sites.length) : 'Unavailable';
-      if (catSitesSub) catSitesSub.textContent = 'Populated reporting groups · mixed levels';
+      if (catSitesSub) catSitesSub.textContent = 'SolarWinds top-level groups';
     }
     if (catBaseVal) catBaseVal.textContent = 'Coming soon';
     if (catBaseSub) catBaseSub.textContent = 'Volume and alert APIs required';
@@ -241,12 +241,12 @@ async function loadInfraCategoryMetrics() {
 
 async function loadServerKpisAndCharts() {
   try {
-    const summary = await itomApi.getSolarWindsSummary();
+    const [summary, native] = await Promise.all([itomApi.getSolarWindsSummary(), itomApi.getGroupOverview().catch(() => null)]);
     const metrics = summary.metrics || {};
     const total = metrics.total_nodes ?? metrics.total_server_nodes;
-    const serverCount = metrics.server_nodes_count;
-    const networkCount = metrics.network_devices_count;
-    const unclassifiedCount = metrics.unclassified_nodes_count;
+    const serverCount = native?.data?.fleet?.server_count;
+    const networkCount = native?.data?.fleet?.network_count;
+    const unclassifiedCount = native?.data?.fleet?.other_count;
     const nodeStatus = summary.decision_metrics?.current_node_status;
     const active = nodeStatus?.denominator;
     const alerts = (metrics.status_counts?.warning ?? 0) + (metrics.status_counts?.critical ?? 0) + (metrics.status_counts?.down ?? 0);
@@ -260,7 +260,7 @@ async function loadServerKpisAndCharts() {
 
     if (totalEl) totalEl.textContent = total != null ? formatNumber(total) : 'Unavailable';
     if (totalSub) totalSub.textContent = total != null
-      ? `${active == null ? 'Unknown monitored count' : `${formatNumber(active)} eligible monitored`} · ${formatNumber(serverCount ?? 0)} servers · ${formatNumber(networkCount ?? 0)} network · ${formatNumber(unclassifiedCount ?? 0)} unclassified`
+      ? `${active == null ? 'Unknown monitored count' : `${formatNumber(active)} eligible monitored`} · ${serverCount == null ? 'Unavailable' : formatNumber(serverCount)} servers · ${networkCount == null ? 'Unavailable' : formatNumber(networkCount)} network · ${unclassifiedCount == null ? 'Unavailable' : formatNumber(unclassifiedCount)} other / unclassified`
       : 'No current data';
     if (slaEl) slaEl.textContent = nodeStatus?.denominator === 0 ? 'No population' : nodeStatus?.value != null ? `${Number(nodeStatus.value).toFixed(1)}%` : 'Unavailable';
     if (availSub) availSub.textContent = nodeStatus?.denominator > 0
@@ -273,7 +273,7 @@ async function loadServerKpisAndCharts() {
     renderSwHealthChart(summary.health_breakdown || {});
     renderSwStatusChart(metrics.status_counts || {});
     renderSwVendorChart(summary.vendor_distribution || {});
-    renderSwSaturatedTriage(summary.top_saturated_servers !== undefined ? summary.top_saturated_servers : null);
+    renderSwSaturatedTriage(summary.top_source_servers !== undefined ? summary.top_source_servers : null);
 
     // Populate Campus Location Select Dropdown
     populateCampusLocationSelect();
@@ -456,7 +456,7 @@ function renderSwSaturatedTriage(servers) {
   }
 
   if (!Array.isArray(servers) || !servers.length) {
-    container.innerHTML = `<div style="padding: 12px; color: #64748B; font-size: 11px;">No observed breaches in measured classified servers (CPU ≥75% or RAM ≥80%). Missing readings are not healthy measurements.</div>`;
+    container.innerHTML = `<div style="padding: 12px; color: #64748B; font-size: 11px;">No observed breaches in measured source Server-category devices (CPU ≥75% or RAM ≥80%). Missing readings are not healthy measurements.</div>`;
     return;
   }
 
@@ -552,7 +552,7 @@ async function loadServerGrid() {
           <td><button type="button" class="ci-name-link" data-node-idx="${idx}" title="View node details">${escapeHtml(n.name)}</button></td>
           <td class="font-mono">${escapeHtml(n.ip_address || n.attributes?.ip_address || 'Unavailable')}</td>
           <td>${escapeHtml(n.status || 'Unavailable')}</td>
-          <td>${escapeHtml(n.ci_type || 'Unavailable')}</td>
+          <td class="source-name">${escapeHtml(n.source_category ?? 'Unclassified')}</td>
           <td>${escapeHtml(n.vendor || 'Unavailable')}</td>
           <td><span class="status-pill status-${healthStatusClass(healthTier)}">${escapeHtml(healthTier)}</span></td>
           <td class="font-mono" style="color: ${cpuText === 'Unavailable' ? '#64748B' : Number(cpu) >= 75 ? '#B45309' : '#15803D'};">${cpuText}</td>
@@ -690,7 +690,8 @@ function initServerFilters() {
         { label: 'Node Name', key: 'name' },
         { label: 'IP Address', key: 'ip' },
         { label: 'Operational Status', key: 'status' },
-        { label: 'Device Type', key: 'device_type' },
+        { label: 'Hardware (MachineType)', key: 'device_type' },
+        { label: 'Source category', key: 'source_category' }, { label: 'Source type', key: 'source_type' },
         { label: 'Vendor', key: 'vendor' },
         { label: 'Health Tier', key: 'health_tier' },
         { label: 'CPU Load %', key: 'cpu' },
@@ -701,7 +702,7 @@ function initServerFilters() {
         name: n.name,
         ip: n.ip_address || n.attributes?.ip_address || 'Unavailable',
         status: n.status || 'Unavailable',
-        device_type: n.ci_type || 'Unavailable',
+        device_type: n.ci_type || 'Unavailable', source_category:n.source_category, source_type:n.source_type,
         vendor: n.vendor || 'Unavailable',
         health_tier: healthLabel(n.health_tier),
         cpu: resourcePercent(n.attributes?.cpu_load ?? n.attributes?.CPULoad ?? n.cpu_load),
@@ -736,12 +737,12 @@ async function loadNetworkGrid() {
       page: currentNetPage,
       page_size: currentNetPageSize,
       ...(activeNetSearch ? { search: activeNetSearch } : {}),
-      ...(activeNetType ? { ci_type: activeNetType } : {}),
+      ...(activeNetType ? { source_type: activeNetType } : {}),
       ...(activeNetLocation ? { location: activeNetLocation } : {}),
       ...(activeNetHealth ? { health_tier: activeNetHealth } : {}),
     };
 
-    const res = await itomApi.getSolarWindsNetworkDevices(params);
+    const res = await itomApi.getSolarWindsNodes({...params,category:'Network'});
     const data = res.data || res;
     allFetchedNetDevices = data.items || [];
     const totalRecords = data.total !== undefined ? data.total : cachedTotalNetworks;
@@ -750,7 +751,7 @@ async function loadNetworkGrid() {
 
     currentNetPage = Math.min(currentNetPage, totalPages);
     const startRecord = totalRecords ? (currentNetPage - 1) * currentNetPageSize + 1 : 0;
-    const endRecord = Math.min(startRecord + allFetchedNetDevices.length - 1, totalRecords);
+    const endRecord = totalRecords ? Math.min(startRecord + allFetchedNetDevices.length - 1, totalRecords) : 0;
 
     if (recordCountEl) {
       recordCountEl.textContent = `Showing ${formatNumber(startRecord)}–${formatNumber(endRecord)} of ${formatNumber(totalRecords)} Network Devices`;
@@ -769,7 +770,7 @@ async function loadNetworkGrid() {
         <tr>
           <td><button type="button" class="ci-name-link" data-net-idx="${idx}" title="View device details">${escapeHtml(dev.name)}</button></td>
           <td class="font-mono">${escapeHtml(dev.ip_address || dev.attributes?.ip_address || 'Unavailable')}</td>
-          <td><span class="status-pill status-neutral">${escapeHtml(dev.ci_type || 'Unavailable')}</span></td>
+          <td><span class="status-pill status-neutral source-name">${escapeHtml(dev.source_type ?? 'Unavailable')}</span></td>
           <td>${escapeHtml(dev.vendor || 'Unavailable')}</td>
           <td><span class="status-pill status-${operationalStatusClass(dev.status)}">${escapeHtml(dev.status || 'Unknown')}</span></td>
           <td><span class="status-pill status-${healthClass}">${escapeHtml(healthLabel(dev.health_tier))}</span></td>
@@ -862,21 +863,21 @@ function initNetworkFilters() {
       try {
         const filters = {
           ...(activeNetSearch ? { search: activeNetSearch } : {}),
-          ...(activeNetType ? { ci_type: activeNetType } : {}),
+          ...(activeNetType ? { source_type: activeNetType } : {}),
           ...(activeNetLocation ? { location: activeNetLocation } : {}),
           ...(activeNetHealth ? { health_tier: activeNetHealth } : {}),
         };
-        const devices = await fetchAllFilteredRows(params => itomApi.getSolarWindsNetworkDevices(params), filters);
+        const devices = await fetchAllFilteredRows(params => itomApi.getSolarWindsNodes({...params,category:'Network'}), filters);
         if (!devices.length) { window.alert('No network devices match the active filters.'); return; }
         const headers = [
           { label: 'Device Name', key: 'name' }, { label: 'IP Address', key: 'ip' },
-          { label: 'Device Type', key: 'type' }, { label: 'Vendor', key: 'vendor' },
+          { label: 'Source type', key: 'source_type' }, { label: 'Hardware (MachineType)', key: 'type' }, { label: 'Vendor', key: 'vendor' },
           { label: 'Operational Status', key: 'status' }, { label: 'Health Tier', key: 'health' },
           { label: 'Ping Latency ms', key: 'latency' },
         ];
         const rows = devices.map(dev => ({
           name: dev.name, ip: dev.ip_address || dev.attributes?.ip_address || 'Unavailable',
-          type: dev.ci_type || 'Unavailable', vendor: dev.vendor || 'Unavailable',
+          type: dev.ci_type || 'Unavailable', source_type:dev.source_type, vendor: dev.vendor || 'Unavailable',
           status: dev.status || 'Unknown', health: healthLabel(dev.health_tier),
           latency: dev.attributes?.latency_ms ?? 'Unavailable',
         }));

@@ -29,11 +29,11 @@ def test_infrastructure_labels_all_solarwinds_nodes_and_reports_server_count_sep
 
     assert "TOTAL SOLARWINDS NODES" in html
     assert "SOLARWINDS NODE INVENTORY" in html
-    assert "server_nodes_count" in js
-    assert "renderSwSaturatedTriage(summary.top_saturated_servers" in js
-    assert "solarwinds_role(row.vendor, row.ci_type) != \"server\"" in summary_repo
-    assert "Classified servers of ${formatNumber(totalNodes)} SolarWinds nodes" in js
-    assert "${formatNumber(serverCount ?? 0)} servers" in js
+    assert "fleet?.server_count" in js
+    assert "renderSwSaturatedTriage(summary.top_source_servers" in js
+    assert "payload['top_source_servers']" in summary_repo
+    assert "Source Server category" in js
+    assert "serverCount == null ? 'Unavailable' : formatNumber(serverCount)" in js
 
 
 def test_endpoint_kpis_start_and_fail_as_unavailable_instead_of_old_sample_values():

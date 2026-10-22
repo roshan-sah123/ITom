@@ -45,6 +45,28 @@ Keep the loopback binding unless an authenticated gateway protects inventory, ex
 
 Apply Alembic migrations against the intended database before starting the production API. Production startup does not create tables. The supplied container health check uses `/healthz`; independently verify `/ready` before allowing traffic. The [audit](CODEBASE_AUDIT_2026-10-08.md) records remaining deployment and migration limitations.
 
+### SolarWinds source groups
+
+Revision `0008_solarwinds_groups` adds the source group/membership tables and
+nullable audit counts. Stop the local supervisor, back up the configured database,
+apply `alembic upgrade head`, and restart the supervisor. The next normal
+SolarWinds sync populates the hierarchy; before that, the UI reports that no group
+snapshot is available. Confirm `/ready`, the latest successful SolarWinds run's
+group counts, and `/api/v1/solarwinds/groups`. Reconcile IDs and descendant device
+sets with SWIS rather than historical fleet counts. A failed hierarchy extraction
+keeps the last complete node/group snapshot and its original freshness timestamp.
+Opening or refreshing the group browser only reads the CMDB.
+
+Revision `0009_group_site_scores` preserves stable source group IDs and adds
+explicit reviewed links to canonical/Intune locations. For this rollout, stop
+the local supervisor, create a checked SQLite backup, upgrade to head, ingest
+NodeCategory and NodeType through the normal locked SolarWinds sync, then restart.
+Verify unique fleet/category counts, group coverage, selected summaries and
+snapshot evidence. Combined starts unavailable without explicit approved links;
+use the local administration command documented in
+[dashboard Site Scores](dashboard-site-scores.md). PostgreSQL DDL compilation
+does not replace a migration test against an isolated PostgreSQL server.
+
 ## Operational checks
 
 - `/healthz`: process liveness.

@@ -1,13 +1,15 @@
 import { itomApi } from '../api.js?v=9';
 import { escapeHtml, formatNumber } from '../utils.js';
-import { openCiDrawer } from './drawer.js?v=3';
+import { openCiDrawer } from './drawer.js?v=4';
 import { openLocationReviews } from './locationReviews.js?v=1';
+import { renderSolarWindsGroups } from './solarwindsGroups.js?v=2';
+import { renderIntuneLocations } from './intuneLocations.js?v=1';
 
 let catalogue = [], currentMode = 'auto', selected = null, issue = 'all', source = '', page = 1;
 let listRequest = 0, catalogueRequest = 0, visibleCards = 24, returnFocus = null;
 let searchTimer;
 const tones = { healthy: 'Green', warning: 'Amber', critical: 'Red', unavailable: 'Insufficient data' };
-const modes = { endpoints: 'Endpoints', infrastructure: 'Infrastructure', combined: 'Combined' };
+const modes = { endpoints: 'Digital Workspace', infrastructure: 'SolarWinds', combined: 'Combined' };
 const pct = component => component?.value == null ? 'Unavailable' : `${component.value.toFixed(1)}%${component.usable ? '' : component.reason === 'Source data is stale or unavailable' ? ' (stale)' : ' (incomplete data)'}`;
 const coverage = component => component.coverage_pct == null ? 'Unavailable' : `${component.coverage_pct}%`;
 const statusTone = status => {
@@ -114,9 +116,22 @@ function sourceEvidence(freshness, counts) {
   }).join('');
 }
 
-export async function renderLocationScorecards() {
+export async function renderLocationScorecards(options = {}) {
   const filterIds = ['locSearch','locMode','locStatus','locLevel'];
   const savedFilters = Object.fromEntries(filterIds.map(id => [id,document.getElementById(id)?.value]));
+  if (options.mode) savedFilters.locMode = options.mode;
+  if (savedFilters.locMode === 'endpoints') {
+    catalogueRequest++; listRequest++; clearTimeout(searchTimer);
+    const host = document.getElementById('locationScorecards');
+    if (host) await renderIntuneLocations(host, mode => renderLocationScorecards({mode}), savedFilters);
+    return;
+  }
+  if (['infrastructure','combined'].includes(savedFilters.locMode || 'infrastructure')) {
+    catalogueRequest++; listRequest++; clearTimeout(searchTimer);
+    const groupHost = document.getElementById('locationScorecards');
+    if (groupHost) await renderSolarWindsGroups(groupHost, mode => renderLocationScorecards({mode}), savedFilters.locMode || 'infrastructure');
+    return;
+  }
   const restoreRefreshFocus = document.activeElement?.id === 'locRefresh';
   clearTimeout(searchTimer);
   const request = ++catalogueRequest;
@@ -130,11 +145,11 @@ export async function renderLocationScorecards() {
     if (request !== catalogueRequest) return;
     catalogue = response.data.items;
     host.innerHTML = `
-      <div class="location-health-heading"><div><h2>Location health</h2></div><div class="location-header-actions"><button id="locReview" type="button" class="btn-filter-reset" aria-label="Review location mappings">Review mappings</button><button id="locRefresh" type="button" class="btn-filter-reset">Refresh</button></div></div>
+      <div class="location-health-heading"><div><h2>Site Score</h2></div><div class="location-header-actions"><button id="locReview" type="button" class="btn-filter-reset" aria-label="Review location mappings">Review mappings</button><button id="locRefresh" type="button" class="btn-filter-reset">Refresh</button></div></div>
       <div id="locBrowse">
       <div id="locCoverage" class="location-source-evidence">${sourceEvidence(response.data.freshness.sources,response.data.coverage)}</div>
       <div class="grid-toolbar"><label>Search <input id="locSearch" class="filter-select" type="search" placeholder="Location name"></label>
-      <label>Score <select id="locMode" class="filter-select"><option value="auto">By available sources</option><option value="combined">Combined · both sources</option><option value="endpoints">Endpoints · Intune</option><option value="infrastructure">Infrastructure · SolarWinds</option></select></label>
+      <label>Score <select id="locMode" class="filter-select"><option value="auto">By available sources</option><option value="combined">Combined · both sources</option><option value="endpoints">Digital Workspace · Intune</option><option value="infrastructure">SolarWinds</option></select></label>
       <label>Status <select id="locStatus" class="filter-select"><option value="">All statuses</option><option value="critical">Red</option><option value="warning">Amber</option><option value="healthy">Green</option><option value="unavailable">Insufficient data</option></select></label>
       <label>Level <select id="locLevel" class="filter-select"><option value="">All levels</option>${[...new Set(catalogue.filter(l => l.id !== 'unassigned').map(l => l.level))].sort().map(level => `<option value="${escapeHtml(level)}">${escapeHtml(level)}</option>`).join('')}</select></label>
       <button id="locReset" type="button" class="btn-filter-reset">Reset</button></div>
@@ -168,7 +183,10 @@ export async function renderLocationScorecards() {
       if (value !== undefined && (control.tagName !== 'SELECT' || [...control.options].some(option => option.value === value))) control.value = value;
     }
     visibleCards = 24;
-    for (const id of ['locSearch', 'locMode', 'locStatus', 'locLevel']) document.getElementById(id).addEventListener('input', () => { visibleCards = 24; renderCards(); });
+    for (const id of ['locSearch', 'locMode', 'locStatus', 'locLevel']) document.getElementById(id).addEventListener('input', () => {
+      if (['infrastructure','combined','endpoints'].includes(document.getElementById('locMode').value)) return renderLocationScorecards({mode:document.getElementById('locMode').value});
+      visibleCards = 24; renderCards();
+    });
     document.getElementById('locShowMore').onclick = () => { visibleCards += 24; renderCards(); };
     document.getElementById('locReset').onclick = () => {
       for (const id of ['locSearch', 'locStatus', 'locLevel']) document.getElementById(id).value = '';
@@ -201,7 +219,7 @@ function renderCards() {
   const search = document.getElementById('locSearch').value.toLowerCase();
   const status = document.getElementById('locStatus').value, level = document.getElementById('locLevel').value;
   const scope = groups.filter(l => l.name.toLowerCase().includes(search) && (!level || l.level === level));
-  document.getElementById('locComparison').textContent = currentMode === 'auto' ? 'By available sources can mix score modes. Choose Endpoints, Infrastructure or Combined and the same reporting level to compare.' : `${modes[currentMode]} uses the same calculation for every group. Compare groups at the same reporting level.`;
+  document.getElementById('locComparison').textContent = currentMode === 'auto' ? 'By available sources can mix score modes. Choose Digital Workspace, SolarWinds or Combined and the same reporting level to compare.' : `${modes[currentMode]} uses the same calculation for every group. Compare groups at the same reporting level.`;
   document.getElementById('locSummary').innerHTML = [['','All groups'],['critical','Red'],['warning','Amber'],['unavailable','Insufficient data'],['healthy','Green']].map(([value,label]) => {
     const count = value ? scope.filter(l => l.scores[modeFor(l)].status === value).length : scope.length;
     return `<button type="button" data-status="${value}" class="location-summary-item summary-${value || 'all'}" aria-pressed="${status === value}"><strong>${formatNumber(count)}</strong><span>${label}</span></button>`;
@@ -216,8 +234,7 @@ function renderCards() {
   locations.sort((a, b) => order[a.scores[modeFor(a)].status] - order[b.scores[modeFor(b)].status] || a.name.localeCompare(b.name));
   document.getElementById('locResults').textContent = `Showing ${formatNumber(Math.min(visibleCards,locations.length))} of ${formatNumber(locations.length)} reporting groups · ${currentMode === 'auto' ? 'Status uses each group’s available sources' : modes[currentMode] + ' scores'} · As of ${observedAt(scope[0]?.as_of || catalogue[0]?.as_of)}`;
   document.getElementById('locShowMore').hidden = visibleCards >= locations.length;
-  document.getElementById('locCards').classList.toggle('location-rows', currentMode === 'infrastructure');
-  document.getElementById('locCards').innerHTML = currentMode === 'infrastructure' ? solarWindsRows(locations.slice(0,visibleCards)) : locations.length ? locations.slice(0,visibleCards).map(l => {
+  document.getElementById('locCards').innerHTML = locations.length ? locations.slice(0,visibleCards).map(l => {
     const mode = modeFor(l), score = l.scores[mode];
     const attention = score.status === 'healthy' ? null : cardAttention(l,mode);
     const explainColour = attention?.kind === 'health' && score.value != null &&
@@ -239,20 +256,6 @@ function renderCards() {
   document.querySelectorAll('#locCards button[data-id]').forEach(button => button.onclick = () => openLocation(button.dataset.id, button.dataset.issue,button,button.dataset.source));
   document.querySelectorAll('#locCards button[data-action="review"]').forEach(button => button.onclick = event => document.getElementById('locReview').onclick(event));
   document.querySelectorAll('#locCards button[data-action="refresh"]').forEach(button => button.onclick = () => { document.getElementById('locRefresh').focus({preventScroll:true}); renderLocationScorecards(); });
-}
-
-function solarWindsRows(locations) {
-  return `<div class="grid-scroll" tabindex="0" role="region" aria-label="SolarWinds location health table">
-    <table class="itom-table location-health-table"><caption class="sr-only">SolarWinds location health</caption>
-    <thead><tr>${['Location name','Total nodes','Up','Warning','Down/Critical','Health score','Status'].map(label => `<th scope="col">${label}</th>`).join('')}</tr></thead>
-    <tbody id="locSolarWindsRows">${locations.map(l => {
-      const score = l.scores.infrastructure;
-      return `<tr><td><button type="button" class="table-location-link" data-id="${escapeHtml(l.id)}" data-issue="all" data-source="SOLARWINDS">${escapeHtml(l.name)}</button></td>
-        <td>${formatNumber(l.nodes)}</td><td>${formatNumber(l.issues.up)}</td><td>${formatNumber(l.issues.warning)}</td><td>${formatNumber(l.issues.down + l.issues.critical)}</td>
-        <td><span title="${escapeHtml(`${componentCounts(l.components.node_status)} monitored nodes Up. ${scoreReason(l,'infrastructure')}`)}">${score.value == null ? '—' : score.value.toFixed(1) + '%'}</span></td>
-        <td><button type="button" class="status-pill location-status-link status-${score.status === 'unavailable' ? 'unknown' : score.status}" data-id="${escapeHtml(l.id)}" data-issue="all" data-source="SOLARWINDS" aria-label="View ${tones[score.status]} inventory for ${escapeHtml(l.name)}" title="${escapeHtml(scoreReason(l,'infrastructure'))}">${tones[score.status]}</button></td></tr>`;
-    }).join('')}</tbody>${locations.length ? '' : '<tbody><tr><td colspan="7">No SolarWinds locations match these filters.</td></tr></tbody>'}</table></div>
-    <p class="location-row-note">Total includes unmanaged and other node states. Score uses monitored nodes; stale or incomplete evidence is unscored.</p>`;
 }
 
 async function openLocation(id, nextIssue, trigger, nextSource = defaultSource()) {

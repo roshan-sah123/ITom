@@ -4,6 +4,7 @@ from app.models.base import Base, JSONType, TimestampMixin, UUIDPrimaryKeyMixin,
 from app.models.ci import CIRelationship, ConfigurationItem
 from app.models.history import CIStatusHistory
 from app.models.sync import SyncErrorLog, SyncRun
+from app.models.solarwinds_group import SolarWindsGroup, SolarWindsGroupMember, SolarWindsGroupLocation, SolarWindsGroupLocationReview
 from app.models.location import Location, LocationMappingRule, LocationMappingReview, LocationScoreSnapshot
 
 __all__ = [

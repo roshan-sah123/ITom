@@ -62,7 +62,8 @@ function renderDetails(ci) {
       ${field('Source ID', ci.source_id)}${field('Configuration item ID', ci.id)}
     </dl></section>
     <section><h4>Device information</h4><dl class="drawer-fields">
-      ${field('Device type', ci.ci_type)}${field('Vendor', ci.vendor)}${field('Model', ci.model)}
+      ${ci.source_system === 'SOLARWINDS' ? field('Source category', ci.source_category ?? attributes.node_category) + field('Source type', ci.source_type ?? attributes.node_type) : ''}
+      ${field(ci.source_system === 'SOLARWINDS' ? 'Hardware (MachineType)' : 'Device type', ci.ci_type)}${field('Vendor', ci.vendor)}${field('Model', ci.model)}
       ${field('Operating system', ci.operating_system)}${field('Serial number', ci.serial_number)}
       ${field('IP address', ci.ip_address)}${field('MAC address', ci.mac_address)}
       ${field('Owner', attributes.contact || attributes.user_principal_name || attributes.primary_user)}

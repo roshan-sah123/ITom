@@ -106,6 +106,7 @@ def test_location_scorecards_drilldowns_and_mobile(portal_url, browser_context):
     page.goto(portal_url,wait_until='domcontentloaded')
     page.locator('.nav-tab[data-view="infrastructure"]').click()
     page.locator('.category-card-tab[data-subtab="sites"]').click()
+    page.locator('#locMode').select_option('auto')
     expect(page.locator('#locCards .location-score-card')).to_have_count(2,timeout=15000)
     expect(page.locator('#catSitesSub')).to_contain_text('reporting groups')
     expect(page.locator('#locSummary')).to_contain_text('2')
@@ -145,7 +146,7 @@ def test_location_scorecards_drilldowns_and_mobile(portal_url, browser_context):
     page.locator('#locClose').click()
     page.locator('#locSearch').fill('Noida')
     expect(page.locator('#locCards .location-score-card')).to_have_count(1)
-    expect(page.locator('#locCards')).to_contain_text('Red · Infrastructure')
+    expect(page.locator('#locCards')).to_contain_text('Red · SolarWinds')
     page.locator('#locRefresh').click()
     expect(page.locator('#locSearch')).to_have_value('Noida')
     expect(page.locator('#locCards .location-score-card')).to_have_count(1)
@@ -160,6 +161,7 @@ def test_location_catalogue_progressive_disclosure(portal_url, catalogue_invento
     page.goto(portal_url, wait_until='domcontentloaded')
     page.locator('.nav-tab[data-view="infrastructure"]').click()
     page.locator('.category-card-tab[data-subtab="sites"]').click()
+    page.locator('#locMode').select_option('auto')
     expect(page.locator('#locCards .location-score-card')).to_have_count(24, timeout=15000)
     expect(page.locator('#locResults')).to_contain_text('24 of 29')
     page.locator('#locShowMore').click()
@@ -168,10 +170,9 @@ def test_location_catalogue_progressive_disclosure(portal_url, catalogue_invento
     expect(page.locator('#locCards .location-score-card')).to_have_count(1)
     expect(page.locator('#locSummary button[data-status="healthy"]')).to_contain_text('1')
     page.locator('#locMode').select_option('infrastructure')
-    # An Intune-only location is outside a SolarWinds-only inventory scope.
-    expect(page.locator('#locSummary button[data-status="unavailable"]')).to_contain_text('0')
-    expect(page.locator('#locSolarWindsRows tr')).to_have_count(0)
-    expect(page.locator('#locCards')).to_contain_text('No SolarWinds locations match')
+    # Canonical locations are never used as a fallback for missing source groups.
+    expect(page.locator('#swGroupMessage')).to_contain_text('No successful SolarWinds group snapshot yet')
+    expect(page.locator('#locCards')).to_have_count(0)
     page.close()
 
 

@@ -14,6 +14,12 @@ class Client:
     def fetch_nodes(self):
         return self.rows
 
+    def fetch_groups(self):
+        return []
+
+    def fetch_group_members(self):
+        return []
+
 
 def rows(*ids):
     return [dict(NodeID=i, Caption=f"test-{i}", Status=1, City="Test Site") for i in ids]

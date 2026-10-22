@@ -292,14 +292,56 @@ class SolarWindsClient:
         except requests.exceptions.ConnectionError as exc:
             raise SolarWindsApiError(f"Failed to connect to SWIS API at {self.host}:{self.port}: {exc}") from exc
 
+    def _fetch_complete_pages(self, fields: str, entity: str, order_fields: List[str], page_size: int = 500,
+                              order_by: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Bound each SELECT and reject truncation, unstable order or changing counts."""
+        def count():
+            rows = self.query(f"SELECT COUNT(*) AS Total FROM {entity}")
+            if len(rows) != 1 or not isinstance(rows[0], dict):
+                raise SolarWindsApiError('Invalid SWIS snapshot count')
+            total = rows[0].get('Total')
+            if isinstance(total, bool) or not isinstance(total, int) or total < 0:
+                raise SolarWindsApiError('Invalid SWIS snapshot count')
+            return total
+
+        expected = count()
+        result = []
+        previous = None
+        for start in range(1, expected + 1, page_size):
+            end = min(start + page_size - 1, expected)
+            rows = self.query(f"SELECT {fields} FROM {entity} ORDER BY {order_by or ', '.join(order_fields)} WITH ROWS {start} TO {end}")
+            if len(rows) != end - start + 1:
+                raise SolarWindsApiError('Incomplete SWIS snapshot page')
+            for row in rows:
+                try:
+                    key = tuple(row[field] for field in order_fields)
+                    if any(value is None for value in key) or (previous is not None and key <= previous):
+                        raise ValueError('Unstable page order')
+                    previous = key
+                except (KeyError, TypeError, ValueError) as exc:
+                    raise SolarWindsApiError('Invalid SWIS snapshot order') from exc
+            result.extend(rows)
+        if count() != expected:
+            raise SolarWindsApiError('SWIS snapshot changed during extraction')
+        return result
+
+    def fetch_groups(self) -> List[Dict[str, Any]]:
+        return self._fetch_complete_pages(
+            'ContainerID, Name, Owner, IsDeleted, Status, StatusDescription',
+            'Orion.Container', ['ContainerID'])
+
+    def fetch_group_members(self) -> List[Dict[str, Any]]:
+        return self._fetch_complete_pages(
+            'ContainerID, MemberPrimaryID, MemberEntityType', 'Orion.ContainerMembers',
+            ['ContainerID', 'MemberEntityType', 'MemberPrimaryID'])
+
     def fetch_nodes(self) -> List[Dict[str, Any]]:
         """Query server nodes and required fields from Orion.Nodes.
 
         Returns:
             List of node telemetry dictionaries.
         """
-        swql = """
-            SELECT 
+        fields = """
                 n.NodeID, 
                 n.Caption, 
                 n.IPAddress, 
@@ -316,13 +358,13 @@ class SolarWindsClient:
                 n.NodeDescription, 
                 cp.City AS City, 
                 cp.ITSM_Location AS ITSM_Location, 
-                n.Contact 
-            FROM Orion.Nodes n
-            LEFT JOIN Orion.NodesCustomProperties cp ON n.NodeID = cp.NodeID
-            ORDER BY n.NodeID ASC
+                cp.NodeCategory AS NodeCategory,
+                cp.NodeType AS NodeType,
+                n.Contact
         """
-        raw_nodes = self.query(swql)
-        return raw_nodes
+        return self._fetch_complete_pages(fields,
+            'Orion.Nodes n LEFT JOIN Orion.NodesCustomProperties cp ON n.NodeID = cp.NodeID',
+            ['NodeID'], order_by='n.NodeID')
 
     def process_telemetry(self, raw_nodes: List[Dict[str, Any]]) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
         """Process, clean, enrich with health classifications, and compute dashboard summary.

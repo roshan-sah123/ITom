@@ -1,13 +1,14 @@
+import { workspaceLabels, applyWorkspaceLabels } from './labels.js';
 /**
  * Master Application Bootstrap & Unified View Router
  */
 import { initHeader } from './components/header.js?v=4';
 import { initModal } from './components/modal.js';
-import { initDrawer } from './components/drawer.js?v=3';
-import { renderHome } from './components/home.js?v=10';
-import { renderInfrastructureWorkspace } from './components/infraWorkspace.js?v=27';
-import { renderEndpoints } from './components/endpoints.js?v=13';
-import { renderCmdb } from './components/cmdb.js?v=14';
+import { initDrawer } from './components/drawer.js?v=4';
+import { renderHome } from './components/home.js?v=11';
+import { renderInfrastructureWorkspace } from './components/infraWorkspace.js?v=30';
+import { renderEndpoints } from './components/endpoints.js?v=14';
+import { renderCmdb } from './components/cmdb.js?v=15';
 import { renderSyncLedger } from './components/syncLedger.js?v=3';
 import { renderSyncSchedule } from './components/syncSchedule.js?v=1';
 import { initWorkspaceFreshness, renderWorkspaceFreshness } from './components/workspaceFreshness.js?v=2';
@@ -15,16 +16,7 @@ import { initWorkspaceFreshness, renderWorkspaceFreshness } from './components/w
 let activeView = 'home';
 let navigationVersion = 0;
 
-const workspaceLabels = {
-  home: 'Operations overview',
-  infrastructure: 'Infrastructure',
-  endpoints: 'Endpoints',
-  cmdb: 'CMDB',
-  knowledge: 'Knowledge Centre',
-  automations: 'Automations',
-  sync: 'Sync runs',
-  'sync-schedule': 'Sync & schedule'
-};
+
 
 // Expose global navigation helper for cards and buttons
 window.navigateToView = async function(viewName, subtabName = '', filterParam = '') {
@@ -51,7 +43,7 @@ window.navigateToView = async function(viewName, subtabName = '', filterParam = 
   const summary = document.getElementById(viewName === 'infrastructure' ? 'swChartSummary' : 'epChartSummary');
   if (inventoryId && summary) summary.open = !exceptionLanding;
   const workspaceLabel = document.getElementById('activeWorkspaceLabel');
-  if (workspaceLabel) workspaceLabel.textContent = workspaceLabels[viewName] || 'Operations overview';
+  if (workspaceLabel) workspaceLabel.textContent = workspaceLabels[viewName] || workspaceLabels.home;
   window.scrollTo({ top: 0, behavior: 'instant' });
   await loadViewData(viewName, subtabName, filterParam);
   if (!exceptionLanding || version !== navigationVersion) return;
@@ -63,21 +55,22 @@ window.navigateToView = async function(viewName, subtabName = '', filterParam = 
 
 document.addEventListener('DOMContentLoaded', () => {
   // Initialize Global UI Shell components
+  applyWorkspaceLabels();
   initHeader();
   initModal();
   initDrawer();
   initWorkspaceFreshness(refreshCurrentView);
 
   const globalSearch = document.getElementById('globalSearch');
-  globalSearch?.addEventListener('keydown', (event) => {
+  globalSearch?.addEventListener('keydown', async (event) => {
     if (event.key !== 'Enter') return;
     const query = globalSearch.value.trim();
     if (!query) return;
-    window.navigateToView('cmdb');
+    await window.navigateToView('cmdb');
     document.dispatchEvent(new CustomEvent('itom:global-search', { detail: { query } }));
   });
   document.addEventListener('keydown', (event) => {
-    if (event.key === '/' && document.activeElement !== globalSearch) {
+    if (event.key === '/' && !document.activeElement?.matches('input, textarea, select, [contenteditable=true]')) {
       event.preventDefault();
       globalSearch?.focus();
     }

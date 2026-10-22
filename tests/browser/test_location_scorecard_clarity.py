@@ -43,6 +43,7 @@ def open_scores(page, portal_url):
     page.goto(portal_url, wait_until='domcontentloaded')
     page.locator('.nav-tab[data-view="infrastructure"]').click()
     page.locator('.category-card-tab[data-subtab="sites"]').click()
+    page.locator('#locMode').select_option('auto')
     expect(page.locator('#locCards .location-score-card').first).to_be_visible(timeout=15000)
 
 
@@ -198,13 +199,15 @@ def test_healthy_disclosure_keyboard_mobile_and_comparison(portal_url, catalogue
     page.keyboard.press('Enter')
     expect(healthy.locator('.location-components')).to_be_hidden()
     page.locator('#locMode').select_option('endpoints')
-    expect(page.locator('.location-comparison-note')).to_contain_text('Endpoints')
+    expect(page.locator('#intuneLocationTree > li')).to_have_count(1)
+    page.locator('[data-open-intune="office-1"]').click()
+    expect(page.locator('#intuneSummary')).to_contain_text('Site Score · Intune')
     captures = Path('output/playwright/location-scorecard-clarity')
     captures.mkdir(parents=True, exist_ok=True)
     page.screenshot(path=str(captures / 'healthy-desktop.png'), full_page=True)
     page.set_viewport_size({'width':390, 'height':844})
-    healthy.locator('details.location-card-details summary').first.click()
-    expect(healthy.locator('.location-components')).to_be_visible()
+    page.locator('#intuneSummary details summary').click()
+    expect(page.locator('#intuneSummary details')).to_have_attribute('open','')
     assert page.evaluate('document.documentElement.scrollWidth <= innerWidth + 2')
     page.screenshot(path=str(captures / 'healthy-mobile.png'), full_page=True)
     assert errors == []

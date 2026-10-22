@@ -76,7 +76,12 @@ def orm_to_dict(row: Any) -> Any:
         # Not a mapped ORM class - fall back to whatever it is.
         return _json_safe(row)
 
-    return {name: _json_safe(getattr(row, name, None)) for name in columns}
+    data = {name: _json_safe(getattr(row, name, None)) for name in columns}
+    if data.get('source_system') == 'SOLARWINDS':
+        attributes = data.get('attributes') or {}
+        data['source_category'] = attributes.get('node_category')
+        data['source_type'] = attributes.get('node_type')
+    return data
 
 
 def orm_list_to_dicts(rows: Optional[List[Any]]) -> List[Dict[str, Any]]:

@@ -36,6 +36,7 @@ function getLocations() {
 
 export const itomApi = {
   getLocations,
+  getLocationScore: id => fetchJson(`/locations/${encodeURIComponent(id)}/score`),
   getLocationDevices: (id, params = {}) => fetchJson(`/locations/${encodeURIComponent(id)}/devices?${new URLSearchParams(params)}`),
   getLocationHistory: id => fetchJson(`/locations/${encodeURIComponent(id)}/history`),
   getLocationReviewRules: (params = {}) => fetchJson(`/locations/reviews/rules?${new URLSearchParams(params)}`),
@@ -45,6 +46,11 @@ export const itomApi = {
   }),
   // SolarWinds Orion (Hybrid Servers & Campus Sites)
   getSolarWindsSummary: () => fetchJson('/solarwinds/summary'),
+  getSolarWindsGroups: () => fetchJson('/solarwinds/groups'),
+  getGroupOverview: (mode = 'infrastructure') => fetchJson(`/solarwinds/groups/overview?score_mode=${encodeURIComponent(mode)}`),
+  getGroupSummary: (id, mode = 'infrastructure') => fetchJson(`/solarwinds/groups/${encodeURIComponent(id)}/summary?score_mode=${encodeURIComponent(mode)}`),
+  getSolarWindsGroupMembers: id => fetchJson(`/solarwinds/groups/${encodeURIComponent(id)}/members`),
+  getSolarWindsGroupDevices: (id, params = {}) => fetchJson(`/solarwinds/groups/${encodeURIComponent(id)}/devices?${new URLSearchParams(params)}`),
   getSolarWindsNodes: (params = {}) => {
     const query = new URLSearchParams(params).toString();
     return fetchJson(`/solarwinds/nodes?${query}`);

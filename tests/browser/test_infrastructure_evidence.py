@@ -20,7 +20,7 @@ def test_infrastructure_missing_measurements_and_export(portal_url, browser_cont
             'value': 33.33, 'numerator': 1, 'denominator': 3,
             'coverage_pct': 100, 'unknown_records': 0,
         }}
-        payload['top_saturated_servers'] = [{
+        payload['top_source_servers'] = [{
             'name': 'CPU-PRESSURE', 'Caption': 'CPU-PRESSURE',
             'CPULoad': 92, 'PercentMemoryUsed': None,
         }]

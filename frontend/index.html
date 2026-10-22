@@ -16,7 +16,7 @@
   
   <!-- Master Obsidian Design System & Favicon -->
   <link rel="icon" type="image/png" href="logo.png?v=2">
-  <link rel="stylesheet" href="css/style.css?v=25">
+  <link rel="stylesheet" href="css/style.css?v=27">
 </head>
 <body>
   <div class="app-container">
@@ -29,22 +29,22 @@
       <div class="header-context" aria-label="Current workspace">
         <span class="header-product">ITOM</span>
         <span class="header-separator" aria-hidden="true">/</span>
-        <span id="activeWorkspaceLabel">Operations overview</span>
+        <span id="activeWorkspaceLabel">Home page</span>
       </div>
       <div class="header-actions">
         <label class="global-search">
-          <span class="sr-only">Search configuration items, devices, or sites</span>
-          <input id="globalSearch" type="search" placeholder="Search CIs, devices, sites" autocomplete="off">
+          <span class="sr-only">Search inventory in Assets Analytics</span>
+          <input id="globalSearch" type="search" placeholder="Search assets: device name, IP, serial" autocomplete="off">
           <kbd>/</kbd>
         </label>
       </div>
     </header>
 
     <nav class="module-nav" aria-label="Primary navigation">
-      <button class="nav-tab active" type="button" data-view="home" aria-current="page">Overview</button>
-      <button class="nav-tab" type="button" data-view="infrastructure">Infrastructure</button>
-      <button class="nav-tab" type="button" data-view="endpoints">Endpoints</button>
-      <button class="nav-tab" type="button" data-view="cmdb">CMDB</button>
+      <button class="nav-tab active" type="button" data-view="home" aria-current="page">Home page</button>
+      <button class="nav-tab" type="button" data-view="infrastructure">Operations Analytics</button>
+      <button class="nav-tab" type="button" data-view="endpoints">Digital Workspace</button>
+      <button class="nav-tab" type="button" data-view="cmdb">Assets Analytics</button>
       <button class="nav-tab" type="button" data-view="knowledge">Knowledge Centre</button>
       <button class="nav-tab" type="button" data-view="automations">Automations</button>
     </nav>
@@ -261,7 +261,7 @@
            ========================================================================= -->
       <section id="view-infrastructure" class="view-section">
         <button class="module-back-button" type="button" data-back-home>← Back to portal home</button>
-        <section class="workspace-freshness" id="workspaceFreshness-infrastructure" aria-label="Infrastructure source evidence">
+        <section class="workspace-freshness" id="workspaceFreshness-infrastructure" aria-label="Operations Analytics source evidence">
           <div class="workspace-freshness-rows" role="status">Checking source evidence…</div>
           <button class="btn-action workspace-freshness-reload" type="button" title="Reread stored inventory and source evidence">Reload snapshot</button>
         </section>
@@ -289,7 +289,7 @@
 
           <button type="button" aria-pressed="false" class="category-card-tab" data-subtab="sites">
             <span class="cat-header">
-              <span>LOCATION HEALTH</span>
+              <span>Site Score</span>
               <span>🏢</span>
             </span>
             <span class="cat-value" id="catSitesVal">—</span>
@@ -455,7 +455,7 @@
                     <th>NODE NAME</th>
                     <th>IP ADDRESS</th>
                     <th>OPERATIONAL STATUS</th>
-                    <th>DEVICE TYPE</th>
+                    <th>SOURCE CATEGORY</th>
                     <th>VENDOR</th>
                     <th>HEALTH TIER</th>
                     <th>CPU LOAD</th>
@@ -502,13 +502,7 @@
                   <span class="search-icon">🔍</span>
                   <input type="text" class="search-input" id="netSearchInput" placeholder="Search appliance, IP, switch name...">
                 </div>
-                <select class="filter-select" id="netFilterType" aria-label="Network device type">
-                  <option value="">Device Type (All)</option>
-                  <option value="switch">Switches</option>
-                  <option value="router">Routers</option>
-                  <option value="firewall">Firewalls</option>
-                  <option value="appliance">Network Appliances</option>
-                </select>
+                <input class="filter-select" id="netFilterType" aria-label="Network source type" placeholder="Exact SolarWinds NodeType">
                 <select class="filter-select" id="netFilterHealth" aria-label="Network health">
                   <option value="">Health (All)</option>
                   <option value="High">Green · High</option>
@@ -530,7 +524,7 @@
                   <tr>
                     <th>DEVICE NAME</th>
                     <th>IP ADDRESS</th>
-                    <th>DEVICE TYPE</th>
+                    <th>SOURCE TYPE</th>
                     <th>VENDOR</th>
                     <th>OPERATIONAL STATUS</th>
                     <th>HEALTH TIER</th>
@@ -798,7 +792,7 @@
            ========================================================================= -->
       <section id="view-cmdb" class="view-section">
         <button class="module-back-button" type="button" data-back-home>← Back to portal home</button>
-        <section class="workspace-freshness" id="workspaceFreshness-cmdb" aria-label="CMDB source evidence">
+        <section class="workspace-freshness" id="workspaceFreshness-cmdb" aria-label="Assets Analytics source evidence">
           <div class="workspace-freshness-rows" role="status">Checking source evidence…</div>
           <button class="btn-action workspace-freshness-reload" type="button" title="Reread stored inventory and source evidence">Reload snapshot</button>
         </section>
@@ -1105,6 +1099,6 @@
   </aside>
 
   <!-- Master ES6 Application Bootstrap -->
-    <script type="module" src="js/app.js?v=37"></script>
+    <script type="module" src="js/app.js?v=40"></script>
 </body>
 </html>

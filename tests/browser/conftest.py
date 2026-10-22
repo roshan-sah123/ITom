@@ -18,9 +18,9 @@ async def operator_inventory(session):
     await session.flush()
     now=datetime.now(timezone.utc)
     session.add_all([
-        make_ci("SOLARWINDS", "HEALTHY-SERVER", "Up", "High", location="Pune",location_id='pune',location_resolution='mapped'),
-        make_ci("SOLARWINDS", "CRITICAL-SERVER", "Critical", "Low", location="Pune",location_id='pune',location_resolution='mapped'),
-        make_ci("SOLARWINDS", "DOWN-SWITCH", "Down", "Low", ci_type="Switch", vendor="Cisco", location="Noida",location_id='noida',location_resolution='mapped'),
+        make_ci("SOLARWINDS", "HEALTHY-SERVER", "Up", "High", location="Pune",location_id='pune',location_resolution='mapped',attributes={'node_category':'Server','node_type':'Windows Server'}),
+        make_ci("SOLARWINDS", "CRITICAL-SERVER", "Critical", "Low", location="Pune",location_id='pune',location_resolution='mapped',attributes={'node_category':'Server','node_type':'Linux Server'}),
+        make_ci("SOLARWINDS", "DOWN-SWITCH", "Down", "Low", ci_type="Switch", vendor="Cisco", location="Noida",location_id='noida',location_resolution='mapped',attributes={'node_category':'Network','node_type':'Access Switch'}),
         make_ci("INTUNE", "COMPLIANT-LAPTOP", "Compliant", "High", ci_type="Windows",location_id='pune',location_resolution='mapped',attributes={'last_sync_date_time':now.isoformat()}),
         make_ci("INTUNE", "NONCOMPLIANT-LAPTOP", "NonCompliant", "Low", ci_type="Windows",location_id='pune',location_resolution='mapped',attributes={'last_sync_date_time':(now-timedelta(days=10)).isoformat()}),
         make_ci("INTUNE", "UNASSIGNED-LAPTOP", "Unknown", "Medium", ci_type="Windows", location_resolution='unassigned', attributes={}),

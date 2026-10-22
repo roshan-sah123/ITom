@@ -100,6 +100,8 @@ class ConfigurationItem(Base, UUIDPrimaryKeyMixin, TimestampMixin):
             "source_system": self.source_system,
             "name": self.name,
             "ci_type": self.ci_type,
+            "source_category": (self.attributes or {}).get('node_category') if self.source_system == 'SOLARWINDS' else None,
+            "source_type": (self.attributes or {}).get('node_type') if self.source_system == 'SOLARWINDS' else None,
             "status": self.status,
             "health_tier": self.health_tier,
             "ip_address": self.ip_address,

@@ -279,6 +279,8 @@ def normalize_solarwinds_node(node: Dict[str, Any]) -> Optional[Dict[str, Any]]:
             "contact": node.get("Contact"),
             "city": city or None,
             "itsm_location": itsm_location or None,
+            "node_category": node.get('NodeCategory') if isinstance(node.get('NodeCategory'), str) else None,
+            "node_type": node.get('NodeType') if isinstance(node.get('NodeType'), str) else None,
         },
     }
 
@@ -345,6 +347,7 @@ class SolarWindsSource:
 
     def __init__(self, client: Any = None) -> None:
         self._client = client
+        self.group_snapshot = None
 
     def _resolve_client(self) -> Any:
         if self._client is not None:
@@ -359,13 +362,19 @@ class SolarWindsSource:
     def fetch(self) -> List[Dict[str, Any]]:
         client = self._resolve_client()
         self.snapshot_complete = False
+        self.group_snapshot = None
+        self.fetched_count = 0
         try:
             nodes = client.fetch_nodes()
+            self.fetched_count = len(nodes)
+            items = validated_snapshot(nodes, normalize_solarwinds_node)
+            from app.services.solarwinds_group_service import validate_group_snapshot
+            self.group_snapshot = validate_group_snapshot(
+                client.fetch_groups(), client.fetch_group_members(),
+                {item['external_id'] for item in items})
         except Exception as exc:
             raise SourceUnavailableError(f"SolarWinds extraction failed: {exc}") from exc
 
-        self.fetched_count = len(nodes)
-        items = validated_snapshot(nodes, normalize_solarwinds_node)
         self.snapshot_complete = True
         logger.info("SolarWinds source produced %d CI records from %d raw nodes.",
                     len(items), len(nodes or []))

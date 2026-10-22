@@ -21,8 +21,9 @@ from app.services.telemetry_sources import ORION_STATUS_MAP
 
 POLICY_VERSION = 'location-v2'
 RESOLVER_VERSION = 'assignment-v2'
+INTUNE_EXACT_NAME_PREFIX = 'NAME:'
 MIN_FIELD_COVERAGE = 0.95
-ISSUES = {'all','noncompliant','other_compliance','old_checkins','old_30d','invalid_checkins',
+ISSUES = {'all','compliant','noncompliant','other_compliance','recent_checkins','old_checkins','old_30d','invalid_checkins',
           'up','down','critical','warning','unmanaged','conflict'}
 SOURCES = {'INTUNE','SOLARWINDS'}
 
@@ -54,9 +55,11 @@ def matches_issue(ci, issue, now):
         return True
     if issue == 'conflict':
         return ci.location_resolution in {'conflict','review'}
-    if issue in {'noncompliant','other_compliance','old_checkins','old_30d','invalid_checkins'}:
+    if issue in {'compliant','noncompliant','other_compliance','recent_checkins','old_checkins','old_30d','invalid_checkins'}:
         if ci.source_system != 'INTUNE':
             return False
+        if issue == 'compliant':
+            return status == 'compliant'
         if issue == 'noncompliant':
             return status == 'noncompliant'
         if issue == 'other_compliance':
@@ -64,6 +67,8 @@ def matches_issue(ci, issue, now):
         age = checkin_age(ci, now)
         if issue == 'invalid_checkins':
             return age is None
+        if issue == 'recent_checkins':
+            return age is not None and age <= timedelta(days=7)
         return age is not None and age > timedelta(days=30 if issue == 'old_30d' else 7)
     return ci.source_system == 'SOLARWINDS' and status == issue
 
@@ -71,7 +76,10 @@ def matches_issue(ci, issue, now):
 class LocationResolver:
     def __init__(self, rules, names):
         self.rules = sorted(rules, key=lambda r: -len(normalized(r['match_key'])))
-        self.prefixes = [(normalized(r['match_key']),r) for r in self.rules if r['source_system']=='INTUNE']
+        intune_rules = [(normalized(r['match_key']),r) for r in self.rules if r['source_system']=='INTUNE']
+        self.exact_names = {normalized(key.removeprefix(INTUNE_EXACT_NAME_PREFIX)):r for key,r in intune_rules
+                            if key.startswith(INTUNE_EXACT_NAME_PREFIX)}
+        self.prefixes = [(key,r) for key,r in intune_rules if not key.startswith(INTUNE_EXACT_NAME_PREFIX)]
         self.names = names
         self.aliases = {normalized(r['match_key']):r for r in rules if r['source_system']=='SOLARWINDS'}
 
@@ -80,9 +88,11 @@ class LocationResolver:
         rule = None
         if source == 'INTUNE':
             value = normalized(name)
+            rule = self.exact_names.get(value)
             # Select the longest recognized rule even if unresolved. A missing
             # identifier must never fall through to a shorter overlapping rule.
-            for key,candidate in self.prefixes:
+            # Exact device exceptions also retain rejected/pending decisions.
+            for key,candidate in ([] if rule is not None else self.prefixes):
                 if value.startswith(key):
                     if len(value)>len(key):
                         rule = candidate
@@ -138,6 +148,11 @@ class LocationService:
             name = str(r.get('location') or '').strip()
             if src not in SOURCES or not key or len(key)>255 or len(name)>128:
                 raise ValueError('Invalid location rule')
+            if src == 'INTUNE' and key.startswith(INTUNE_EXACT_NAME_PREFIX):
+                device_name = normalized(key.removeprefix(INTUNE_EXACT_NAME_PREFIX))
+                if not device_name:
+                    raise ValueError('An exact device name is required after NAME:')
+                key = INTUNE_EXACT_NAME_PREFIX + device_name
             if (src,key) in keys:
                 raise ValueError('Duplicate or conflicting source location rule')
             keys.add((src,key))

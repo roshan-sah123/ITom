@@ -56,6 +56,9 @@ class CIService:
         health_tier: Optional[str] = None,
         status: Optional[str] = None,
         location: Optional[str] = None,
+        category: Optional[str] = None,
+        category_missing: bool = False,
+        source_type: Optional[str] = None,
         sort_by: Optional[str] = "name",
         sort_order: Optional[str] = "asc",
     ) -> Dict[str, Any]:
@@ -73,6 +76,9 @@ class CIService:
             health_tier=health_tier,
             status=status,
             location=location,
+            category=category,
+            category_missing=category_missing,
+            source_type=source_type,
             sort_by=sort_by,
             sort_order=sort_order,
         )

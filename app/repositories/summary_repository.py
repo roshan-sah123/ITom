@@ -819,11 +819,14 @@ class SummaryRepository:
         )
         sat_res = await self.session.execute(sat_stmt)
         saturated_candidates: List[Dict[str, Any]] = []
+        source_server_candidates: List[Dict[str, Any]] = []
 
         records = sat_res.all()
         payload['decision_metrics'] = solarwinds_evidence(records)
         for row in records:
-            if _solarwinds_role(row.vendor, row.ci_type) != "server":
+            legacy_server = _solarwinds_role(row.vendor, row.ci_type) == "server"
+            source_server = str((row.attributes or {}).get('node_category') or '').strip().casefold() == 'server'
+            if not legacy_server and not source_server:
                 continue
 
             cpu_val, ram_val = resources(row.attributes)
@@ -831,7 +834,7 @@ class SummaryRepository:
             if (cpu_val is not None and cpu_val >= 75.0) or (ram_val is not None and ram_val >= 80.0):
                 eff_cpu = cpu_val if cpu_val is not None else 0.0
                 eff_ram = ram_val if ram_val is not None else 0.0
-                saturated_candidates.append({
+                candidate = {
                     "name": (row.name or "").strip(),
                     "Caption": (row.name or "").strip(),
                     "ip_address": row.ip_address or "Unavailable",
@@ -843,11 +846,18 @@ class SummaryRepository:
                     "memory_used": round(ram_val, 1) if ram_val is not None else None,
                     "PercentMemoryUsed": round(ram_val, 1) if ram_val is not None else None,
                     "_score": max(eff_cpu, eff_ram),
-                })
+                }
+                if legacy_server:
+                    saturated_candidates.append(dict(candidate))
+                if source_server:
+                    source_server_candidates.append(dict(candidate))
 
         saturated_candidates.sort(key=lambda s: -s["_score"])
         for item in saturated_candidates:
             item.pop("_score", None)
+        source_server_candidates.sort(key=lambda item: -item['_score'])
+        for item in source_server_candidates:
+            item.pop('_score', None)
 
         metrics.update(
             {
@@ -896,6 +906,7 @@ class SummaryRepository:
         # Legacy alias - same live dictionary under its older key name.
         payload["node_type_breakdown"] = type_distribution
         payload["top_saturated_servers"] = saturated_candidates[:10]
+        payload['top_source_servers'] = source_server_candidates[:10]
         payload["total_saturated_nodes"] = len(saturated_candidates)
         payload["api_aliases"] = {"total_server_nodes": "legacy alias of total_nodes; not a server-only count"}
         return payload

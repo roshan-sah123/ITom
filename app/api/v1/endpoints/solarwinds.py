@@ -1,14 +1,61 @@
 """SolarWinds Orion SWIS telemetry and server node endpoints."""
 
-from typing import Any, Dict, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from typing import Any, Dict, Literal, Optional
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
+from sqlalchemy.exc import SQLAlchemyError
 
 from app.api.deps import get_ci_service
 from app.services.ci_service import CIService
+from app.core.database import get_db
+from app.services.solarwinds_group_service import SolarWindsGroupService
 
 router = APIRouter(prefix="/solarwinds", tags=["SolarWinds Telemetry"])
 
 ALLOWED_PAGE_SIZES = {10, 25, 50, 100}
+
+
+async def group_response(operation):
+    try:
+        data = await operation
+    except (SQLAlchemyError, RuntimeError) as exc:
+        raise HTTPException(503, 'SolarWinds group data unavailable; retry after database recovery') from exc
+    if data is None:
+        raise HTTPException(404, 'SolarWinds group not found')
+    return {'status': 'success', 'data': data}
+
+
+@router.get('/groups')
+async def list_solarwinds_groups(session=Depends(get_db)):
+    return await group_response(SolarWindsGroupService(session).roots())
+
+
+@router.get('/groups/{group_id}/members')
+async def list_group_members(group_id: int = Path(ge=1), session=Depends(get_db)):
+    return await group_response(SolarWindsGroupService(session).members(group_id))
+
+
+@router.get('/groups/overview')
+async def group_overview(score_mode: Literal['infrastructure', 'combined'] = 'infrastructure', session=Depends(get_db)):
+    return await group_response(SolarWindsGroupService(session).overview(score_mode))
+
+
+@router.get('/groups/{group_id}/summary')
+async def group_summary(group_id: int = Path(ge=1), score_mode: Literal['infrastructure', 'combined'] = 'infrastructure', session=Depends(get_db)):
+    return await group_response(SolarWindsGroupService(session).summary(group_id, score_mode))
+
+
+@router.get('/groups/{group_id}/devices')
+async def list_group_devices(group_id: int = Path(ge=1), page: int = Query(1, ge=1),
+                             page_size: int = Query(25),
+                             search: str = Query('', max_length=255),
+                             status_filter: Optional[str] = Query(None, alias='status', max_length=64),
+                             category: Optional[str] = Query(None, max_length=255), category_missing: bool = False,
+                             source_type: Optional[str] = Query(None, max_length=255),
+                             session=Depends(get_db)):
+    if page_size not in ALLOWED_PAGE_SIZES:
+        raise HTTPException(422, f'page_size must be one of {sorted(ALLOWED_PAGE_SIZES)}')
+    return await group_response(SolarWindsGroupService(session).devices(
+        group_id, page=page, page_size=page_size, search=search, status=status_filter, category=category, category_missing=category_missing, source_type=source_type))
 
 
 @router.get("/summary", status_code=status.HTTP_200_OK)
@@ -28,6 +75,8 @@ async def list_solarwinds_nodes(
     status_filter: Optional[str] = Query(None, alias="status"),
     vendor: Optional[str] = Query(None),
     location: Optional[str] = Query(None, description="Exact source location; use Unassigned for blank locations"),
+    category: Optional[str] = Query(None, max_length=255), category_missing: bool = False,
+    source_type: Optional[str] = Query(None, max_length=255),
     sort_by: Optional[str] = Query("name"),
     sort_order: Optional[str] = Query("asc"),
     ci_service: CIService = Depends(get_ci_service),
@@ -44,6 +93,7 @@ async def list_solarwinds_nodes(
         page_size=page_size,
         search=search,
         source_system="SOLARWINDS",
+        category=category, category_missing=category_missing, source_type=source_type,
         health_tier=health_tier,
         status=status_filter,
         vendor=vendor,

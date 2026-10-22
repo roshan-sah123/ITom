@@ -20,6 +20,9 @@ The current service is `app.main:app`. Its OpenAPI document at `/openapi.json` a
 | `GET /api/v1/solarwinds/summary` | Infrastructure operational summary |
 | `GET /api/v1/solarwinds/nodes` | Filtered infrastructure inventory |
 | `GET /api/v1/solarwinds/network-devices` | Network-only inventory |
+| `GET /api/v1/solarwinds/groups` | Top-level regular source groups, including empty groups |
+| `GET /api/v1/solarwinds/groups/{group_id}/members` | Direct child groups and device members |
+| `GET /api/v1/solarwinds/groups/{group_id}/devices` | Unique devices across the group and all descendants |
 | `GET /api/v1/solarwinds/sites` | Site/location aggregates |
 | `GET /api/v1/solarwinds/sites/{site_id}/trend` | Recorded trend, with `hours` between 1 and 168 |
 | `GET /api/v1/analytics/locations` | Location analytics |
@@ -32,6 +35,24 @@ The current service is `app.main:app`. Its OpenAPI document at `/openapi.json` a
 | `POST /api/v1/sync/trigger` | Queue ingestion; accepts `source_system=ALL`, `INTUNE` or `SOLARWINDS` |
 
 ## Inventory lists
+
+SolarWinds group routes use `{status: "success", data: ...}`. Groups use numeric
+SolarWinds `group_id` values, not canonical location IDs. Group names and native
+status descriptions are preserved verbatim. Only non-deleted `Owner = Core`
+groups are included; map containers are excluded. Groups can have multiple parents.
+The devices route accepts `page`, `page_size` in `{10,25,50,100}`, literal name/IP
+`search`, and exact case-insensitive `status`. Filtering and unique-node selection
+happen before pagination. Unknown group IDs return 404; invalid parameters return
+422; database failures return a safe 503.
+
+Each group response carries `data_available`, `snapshot_id`, `as_of`, `freshness`,
+and `last_attempt_status`. An empty catalogue before the first successful group
+sync has `data_available=false`; a validated empty source snapshot has
+`data_available=true`. Sync runs include nullable `groups_extracted` and
+`memberships_extracted`: cleaned regular-group/edge counts. Legacy, fixture-only,
+and failed runs leave these null. Nodes, hierarchy, retirement, and the success
+audit commit together. Existing canonical location and `/solarwinds/sites`
+contracts are preserved.
 
 Inventory pages accept `page >= 1` and `page_size` in `{10, 25, 50, 100}`. Responses include `items`, `total`, `page`, `page_size` and `total_pages`. Filter availability depends on the route; consult OpenAPI instead of assuming a uniform set of parameters. Retired items are excluded from ordinary inventory reads.
 
@@ -65,3 +86,19 @@ pressure can be observed with one reading while complete-pair coverage remains
 incomplete. See [decision metric policy](DECISION_METRICS.md) for interpretation.
 
 Graph uses OAuth client credentials and read-only managed-device extraction, including pagination. SolarWinds uses GET requests with validated SELECT-only SWQL. Implementations live in `src/sync/graph_client.py`, `src/sync/solarwinds_client.py` and `app/services/telemetry_sources.py`. Source credentials and transport policy are configured through `app/core/config.py`; source API access is separate from the portal inventory contract.
+# Group overview and Site Score additions
+
+See [dashboard Site Scores](dashboard-site-scores.md) for the additive group overview,
+selected-group summary, native classification filters and reviewed Combined link
+contract. Existing canonical location and legacy network endpoints are retained.
+
+## Intune location inventory filters
+
+Existing `GET /api/v1/locations/{location_id}/devices` and location CSV export
+accept the additive `issue=compliant` and `issue=recent_checkins` values.
+Both predicates match Intune records only. `recent_checkins` uses the existing
+seven-day check-in policy, including its missing/invalid timestamp handling.
+Filtering occurs before pagination and totals. These filters also provide the
+corresponding counts in location score evidence; selecting a filter never
+recalculates the full-location Site Score. Existing issue values and response
+envelopes remain compatible.

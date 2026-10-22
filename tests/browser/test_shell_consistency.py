@@ -8,7 +8,7 @@ pytestmark = pytest.mark.browser
 def test_infrastructure_subviews_work_by_keyboard(portal_url, browser_context):
     page = browser_context.new_page()
     page.goto(portal_url, wait_until='domcontentloaded')
-    page.get_by_role('button', name='Infrastructure', exact=True).click()
+    page.get_by_role('button', name='Operations Analytics', exact=True).click()
     for name in ['networks', 'sites', 'servers', 'baseline']:
         control = page.locator(f'.category-card-tab[data-subtab="{name}"]')
         assert control.evaluate('(el) => el.tagName') == 'BUTTON'
@@ -29,7 +29,7 @@ def test_filter_names_and_same_origin_documentation(portal_url, browser_context)
     for view, controls in [('infrastructure', ['swFilterHealth','swFilterStatus','swLocationSelect']),
                            ('endpoints',['epFilterStatus']),
                            ('cmdb',['cmdbFilterHealth','cmdbFilterSource','cmdbLocationSelect'])]:
-        page.get_by_role('button', name={'infrastructure':'Infrastructure','endpoints':'Endpoints','cmdb':'CMDB'}[view], exact=True).click()
+        page.get_by_role('button', name={'infrastructure':'Operations Analytics','endpoints':'Digital Workspace','cmdb':'Assets Analytics'}[view], exact=True).click()
         for control in controls:
             assert page.locator(f'#{control}').get_attribute('aria-label')
     page.close()

@@ -3,7 +3,7 @@
  */
 import { itomApi } from '../api.js?v=6';
 import { formatNumber, formatPercent, escapeHtml, calculateNewPageAnchor, debounce, exportToCsv, fetchAllFilteredRows, generatePaginationControls } from '../utils.js';
-import { openCiDrawer } from './drawer.js?v=3';
+import { openCiDrawer } from './drawer.js?v=4';
 
 let currentCmdbPage = 1;
 let currentCmdbPageSize = 25;
@@ -176,7 +176,7 @@ async function loadCmdbGrid() {
               ${escapeHtml(ci.source_system)}
             </span>
           </td>
-          <td>${escapeHtml(ci.ci_type || 'Unavailable')}</td>
+          <td class="source-name">${escapeHtml(isSw ? ci.source_category ?? 'Unclassified' : ci.ci_type || 'Unavailable')}</td>
           <td>${escapeHtml(ci.vendor || 'Unavailable')}</td>
           <td>${escapeHtml(ci.location || 'Unassigned')}</td>
           <td><span class="status-pill status-${healthClass}">${escapeHtml(healthTier)}</span></td>
@@ -204,7 +204,7 @@ async function loadCmdbGrid() {
 
   } catch (err) {
     console.error('Failed to load CMDB grid:', err);
-    tbody.innerHTML = `<tr><td colspan="7" class="inline-error">Unable to query CMDB repository.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7" class="inline-error">Assets Analytics inventory unavailable.</td></tr>`;
   }
 }
 
@@ -312,7 +312,8 @@ function initCmdbFilters() {
       const headers = [
         { label: 'Configuration Item', key: 'name' },
         { label: 'Source System', key: 'source_system' },
-        { label: 'CI Type', key: 'ci_type' },
+        { label: 'Hardware / CI Type', key: 'ci_type' },
+        { label: 'Source category', key: 'source_category' }, { label: 'Source type', key: 'source_type' },
         { label: 'Vendor', key: 'vendor' },
         { label: 'Location', key: 'location' },
         { label: 'Health Tier', key: 'health_tier' },

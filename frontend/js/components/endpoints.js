@@ -4,7 +4,7 @@
  */
 import { itomApi } from '../api.js?v=4';
 import { formatNumber, formatPercent, escapeHtml, calculateNewPageAnchor, debounce, exportToCsv, fetchAllFilteredRows, destroyChartSafe, generatePaginationControls } from '../utils.js';
-import { openCiDrawer } from './drawer.js?v=3';
+import { openCiDrawer } from './drawer.js?v=4';
 
 let osChartInstance = null;
 let complianceChartInstance = null;

@@ -403,6 +403,12 @@ class SyncService:
             # while the audit claims the source failed and was rolled back.
             async with self.session.begin_nested():
                 results = await self.ingest_telemetry_batch(items, source.name)
+                group_snapshot = getattr(source, 'group_snapshot', None) if telemetry_items is None else None
+                if source.name.upper() == 'SOLARWINDS' and group_snapshot is not None:
+                    from app.repositories.solarwinds_group_repository import SolarWindsGroupRepository
+                    await SolarWindsGroupRepository(self.session).replace(group_snapshot)
+                    sync_run.groups_extracted = len(group_snapshot.groups)
+                    sync_run.memberships_extracted = len(group_snapshot.members)
                 retired = 0
                 if telemetry_items is None and getattr(source, "snapshot_complete", False):
                     retired = await self.retire_missing(source.name, items)
@@ -452,6 +458,8 @@ class SyncService:
             duration_ms = int((completed_at - started_at).total_seconds() * 1000)
 
             sync_run.status = "FAILED"
+            sync_run.groups_extracted = None
+            sync_run.memberships_extracted = None
             raw_count = getattr(source, "fetched_count", 0)
             sync_run.items_extracted = raw_count or locals().get("extracted_count", 0)
             sync_run.items_normalized = 0

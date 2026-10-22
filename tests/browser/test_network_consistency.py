@@ -1,5 +1,6 @@
 """Network investigation and missing evidence stay consistent with CMDB."""
 import csv
+import re
 import pytest
 from tests.browser.test_operator_queue import browser_context, expect
 
@@ -17,7 +18,8 @@ def test_network_status_and_keyboard_drilldown(portal_url, browser_context):
     page = browser_context.new_page()
     open_networks(page, portal_url)
     row = page.locator('#netDeviceTableBody tr').filter(has_text='DOWN-SWITCH')
-    expect(row.locator('td').nth(2).locator('.status-pill')).to_have_class('status-pill status-neutral')
+    expect(row.locator('td').nth(2).locator('.status-pill')).to_have_class(re.compile(r'\bstatus-neutral\b'))
+    expect(row.locator('td').nth(2)).to_have_text('Access Switch')
     expect(row.locator('td').nth(4).locator('.status-pill')).to_have_class('status-pill status-critical')
     expect(row.locator('td').nth(5)).to_contain_text('Low')
     expect(row.locator('td').nth(5).locator('.status-pill')).to_have_class('status-pill status-critical')
@@ -47,7 +49,7 @@ def test_cmdb_observed_health_tiers_keep_colors(portal_url, browser_context):
 
 
 @pytest.mark.parametrize('workspace,endpoint,table,export_button', [
-    ('infrastructure', 'solarwinds/network-devices', 'netDeviceTableBody', 'netExportCsv'),
+    ('infrastructure', 'solarwinds/nodes', 'netDeviceTableBody', 'netExportCsv'),
     ('cmdb', 'cmdb/cis', 'cmdbTableBody', 'cmdbExportCsv'),
 ])
 def test_missing_health_neutral_on_screen_and_export(portal_url, browser_context, workspace, endpoint, table, export_button):
@@ -85,8 +87,9 @@ def test_network_filters_have_one_handler_after_navigation(portal_url, browser_c
     page.locator('.nav-tab[data-view="infrastructure"]').click()
     page.locator('.category-card-tab[data-subtab="networks"]').click()
     calls = []
-    page.on('request', lambda request: calls.append(request.url) if '/solarwinds/network-devices?' in request.url and 'ci_type=switch' in request.url else None)
-    page.locator('#netFilterType').select_option('switch')
+    page.on('request', lambda request: calls.append(request.url) if '/solarwinds/nodes?' in request.url and 'source_type=Access+Switch' in request.url else None)
+    page.locator('#netFilterType').fill('Access Switch')
+    page.locator('#netFilterType').press('Tab')
     expect(page.locator('#netDeviceTableBody')).to_contain_text('DOWN-SWITCH')
     page.wait_for_timeout(350)
     assert len(calls) == 1

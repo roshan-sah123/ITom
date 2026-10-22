@@ -87,6 +87,9 @@ class CIRepository(BaseRepository[ConfigurationItem]):
         location: Optional[str] = None,
         network_only: bool = False,
         server_only: bool = False,
+        category: Optional[str] = None,
+        category_missing: bool = False,
+        source_type: Optional[str] = None,
         sort_by: Optional[str] = "name",
         sort_order: Optional[str] = "asc",
     ) -> Tuple[List[Any], int]:
@@ -102,6 +105,13 @@ class CIRepository(BaseRepository[ConfigurationItem]):
             filters = []
             if source_system:
                 filters.append(ConfigurationItem.source_system == source_system.upper())
+            if category is not None:
+                filters.append(ConfigurationItem.attributes['node_category'].as_string() == category)
+            if source_type is not None:
+                filters.append(ConfigurationItem.attributes['node_type'].as_string() == source_type)
+            if category_missing:
+                filters.append(or_(ConfigurationItem.attributes['node_category'].as_string().is_(None),
+                                   func.trim(ConfigurationItem.attributes['node_category'].as_string()) == ''))
             if ci_type:
                 filters.append(ConfigurationItem.ci_type.ilike(f"%{ci_type}%"))
             if vendor:

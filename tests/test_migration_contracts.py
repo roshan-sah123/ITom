@@ -39,6 +39,60 @@ def test_clean_upgrade_creates_model_columns_and_current_revision(migrated_datab
     assert migrate(migrated_database, "upgrade", "head").returncode == 0
 
 
+def test_group_migration_roundtrip_preserves_legacy_audits(migrated_database):
+    path = migrated_database
+    assert migrate(path, 'downgrade', '0007_location_review').returncode == 0
+    with sqlite3.connect(path) as db:
+        db.execute("""INSERT INTO sync_runs (id,source_system,status,records_processed,records_updated,
+            records_unchanged,items_extracted,items_persisted,duration_ms,started_at)
+            VALUES (?,?,?,?,?,?,?,?,?,?)""", ('b'*32,'SOLARWINDS','SUCCESS',1,0,0,1,1,1,'2026-10-01'))
+        db.commit()
+    assert migrate(path, 'upgrade', 'head').returncode == 0
+    with sqlite3.connect(path) as db:
+        assert db.execute('SELECT groups_extracted,memberships_extracted FROM sync_runs').fetchall() == [(None,None)]
+        assert db.execute('SELECT COUNT(*) FROM solarwinds_groups').fetchone()[0] == 0
+        assert db.execute('PRAGMA foreign_key_check').fetchall() == []
+
+
+def test_group_migration_compiles_postgresql_upgrade_and_downgrade():
+    import importlib.util
+    from io import StringIO
+    from alembic.migration import MigrationContext
+    from alembic.operations import Operations
+    spec = importlib.util.spec_from_file_location('group_migration', ROOT/'alembic/versions/0008_solarwinds_groups.py')
+    module = importlib.util.module_from_spec(spec); spec.loader.exec_module(module)
+    output = StringIO()
+    context = MigrationContext.configure(dialect_name='postgresql', opts={'as_sql': True, 'output_buffer': output})
+    with Operations.context(context):
+        module.upgrade(); module.downgrade()
+    sql = output.getvalue()
+    assert 'CREATE TABLE solarwinds_groups' in sql
+    assert 'ci_id UUID' in sql and 'member_id BIGINT' in sql
+    assert 'DROP TABLE solarwinds_group_members' in sql
+
+
+def test_group_links_sqlite_roundtrip_and_postgresql_ddl(migrated_database):
+    assert migrate(migrated_database,'downgrade','0008_solarwinds_groups').returncode==0
+    with sqlite3.connect(migrated_database) as db:
+        db.execute("INSERT INTO solarwinds_groups VALUES (10,'Exact  (Kraków)',1,'Up')")
+        db.commit()
+    assert migrate(migrated_database,'upgrade','head').returncode==0
+    with sqlite3.connect(migrated_database) as db:
+        assert db.execute('SELECT name,is_active FROM solarwinds_groups').fetchone()==('Exact  (Kraków)',1)
+        assert db.execute('PRAGMA foreign_key_check').fetchall()==[]
+    import importlib.util
+    from io import StringIO
+    from alembic.migration import MigrationContext
+    from alembic.operations import Operations
+    spec=importlib.util.spec_from_file_location('links_migration',ROOT/'alembic/versions/0009_group_site_scores.py')
+    module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
+    output=StringIO()
+    context=MigrationContext.configure(dialect_name='postgresql',opts={'as_sql':True,'output_buffer':output})
+    with Operations.context(context): module.upgrade();module.downgrade()
+    assert 'CREATE TABLE solarwinds_group_locations' in output.getvalue()
+    assert 'ALTER TABLE solarwinds_groups DROP COLUMN is_active' in output.getvalue()
+
+
 def test_location_review_upgrade_preserves_legacy_targets_and_no_fabricated_reviewers(tmp_path):
     path=tmp_path/'legacy-locations.db'
     assert migrate(path,'upgrade','0006_canonical_locations').returncode==0

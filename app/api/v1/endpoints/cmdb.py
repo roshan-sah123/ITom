@@ -32,6 +32,8 @@ async def list_configuration_items(
     health_tier: Optional[str] = Query(None, description="High, Medium, or Low"),
     status_filter: Optional[str] = Query(None, alias="status", description="Operational status filter"),
     location: Optional[str] = Query(None, description="Exact source location; use Unassigned for blank locations"),
+    category: Optional[str] = Query(None, max_length=255), category_missing: bool = False,
+    source_type: Optional[str] = Query(None, max_length=255),
     sort_by: Optional[str] = Query("name", description="Column to sort by"),
     sort_order: Optional[str] = Query("asc", description="asc or desc"),
     ci_service: CIService = Depends(get_ci_service),
@@ -53,6 +55,7 @@ async def list_configuration_items(
         health_tier=health_tier,
         status=status_filter,
         location=location,
+        category=category, category_missing=category_missing, source_type=source_type,
         sort_by=sort_by,
         sort_order=sort_order,
     )

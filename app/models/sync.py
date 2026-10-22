@@ -34,6 +34,8 @@ class SyncRun(Base, UUIDPrimaryKeyMixin):
     items_extracted: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     items_rejected: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
     items_persisted: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    groups_extracted: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    memberships_extracted: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     duration_ms: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     started_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -79,6 +81,8 @@ class SyncRun(Base, UUIDPrimaryKeyMixin):
             "items_extracted": self.items_extracted,
             "items_rejected": self.items_rejected,
             "items_persisted": self.items_persisted,
+            "groups_extracted": self.groups_extracted,
+            "memberships_extracted": self.memberships_extracted,
             "duration_ms": self.duration_ms,
             "started_at": utc_iso(self.started_at),
             "completed_at": utc_iso(self.completed_at),

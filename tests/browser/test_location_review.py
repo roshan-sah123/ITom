@@ -27,6 +27,7 @@ def test_location_review_approval_and_history(portal_url,review_inventory,browse
     page.goto(portal_url,wait_until='domcontentloaded')
     page.locator('.nav-tab[data-view="infrastructure"]').click()
     page.locator('.category-card-tab[data-subtab="sites"]').click()
+    page.locator('#locMode').select_option('endpoints')
     page.get_by_role('button',name='Review location mappings',exact=True).click()
     expect(page.locator('#locationReviewPanel')).to_be_visible()
     expect(page.locator('#reviewRules')).to_contain_text('NONCOMPLIANT-')
