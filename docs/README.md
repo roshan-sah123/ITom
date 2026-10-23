@@ -17,6 +17,8 @@
 - [Troubleshooting](TROUBLESHOOTING.md)
 - [Intune location research](intune-location-inference.md)
 - [Dashboard Site Scores](dashboard-site-scores.md)
+- [SolarWinds category dashboard research](solarwinds-category-dashboard-rd-2026-10-23.md):
+  checked category counts, measurement gaps, and recommended changes.
 
 ## Historical evidence
 
