@@ -98,6 +98,7 @@ Use the commands above according to the configured environment. Live connectivit
 
 ## Further documentation
 
+- [Simple guides](docs/README.md) — inventory locations, daily use, testing and workspace maintenance.
 - [Decision metrics](docs/DECISION_METRICS.md) — overview definitions, evidence guardrails and operational interpretation.
 - [Architecture](docs/ARCHITECTURE.md) — runtime components, request flow, synchronization, and data model.
 - [API contracts](docs/API_CONTRACTS.md) — endpoint contract details.
@@ -112,4 +113,4 @@ Use the commands above according to the configured environment. Live connectivit
 
 Keep `.env` out of version control and use unique credentials and a strong `SECRET_KEY` outside development. Restrict network access and configure explicit CORS origins when deploying. The sync trigger can initiate external API calls, so do not expose it to untrusted clients without access controls. Review the current security and operational requirements in [deployment](docs/DEPLOYMENT.md) before placing the service on a shared network.
 
-Historical prototype specifications and implementation reports are retained under [docs/archive](docs/archive/legacy-2026-09/README.md). Current cleanup details are in [the cleanup report](docs/cleanup-reports/CODE_CLEANUP_2026-10-08.md).
+Historical prototype specifications and implementation reports are retained under [docs/archive](docs/archive/legacy-2026-09/README.md). Current cleanup details are in [the workspace cleanup report](docs/cleanup-reports/WORKSPACE_CLEANUP_2026-10-23.md).

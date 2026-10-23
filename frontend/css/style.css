@@ -1724,6 +1724,16 @@ html,body { background:var(--bg-canvas); color:var(--text-primary); }
 @media(max-width:640px) { .home-location-overview { padding:14px; } .home-location-overview header, .location-header-actions { align-items:start; } .group-category-tile { flex:1 1 110px; } }
 @media(max-width:600px) { .sw-group-row { gap:6px; padding:5px 0; } .sw-group-tree ul { padding-left:14px; margin-left:6px; } .sw-group-row .status-pill { font-size:10px; padding:3px 5px; } }
 .attention-item.neutral .attention-mark { background:#64748b; }
+#view-endpoints .endpoint-location { min-width:150px; max-width:230px; white-space:normal; overflow-wrap:anywhere; }
+#view-endpoints .endpoint-location > span { display:block; }
+#view-endpoints .endpoint-location .status-pill { display:inline-block; margin-top:5px; }
+#epFilterLocation { max-width:260px; }
+#epLocationMessage { padding:0 16px; }
+@media(max-width:600px) {
+  #view-endpoints .toolbar-left, #view-endpoints .toolbar-right { min-width:0; width:100%; }
+  #view-endpoints .search-input-wrap { min-width:0; width:100%; }
+  #epFilterLocation { width:100%; max-width:100%; }
+}
 #view-home .attention-item { border-bottom-color:#edf1f5; }
 #view-home button:focus-visible, #view-home summary:focus-visible { outline:2px solid #2563eb; outline-offset:3px; }
 @media(max-width:900px) { .overview-snapshot-note { margin-left:0; width:100%; } }

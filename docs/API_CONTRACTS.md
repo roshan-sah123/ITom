@@ -102,3 +102,20 @@ Filtering occurs before pagination and totals. These filters also provide the
 corresponding counts in location score evidence; selecting a filter never
 recalculates the full-location Site Score. Existing issue values and response
 envelopes remain compatible.
+
+## Intune inventory reporting locations
+
+`GET /api/v1/intune/devices` accepts additive `location_id` (maximum 64
+characters): a canonical location ID, or `unassigned` for missing canonical
+membership. This filter combines with search, status and vendor, and is applied
+before totals and pagination. Unknown IDs return an empty result. The existing
+`location` parameter continues filtering the raw source location.
+
+Each Intune list item includes additive `canonical_location` (name or null).
+Existing `location_id` and `location_resolution` convey reporting membership and
+review state. Location names are resolved in one query per page. The UI uses
+the existing `/locations` catalogue, restricted to Intune-populated locations,
+and retains Unassigned. CSV export uses the same inventory filters and includes
+the reporting name plus a readable location-assignment state.
+
+See [inventory location guide](INVENTORY_LOCATIONS.md).

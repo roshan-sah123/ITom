@@ -56,6 +56,7 @@ class CIService:
         health_tier: Optional[str] = None,
         status: Optional[str] = None,
         location: Optional[str] = None,
+        location_id: Optional[str] = None,
         category: Optional[str] = None,
         category_missing: bool = False,
         source_type: Optional[str] = None,
@@ -76,6 +77,7 @@ class CIService:
             health_tier=health_tier,
             status=status,
             location=location,
+            location_id=location_id,
             category=category,
             category_missing=category_missing,
             source_type=source_type,
@@ -84,9 +86,14 @@ class CIService:
         )
 
         total_pages = max(1, (total + page_size - 1) // page_size)
+        serialized = orm_list_to_dicts(items)
+        if (source_system or '').upper() == 'INTUNE':
+            names = await self.ci_repo.get_location_names({ci['location_id'] for ci in serialized if ci.get('location_id')})
+            for ci in serialized:
+                ci['canonical_location'] = names.get(ci.get('location_id'))
 
         return {
-            "items": orm_list_to_dicts(items),
+            "items": serialized,
             "total": total,
             "page": page,
             "page_size": page_size,

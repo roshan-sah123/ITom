@@ -19,12 +19,13 @@ python -m playwright install chromium
 python -m pytest tests/browser/ --run-browser -q
 ```
 
-The two operator-queue journeys launch headless Edge or Chromium and start their own seeded portal on an ephemeral loopback port. They do not use port 8080 or the live inventory. The default run excludes `tests/browser/`; CI runs the whole offline suite. The browser still loads the portal's CDN-hosted fonts and Chart.js, so browser verification needs access to those assets.
+Browser journeys launch headless Edge or Chromium and start a seeded portal on an ephemeral loopback port. They do not use port 8080 or the live inventory. The default run excludes `tests/browser/`; CI runs the whole offline suite. Shared browser fixtures stub external chart rendering and fonts for deterministic checks; their portal modules and database APIs remain real.
 
 ## Requirement and feature coverage
 
 | Requirement / feature | Evidence |
 |---|---|
+| Intune inventory reporting locations, review badges, combined filters, pagination, CSV, retry and mobile layout | `test_intune_inventory_locations.py`, `browser/test_endpoint_inventory_locations.py` |
 | PRD §6/§10: source filtering, search, sorting, bounded inventory pages | `test_api_contracts.py`, `test_location_and_network_contracts.py` |
 | PRD §7/§14: source-backed sites reconcile with location-filtered inventory | `test_api_contracts.py`, `test_location_and_network_contracts.py`, `test_remediation_contracts.py` |
 | PRD §6/§9: Intune compliance, OS/vendor and storage summaries | `test_step1_summaries.py`, `test_intune_forecast.py`, `test_endpoint_storage_panel.py` |

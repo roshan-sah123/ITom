@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.ci import CIRelationship, ConfigurationItem
 from app.models.history import CIStatusHistory
+from app.models.location import Location
 from app.repositories.base import BaseRepository
 
 logger = logging.getLogger("itom.ci_repo")
@@ -85,6 +86,7 @@ class CIRepository(BaseRepository[ConfigurationItem]):
         health_tier: Optional[str] = None,
         status: Optional[str] = None,
         location: Optional[str] = None,
+        location_id: Optional[str] = None,
         network_only: bool = False,
         server_only: bool = False,
         category: Optional[str] = None,
@@ -120,6 +122,9 @@ class CIRepository(BaseRepository[ConfigurationItem]):
                 filters.append(ConfigurationItem.health_tier.ilike(health_tier))
             if status:
                 filters.append(ConfigurationItem.status.ilike(status))
+            if location_id:
+                filters.append(ConfigurationItem.location_id.is_(None) if location_id == 'unassigned'
+                               else ConfigurationItem.location_id == location_id)
             if location:
                 normalized_location = location.strip()
                 if normalized_location.lower() == "unassigned":
@@ -195,6 +200,17 @@ class CIRepository(BaseRepository[ConfigurationItem]):
 
         except SQLAlchemyError as exc:
             logger.exception("Inventory datastore query failed")
+            raise InventoryUnavailableError("Inventory datastore unavailable") from exc
+
+    async def get_location_names(self, location_ids: set[str]) -> Dict[str, str]:
+        """Resolve the current page's canonical names in one bounded query."""
+        if self.session is None or not location_ids:
+            return {}
+        try:
+            rows = await self.session.execute(select(Location.id, Location.name).where(Location.id.in_(location_ids)))
+            return dict(rows.all())
+        except SQLAlchemyError as exc:
+            logger.exception("Reporting location lookup failed")
             raise InventoryUnavailableError("Inventory datastore unavailable") from exc
 
     async def get_network_devices(

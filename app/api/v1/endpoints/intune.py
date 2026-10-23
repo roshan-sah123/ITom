@@ -35,6 +35,7 @@ async def list_intune_devices(
     status_filter: Optional[str] = Query(None, alias="status"),
     vendor: Optional[str] = Query(None),
     location: Optional[str] = Query(None, description="Exact managed-device location when supplied by Intune"),
+    location_id: Optional[str] = Query(None, max_length=64, description="Canonical reporting location ID, or unassigned"),
     sort_by: Optional[str] = Query("name"),
     sort_order: Optional[str] = Query("asc"),
     ci_service: CIService = Depends(get_ci_service),
@@ -54,6 +55,7 @@ async def list_intune_devices(
         status=status_filter,
         vendor=vendor,
         location=location,
+        location_id=location_id,
         sort_by=sort_by,
         sort_order=sort_order,
     )

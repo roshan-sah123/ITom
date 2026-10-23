@@ -1,6 +1,6 @@
 /**
  * Module 3: Digital Workplace Experience (DEX) / Endpoints (Microsoft Intune Cloud Mirror)
- * 4 KPI cards, 5 visualizations, interactive chart slice filtering, true full pagination across 27,412 devices
+ * Source-backed fleet summaries and filtered, paginated managed-device inventory.
  */
 import { itomApi } from '../api.js?v=4';
 import { formatNumber, formatPercent, escapeHtml, calculateNewPageAnchor, debounce, exportToCsv, fetchAllFilteredRows, destroyChartSafe, generatePaginationControls } from '../utils.js';
@@ -15,6 +15,10 @@ let currentEpPageSize = 25;
 let activeEpSearch = '';
 let activeEpStatus = '';
 let activeEpVendor = '';
+let activeEpLocationId = '';
+let endpointLocationNames = new Map();
+let endpointLocationsRequest = 0;
+let endpointGridRequest = 0;
 let activeEpFilterLabel = '';
 
 let allFetchedDevices = [];
@@ -74,12 +78,18 @@ function applyEndpointFilterState(filterParam) {
     activeEpVendor = filters.vendor;
     activeEpFilterLabel = `Manufacturer: ${filters.vendor}`;
   }
+  if (filters.location_id !== undefined) {
+    activeEpLocationId = String(filters.location_id || '');
+    const locationSelect = document.getElementById('epFilterLocation');
+    if (locationSelect) locationSelect.value = activeEpLocationId;
+  }
   updateActiveFilterBanner();
   currentEpPage = 1;
 }
 
 export async function renderEndpoints(subtabName = '', filterParam = '') {
   initEndpointsFilters();
+  loadEndpointLocations();
   initChartSummary();
   loadEndpointsKpisAndCharts();
   if (filterParam) {
@@ -241,12 +251,50 @@ function updateActiveFilterBanner() {
   const labelEl = document.getElementById('epActiveFilterLabel');
   if (!banner || !labelEl) return;
 
-  if (activeEpFilterLabel) {
-    labelEl.textContent = activeEpFilterLabel;
+  const labels = [
+    activeEpSearch ? (activeEpFilterLabel.startsWith('OS:') ? activeEpFilterLabel : `Search: "${activeEpSearch}"`) : '',
+    activeEpStatus ? `Compliance: ${activeEpStatus}` : '',
+    activeEpVendor ? `Manufacturer: ${activeEpVendor}` : '',
+    activeEpLocationId ? `Location: ${endpointLocationNames.get(activeEpLocationId) || activeEpLocationId}` : '',
+  ].filter(Boolean);
+  if (labels.length) {
+    labelEl.textContent = labels.join(' · ');
     banner.style.display = 'flex';
   } else {
     banner.style.display = 'none';
   }
+}
+
+async function loadEndpointLocations() {
+  const select = document.getElementById('epFilterLocation');
+  const message = document.getElementById('epLocationMessage');
+  if (!select) return;
+  const request = ++endpointLocationsRequest;
+  select.disabled = true;
+  if (message) message.hidden = true;
+  try {
+    const response = await itomApi.getLocations();
+    if (request !== endpointLocationsRequest) return;
+    const locations = (response.data || response).items.filter(loc => loc.endpoints > 0 || loc.id === 'unassigned');
+    if (activeEpLocationId && !locations.some(loc => loc.id === activeEpLocationId)) {
+      locations.push({id:activeEpLocationId, name:endpointLocationNames.get(activeEpLocationId) || activeEpLocationId});
+    }
+    endpointLocationNames = new Map(locations.map(loc => [loc.id, loc.name]));
+    select.innerHTML = '<option value="">Location (All)</option>' + locations.map(loc =>
+      `<option value="${escapeHtml(loc.id)}">${escapeHtml(loc.name)}</option>`).join('');
+    select.value = activeEpLocationId;
+    select.disabled = false;
+    updateActiveFilterBanner();
+  } catch (error) {
+    if (request !== endpointLocationsRequest) return;
+    if (!endpointLocationNames.size) select.innerHTML = '<option value="">Locations unavailable</option>';
+    if (message) message.hidden = false;
+  }
+}
+
+function endpointLocationAssignment(device) {
+  if (['review', 'conflict'].includes(device.location_resolution)) return 'Needs review';
+  return device.canonical_location ? 'Mapped' : 'Unassigned';
 }
 
 function renderOsChart(osData) {
@@ -412,6 +460,7 @@ async function loadEndpointsGrid() {
   const tableContainer = document.querySelector('#view-endpoints .grid-scroll');
   const paginationControls = document.getElementById('epPaginationControls');
   if (!tbody) return;
+  const request = ++endpointGridRequest;
 
   try {
     const params = {
@@ -420,9 +469,11 @@ async function loadEndpointsGrid() {
       ...(activeEpSearch ? { search: activeEpSearch } : {}),
       ...(activeEpStatus ? { status: activeEpStatus } : {}),
       ...(activeEpVendor ? { vendor: activeEpVendor } : {}),
+      ...(activeEpLocationId ? { location_id: activeEpLocationId } : {}),
     };
 
     const res = await itomApi.getIntuneDevices(params);
+    if (request !== endpointGridRequest) return;
     const data = res.data || res;
     allFetchedDevices = data.items || [];
 
@@ -439,7 +490,7 @@ async function loadEndpointsGrid() {
     }
 
     if (!allFetchedDevices.length) {
-      tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding: 32px; color: #6B7280;">No devices match the active search or filter criteria.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding: 32px; color: #6B7280;">No devices match the active search or filter criteria.</td></tr>`;
       if (paginationControls) paginationControls.innerHTML = '';
       return;
     }
@@ -451,6 +502,7 @@ async function loadEndpointsGrid() {
       return `
         <tr>
           <td><button type="button" class="ci-name-link" data-ep-idx="${idx}" title="Open device details drawer">${escapeHtml(dev.name)}</button></td>
+          <td class="endpoint-location"><span>${escapeHtml(dev.canonical_location || 'Unassigned')}</span>${endpointLocationAssignment(dev) === 'Needs review' ? '<span class="status-pill status-warning">Needs review</span>' : ''}</td>
           <td>${escapeHtml(dev.attributes?.user_principal_name || dev.attributes?.primary_user || 'Unavailable')}</td>
           <td>${escapeHtml(dev.operating_system || dev.ci_type || 'Unavailable')}</td>
           <td>${escapeHtml(dev.vendor || 'Unavailable')}</td>
@@ -480,10 +532,11 @@ async function loadEndpointsGrid() {
     });
 
   } catch (err) {
+    if (request !== endpointGridRequest) return;
     console.error('Failed to load endpoints grid:', err);
     if (recordCountEl) recordCountEl.textContent = 'Intune device count unavailable';
     if (paginationControls) paginationControls.innerHTML = '';
-    tbody.innerHTML = `<tr><td colspan="6" class="inline-error">Unable to fetch endpoint devices. Upstream Graph API offline.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7" class="inline-error">Endpoint inventory unavailable. Reload the snapshot to retry.</td></tr>`;
   }
 }
 
@@ -493,10 +546,18 @@ function initEndpointsFilters() {
 
   const searchInput = document.getElementById('epSearchInput');
   const statusSelect = document.getElementById('epFilterStatus');
+  const locationSelect = document.getElementById('epFilterLocation');
   const pageSizeSelect = document.getElementById('epPageSizeSelect');
   const resetBtn = document.getElementById('epResetFilters');
   const exportBtn = document.getElementById('epExportCsv');
   const clearFilterBtn = document.getElementById('epClearActiveFilterBtn');
+  document.getElementById('epRetryLocations')?.addEventListener('click', loadEndpointLocations);
+  locationSelect?.addEventListener('change', event => {
+    activeEpLocationId = event.target.value;
+    updateActiveFilterBanner();
+    currentEpPage = 1;
+    loadEndpointsGrid();
+  });
 
   if (searchInput) {
     searchInput.addEventListener('input', debounce((e) => {
@@ -538,9 +599,11 @@ function initEndpointsFilters() {
   const clearAllFilters = () => {
     if (searchInput) searchInput.value = '';
     if (statusSelect) statusSelect.value = '';
+    if (locationSelect) locationSelect.value = '';
     activeEpSearch = '';
     activeEpStatus = '';
     activeEpVendor = '';
+    activeEpLocationId = '';
     activeEpFilterLabel = '';
     updateActiveFilterBanner();
     currentEpPage = 1;
@@ -560,11 +623,14 @@ function initEndpointsFilters() {
         ...(activeEpSearch ? { search: activeEpSearch } : {}),
         ...(activeEpStatus ? { status: activeEpStatus } : {}),
         ...(activeEpVendor ? { vendor: activeEpVendor } : {}),
+        ...(activeEpLocationId ? { location_id: activeEpLocationId } : {}),
       };
       const exportDevices = await fetchAllFilteredRows(params => itomApi.getIntuneDevices(params), filters);
       if (!exportDevices.length) { window.alert('No devices match the active filters.'); return; }
       const headers = [
         { label: 'Device Name', key: 'name' },
+        { label: 'Location', key: 'location' },
+        { label: 'Location Assignment', key: 'location_assignment' },
         { label: 'Primary User', key: 'user' },
         { label: 'OS Version', key: 'os' },
         { label: 'Manufacturer', key: 'vendor' },
@@ -573,6 +639,8 @@ function initEndpointsFilters() {
       ];
       const rows = exportDevices.map(d => ({
         name: d.name,
+        location: d.canonical_location || 'Unassigned',
+        location_assignment: endpointLocationAssignment(d),
         user: d.attributes?.user_principal_name || d.attributes?.primary_user || 'Unavailable',
         os: d.operating_system || d.ci_type || 'Unavailable',
         vendor: d.vendor || 'Unavailable',
