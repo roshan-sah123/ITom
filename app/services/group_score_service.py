@@ -3,18 +3,9 @@ from collections import Counter, defaultdict
 from datetime import datetime, timezone
 from types import SimpleNamespace
 
+from app.repositories.solarwinds_categories import category_counts
 from app.repositories.solarwinds_group_repository import SolarWindsGroupRepository
 from app.services.location_service import LocationService
-
-
-def category_counts(nodes):
-    counts = Counter(node.category if isinstance(node.category, str) and node.category.strip() else None for node in nodes)
-    categories = [dict(value=value, name=value if value is not None else 'Unclassified', count=count)
-                  for value, count in sorted(counts.items(), key=lambda pair: (pair[0] is None, (pair[0] or '').casefold()))]
-    server = sum(count for value, count in counts.items() if (value or '').strip().casefold() == 'server')
-    network = sum(count for value, count in counts.items() if (value or '').strip().casefold() == 'network')
-    return dict(total_devices=len(nodes), server_count=server, network_count=network,
-                other_count=len(nodes)-server-network, categories=categories)
 
 
 class GroupScoreService:

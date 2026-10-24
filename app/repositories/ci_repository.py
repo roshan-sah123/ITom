@@ -13,6 +13,7 @@ from app.models.ci import CIRelationship, ConfigurationItem
 from app.models.history import CIStatusHistory
 from app.models.location import Location
 from app.repositories.base import BaseRepository
+from app.repositories.solarwinds_categories import category_counts
 
 logger = logging.getLogger("itom.ci_repo")
 
@@ -262,6 +263,8 @@ class CIRepository(BaseRepository[ConfigurationItem]):
                 "low_health_count": 0,
                 "total_servers": 0,
                 "total_network_devices": 0,
+                "total_unclassified": 0,
+                "total_other_categories": 0,
                 "total_endpoints": 0,
                 "health_breakdown": {},
                 "status_breakdown": {},
@@ -282,6 +285,8 @@ class CIRepository(BaseRepository[ConfigurationItem]):
                     "low_health_count": 0,
                     "total_servers": 0,
                     "total_network_devices": 0,
+                    "total_unclassified": 0,
+                    "total_other_categories": 0,
                     "total_endpoints": 0,
                     "health_breakdown": {},
                     "status_breakdown": {},
@@ -351,6 +356,19 @@ class CIRepository(BaseRepository[ConfigurationItem]):
                 else:
                     unclassified += c
 
+            category_rows = (await self.session.execute(select(
+                ConfigurationItem.status,
+                ConfigurationItem.attributes,
+            ).where(ConfigurationItem.source_system == "SOLARWINDS"))).all()
+            native_categories = category_counts(category_rows)
+            has_native_categories = native_categories["total_devices"] > native_categories["unclassified_count"]
+            other_categories = 0
+            if has_native_categories:
+                servers = native_categories["server_count"]
+                network_devices = native_categories["network_count"]
+                unclassified = native_categories["unclassified_count"]
+                other_categories = native_categories["other_count"]
+
             high_health = health_breakdown.get("High", 0)
             med_health = health_breakdown.get("Medium", 0)
             low_health = health_breakdown.get("Low", 0)
@@ -373,8 +391,9 @@ class CIRepository(BaseRepository[ConfigurationItem]):
                 "total_network_devices": network_devices,
                 "total_endpoints": endpoints,
                 "total_unclassified": unclassified,
+                "total_other_categories": other_categories,
                 "unclassified_count": unclassified,
-                "classification_model": "canonical_rules_v2",
+                "classification_model": "source_categories_v1" if has_native_categories else "canonical_rules_v2",
                 "health_breakdown": health_breakdown,
                 "status_breakdown": status_breakdown,
                 "ci_type_distribution": ci_type_distribution,
@@ -392,6 +411,8 @@ class CIRepository(BaseRepository[ConfigurationItem]):
                 "low_health_count": 0,
                 "total_servers": 0,
                 "total_network_devices": 0,
+                "total_unclassified": 0,
+                "total_other_categories": 0,
                 "total_endpoints": 0,
                 "health_breakdown": {},
                 "status_breakdown": {},

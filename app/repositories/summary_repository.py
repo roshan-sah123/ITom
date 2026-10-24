@@ -47,6 +47,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.ci import ConfigurationItem
 from app.models.sync import SyncRun
 from app.repositories.decision_metrics import intune_evidence, solarwinds_evidence, resources
+from app.repositories.solarwinds_categories import category_evidence
 
 logger = logging.getLogger("itom.summary")
 
@@ -823,6 +824,15 @@ class SummaryRepository:
 
         records = sat_res.all()
         payload['decision_metrics'] = solarwinds_evidence(records)
+        source_categories = category_evidence(records)
+        has_source_categories = any(row['value'] is not None for row in source_categories)
+        if has_source_categories:
+            sw_srv = sum(row['count'] for row in source_categories if (row['value'] or '').casefold() == 'server')
+            sw_net = sum(row['count'] for row in source_categories if (row['value'] or '').casefold() == 'network')
+            sw_uncl = sum(row['count'] for row in source_categories if row['value'] is None)
+            sw_other = total - sw_srv - sw_net - sw_uncl
+        else:
+            sw_other = 0
         for row in records:
             legacy_server = _solarwinds_role(row.vendor, row.ci_type) == "server"
             source_server = str((row.attributes or {}).get('node_category') or '').strip().casefold() == 'server'
@@ -905,8 +915,16 @@ class SummaryRepository:
         payload["ci_type_distribution"] = type_distribution
         # Legacy alias - same live dictionary under its older key name.
         payload["node_type_breakdown"] = type_distribution
-        payload["top_saturated_servers"] = saturated_candidates[:10]
+        payload["top_saturated_servers"] = (source_server_candidates if has_source_categories else saturated_candidates)[:10]
         payload['top_source_servers'] = source_server_candidates[:10]
-        payload["total_saturated_nodes"] = len(saturated_candidates)
+        payload["total_saturated_nodes"] = len(source_server_candidates if has_source_categories else saturated_candidates)
+        payload['source_categories'] = source_categories
+        payload['source_types'] = sorted({
+            str((row.attributes or {}).get('node_type')).strip()
+            for row in records
+            if str((row.attributes or {}).get('node_type') or '').strip()
+        }, key=str.casefold)
+        metrics['other_category_nodes_count'] = sw_other
+        metrics['category_breakdown']['other'] = sw_other
         payload["api_aliases"] = {"total_server_nodes": "legacy alias of total_nodes; not a server-only count"}
         return payload
