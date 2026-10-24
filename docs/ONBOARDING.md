@@ -36,4 +36,4 @@ Keep metrics source-backed, escape untrusted values in HTML, and preserve the di
 
 Install `requirements-test.txt` and run `python -m pytest tests/ -q -ra`. The complete offline suite uses isolated fixtures and does not require live credentials, snapshot files or a running portal. CI runs this suite.
 
-Optional browser journeys use `requirements-browser.txt` and `--run-browser`; they start a temporary seeded portal on an ephemeral port. See [the testing guide](../tests/README.md) for commands, requirement coverage and the four strict expected failures documenting known defects.
+Optional browser journeys use `requirements-browser.txt` and `--run-browser`; they start a temporary seeded portal on an ephemeral port. See [the testing guide](../tests/README.md) for commands, requirement coverage and documented expected failures.

@@ -39,5 +39,5 @@ and `location_resolution`; raw `location` keeps its existing meaning.
 Tests: `tests/test_intune_inventory_locations.py` and
 `tests/browser/test_endpoint_inventory_locations.py`.
 
-See [location research](intune-location-inference.md) for inference rules and
+See [location research](INTUNE_LOCATION_INFERENCE.md) for inference rules and
 [workspace guide](WORKSPACE_GUIDE.md) for startup, tests and local backups.

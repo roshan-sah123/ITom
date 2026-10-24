@@ -88,7 +88,7 @@ incomplete. See [decision metric policy](DECISION_METRICS.md) for interpretation
 Graph uses OAuth client credentials and read-only managed-device extraction, including pagination. SolarWinds uses GET requests with validated SELECT-only SWQL. Implementations live in `src/sync/graph_client.py`, `src/sync/solarwinds_client.py` and `app/services/telemetry_sources.py`. Source credentials and transport policy are configured through `app/core/config.py`; source API access is separate from the portal inventory contract.
 # Group overview and Site Score additions
 
-See [dashboard Site Scores](dashboard-site-scores.md) for the additive group overview,
+See [dashboard Site Scores](DASHBOARD_SITE_SCORES.md) for the additive group overview,
 selected-group summary, native classification filters and reviewed Combined link
 contract. Existing canonical location and legacy network endpoints are retained.
 

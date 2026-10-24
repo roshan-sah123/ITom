@@ -13,7 +13,7 @@
 2. Restrict manual sync to authorized operators and add a cooldown/rate limit. It remains unauthenticated within the deployment boundary.
 3. Audit current direct and transitive dependency advisories. This review did not perform that audit.
 
-Keep local deployments on loopback. See [deployment instructions](docs/DEPLOYMENT.md) before changing network exposure. Existing deployments need their configuration updated and restarted; editing these files does not change running services. Rotate the database password if the old fallback was used.
+Keep local deployments on loopback. See [deployment instructions](DEPLOYMENT.md) before changing network exposure. Existing deployments need their configuration updated and restarted; editing these files does not change running services. Rotate the database password if the old fallback was used.
 
 ## Verification
 

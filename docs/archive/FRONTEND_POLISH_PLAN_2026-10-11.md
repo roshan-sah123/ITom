@@ -1,4 +1,8 @@
-# Upcoming ITOM polish — quick R&D, 11 October 2026
+# Frontend polish plan — 11 October 2026
+
+> Historical planning record. Tasks 1–3 were completed at archive time; tasks
+> 4–5 were not confirmed complete. Reassess them against the current portal and
+> tests before creating new work. This file is not the active project backlog.
 
 ## Recommendation
 

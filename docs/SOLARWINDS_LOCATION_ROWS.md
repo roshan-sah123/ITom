@@ -13,7 +13,7 @@ visible. There is no generated Unassigned location or name-based membership.
 - Back restores the expanded hierarchy, location filters and triggering control's focus.
 - The View selector retains Intune and available-source canonical scorecards.
   SolarWinds and Combined share the group browser and inline panel; see
-  [dashboard Site Scores](dashboard-site-scores.md) for current classification and
+  [dashboard Site Scores](DASHBOARD_SITE_SCORES.md) for current classification and
   approved-link behavior.
 
 Group statuses come directly from SolarWinds, not from the portal score policy.

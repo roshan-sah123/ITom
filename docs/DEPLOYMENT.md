@@ -64,7 +64,7 @@ NodeCategory and NodeType through the normal locked SolarWinds sync, then restar
 Verify unique fleet/category counts, group coverage, selected summaries and
 snapshot evidence. Combined starts unavailable without explicit approved links;
 use the local administration command documented in
-[dashboard Site Scores](dashboard-site-scores.md). PostgreSQL DDL compilation
+[dashboard Site Scores](DASHBOARD_SITE_SCORES.md). PostgreSQL DDL compilation
 does not replace a migration test against an isolated PostgreSQL server.
 
 ## Operational checks

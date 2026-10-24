@@ -62,7 +62,7 @@ flowchart LR
 - A domain with no ingested records may return **503**. The API does not manufacture empty-looking KPI values.
 - Freshness is a response body state (`FRESH`, `STALE`, or `UNKNOWN`). Check it separately from process health before presenting metrics.
 - Location analytics are limited by source coverage. Intune does not provide the site attribute used for SolarWinds location reporting; inspect the API's location coverage fields.
-- Infrastructure location browsing uses SolarWinds' exact regular group hierarchy and native statuses. A group click lists unique devices across all its subgroups; Intune and combined canonical scorecards remain available in the View selector. See [SolarWinds location browsing](docs/solarwinds-location-rows.md).
+- Infrastructure location browsing uses SolarWinds' exact regular group hierarchy and native statuses. A group click lists unique devices across all its subgroups; Intune and combined canonical scorecards remain available in the View selector. See [SolarWinds location browsing](docs/SOLARWINDS_LOCATION_ROWS.md).
 - Assets absent from a validated complete source snapshot can be marked inactive and retained for audit. Failed or partial extraction must not be treated as authority to retire assets.
 - Inventory APIs are read-only. Sync operations are separate endpoints and can trigger external source calls; protect them appropriately when exposing the service.
 
