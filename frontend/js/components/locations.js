@@ -1,8 +1,8 @@
 import { itomApi } from '../api.js?v=9';
 import { escapeHtml, formatNumber } from '../utils.js';
 import { openCiDrawer } from './drawer.js?v=4';
-import { openLocationReviews } from './locationReviews.js?v=1';
-import { renderSolarWindsGroups } from './solarwindsGroups.js?v=2';
+import { openLocationReviews } from './locationReviews.js?v=2';
+import { renderSolarWindsGroups } from './solarwindsGroups.js?v=3';
 import { renderIntuneLocations } from './intuneLocations.js?v=1';
 
 let catalogue = [], currentMode = 'auto', selected = null, issue = 'all', source = '', page = 1;
@@ -30,7 +30,7 @@ const issueOptions = [['all','All devices'],['noncompliant','Noncompliant'],['ot
 const nodeIssues = ['up','down','critical','warning','unmanaged'];
 const endpointIssues = ['noncompliant','other_compliance','old_checkins','old_30d','invalid_checkins'];
 const defaultSource = () => currentMode === 'infrastructure' ? 'SOLARWINDS' : currentMode === 'endpoints' ? 'INTUNE' : '';
-const inModeScope = location => currentMode === 'infrastructure' ? location.nodes > 0 : currentMode === 'endpoints' ? location.endpoints > 0 : location.endpoints + location.nodes > 0;
+const inModeScope = location => currentMode === 'infrastructure' ? location.nodes > 0 : currentMode === 'endpoints' ? location.endpoints > 0 : currentMode === 'combined' ? location.endpoints > 0 && location.nodes > 0 : location.endpoints + location.nodes > 0;
 
 function updateInventoryControls() {
   const options = issueOptions.filter(([value]) => !(source === 'SOLARWINDS' && endpointIssues.includes(value)) && !(source === 'INTUNE' && nodeIssues.includes(value)));
@@ -80,6 +80,13 @@ function scoreReason(location, mode) {
   return score.status === 'healthy' ? 'Within the current operating bands.' : 'Score is below the 90% green target.';
 }
 
+function evidenceConfidence(location, mode) {
+  const score = location.scores[mode];
+  if (score.value == null) return `Insufficient · ${scoreReason(location,mode)}`;
+  const degraded = requiredKeys(mode).some(key => ['FAILED','PARTIAL'].includes(location.freshness[location.components[key].source_system].last_attempt_status));
+  return degraded ? 'Qualified · latest refresh failed or was incomplete; using the last successful snapshot' : 'Supported · required sources are fresh with sufficient field coverage';
+}
+
 function cardAttention(location, mode) {
   const score = location.scores[mode];
   const required = requiredKeys(mode).map(key => [key,location.components[key]]);
@@ -126,7 +133,7 @@ export async function renderLocationScorecards(options = {}) {
     if (host) await renderIntuneLocations(host, mode => renderLocationScorecards({mode}), savedFilters);
     return;
   }
-  if (['infrastructure','combined'].includes(savedFilters.locMode || 'infrastructure')) {
+  if ((savedFilters.locMode || 'infrastructure') === 'infrastructure') {
     catalogueRequest++; listRequest++; clearTimeout(searchTimer);
     const groupHost = document.getElementById('locationScorecards');
     if (groupHost) await renderSolarWindsGroups(groupHost, mode => renderLocationScorecards({mode}), savedFilters.locMode || 'infrastructure');
@@ -240,20 +247,31 @@ function renderCards() {
     const explainColour = attention?.kind === 'health' && score.value != null &&
       (score.status === 'critical' && score.value >= 75 || score.status === 'warning' && score.value >= 90);
     const link = (label, key) => l.issues[key] && !(currentMode === 'endpoints' && nodeIssues.includes(key)) && !(currentMode === 'infrastructure' && endpointIssues.includes(key)) ? `<button type="button" class="location-issue issue-${['noncompliant','down','critical'].includes(key) ? 'critical' : 'warning'}" data-id="${escapeHtml(l.id)}" data-issue="${key}">${formatNumber(l.issues[key])} ${label}</button>` : '';
+    const scoreItem = (label,key,button=false) => {
+      const item=l.scores[key],content=`<span>${label}</span><strong>${item.value == null ? 'Unavailable' : item.value.toFixed(1)}</strong><small>${tones[item.status]}</small>`;
+      return button ? `<button type="button" data-evidence-id="${escapeHtml(l.id)}" aria-expanded="false" aria-label="View Combined Site Score evidence for ${escapeHtml(l.name)}">${content}</button>` : `<div>${content}</div>`;
+    };
+    const confidenceLabel=evidenceConfidence(l,mode).split(' ·')[0];
+    const scoreDisplay = mode === 'combined' ? `<div class="location-score-flow" aria-label="${escapeHtml(l.name)} score calculation">${scoreItem('Intune Score','endpoints')}${scoreItem('SolarWinds Score','infrastructure')}${scoreItem('Combined Site Score','combined',true)}<div class="location-confidence"><span>Confidence</span><strong>${escapeHtml(confidenceLabel)}</strong><small>Freshness + coverage</small></div></div>` : `<div class="location-score-value"><strong>${score.value == null ? '—' : score.value.toFixed(1)}</strong><span>${tones[score.status]} · ${modes[mode]}</span></div>`;
     return `<article class="location-score-card score-${score.status}">
       <div class="location-card-title"><button type="button" class="table-location-link" data-id="${escapeHtml(l.id)}" data-issue="all">${escapeHtml(l.name)}</button><span>${escapeHtml(l.level)}</span></div>
       <p class="location-card-scope">${sourceScope(l)}${l.issues.conflict ? ' · Mapping needs review' : ''}</p>
       <p class="location-record-counts">${formatNumber(l.endpoints)} endpoints · ${formatNumber(l.nodes)} nodes</p>
-      <div class="location-score-value"><strong>${score.value == null ? '—' : score.value.toFixed(1)}</strong><span>${tones[score.status]} · ${modes[mode]}</span></div>
+      ${scoreDisplay}
       ${attention ? `<div class="location-card-attention attention-${attention.kind}"><span class="location-attention-label">${attention.kind === 'data' ? 'Data / mapping attention' : 'Health attention'}</span><p class="location-main-reason">${escapeHtml(attention.reason)}</p>${explainColour ? `<p class="location-score-reason">${escapeHtml(scoreReason(l,mode))}</p>` : ''}<button type="button" class="btn-filter-reset location-primary-action" ${attention.action ? `data-action="${attention.action}"` : `data-id="${escapeHtml(l.id)}" data-issue="${attention.issue}"${attention.source ? ` data-source="${attention.source}"` : ''}`} aria-label="${escapeHtml(attention.label)} for ${escapeHtml(l.name)}">${escapeHtml(attention.label)} →</button></div>` : ''}
       <details class="location-card-details"><summary>${attention ? 'Details and other issues' : 'Details and devices'}</summary>
+      ${mode === 'combined' ? `<p><strong>Evidence confidence</strong><br>${escapeHtml(evidenceConfidence(l,mode))}</p>` : ''}
       ${attention && !explainColour ? `<p class="location-score-reason">${escapeHtml(scoreReason(l,mode))}</p>` : ''}
       <dl class="location-components">${[['compliance','Compliance'],['node_status','Nodes in Up status'],['recent_checkins','Check-ins within 7 days']].filter(([key]) => key === 'node_status' ? l.nodes : l.endpoints).map(([key,label]) => { const c = l.components[key]; return `<div><dt>${label}</dt><dd>${pct(c)}<small>${formatNumber(c.numerator)} / ${formatNumber(c.denominator)}</small></dd></div>`; }).join('')}</dl>
       <div class="location-issue-links">${link('Down','down')}${link('Critical','critical')}${link('noncompliant','noncompliant')}${link('check-ins >7 days','old_checkins')}${link('unknown check-ins','invalid_checkins')}${link('other compliance','other_compliance')}${link('Warning','warning')}${link('unmanaged','unmanaged')}${link('mapping reviews','conflict')}</div>
-      <div class="location-card-footer"><button type="button" class="table-location-link" data-id="${escapeHtml(l.id)}" data-issue="all" aria-label="View devices for ${escapeHtml(l.name)}">View devices →</button></div><p><strong>Data evidence</strong><br>${Object.entries(l.freshness).filter(([src]) => src === 'INTUNE' ? l.endpoints : l.nodes).map(([src,f]) => `${sourceName(src)}: ${escapeHtml(f.status)} · ${escapeHtml(observedAt(f.last_synchronized_at))} · latest attempt ${escapeHtml(f.last_attempt_status || 'Unknown')}`).join('<br>')}</p><p>${Object.entries(l.components).filter(([,c]) => c.denominator).map(([key,c]) => `${componentNames[key]} field coverage: ${coverage(c)}`).join('; ')}.</p><p>Policy ${escapeHtml(l.policy_version)}. Issue counts can overlap; do not add them as unique affected devices. Percentages are rounded for display; colours use exact counts and weights.</p></details>
+      <div class="location-card-footer"><button type="button" class="table-location-link" data-id="${escapeHtml(l.id)}" data-issue="all" aria-label="View devices for ${escapeHtml(l.name)}">View devices →</button></div><p><strong>Freshness</strong><br>${Object.entries(l.freshness).filter(([src]) => src === 'INTUNE' ? l.endpoints : l.nodes).map(([src,f]) => `${sourceName(src)}: ${escapeHtml(f.status)} · ${escapeHtml(observedAt(f.last_synchronized_at))} · latest attempt ${escapeHtml(f.last_attempt_status || 'Unknown')}`).join('<br>')}</p><p><strong>Coverage</strong><br>${Object.entries(l.components).filter(([,c]) => c.denominator).map(([key,c]) => `${componentNames[key]} field coverage: ${coverage(c)}`).join('; ')}.</p><p>Policy ${escapeHtml(l.policy_version)}. Issue counts can overlap; do not add them as unique affected devices. Percentages are rounded for display; colours use exact counts and weights.</p></details>
     </article>`;
   }).join('') : '<p>No locations match these filters.</p>';
   document.querySelectorAll('#locCards button[data-id]').forEach(button => button.onclick = () => openLocation(button.dataset.id, button.dataset.issue,button,button.dataset.source));
+  document.querySelectorAll('#locCards button[data-evidence-id]').forEach(button => button.onclick = () => {
+    const details=button.closest('.location-score-card').querySelector('details.location-card-details');
+    details.open=true;button.setAttribute('aria-expanded','true');details.querySelector('summary').focus({preventScroll:true});
+  });
   document.querySelectorAll('#locCards button[data-action="review"]').forEach(button => button.onclick = event => document.getElementById('locReview').onclick(event));
   document.querySelectorAll('#locCards button[data-action="refresh"]').forEach(button => button.onclick = () => { document.getElementById('locRefresh').focus({preventScroll:true}); renderLocationScorecards(); });
 }

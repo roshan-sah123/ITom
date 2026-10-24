@@ -70,6 +70,69 @@ class LocationReviewService:
         return dict(items=[dict(id=str(r.id),reviewed_by=r.reviewed_by,reviewed_at=utc_iso(r.reviewed_at),
                                comment=r.comment,before=r.before_data,after=r.after_data) for r in rows])
 
+    async def approve_many(self, expected_revisions, reviewer, comment=None):
+        reviewer=reviewer.strip();comment=comment.strip() if comment else None
+        if not expected_revisions or not reviewer or len(reviewer)>128 or (comment and len(comment)>512):
+            raise ValueError('Rules and a valid audit actor are required')
+        sync=SyncService(self.session)
+        if not await sync._acquire_lock():
+            raise ReviewConflict('A sync or mapping review is running. Retry after it completes.')
+        try:
+            if self.session.bind.dialect.name=='sqlite':
+                await self.session.execute(text('BEGIN IMMEDIATE'))
+            rules=(await self.session.scalars(select(LocationMappingRule).where(
+                LocationMappingRule.id.in_(expected_revisions)).order_by(LocationMappingRule.id))).all()
+            if len(rules)!=len(expected_revisions):
+                raise ReviewConflict('One or more mapping rules no longer exist. Reload before approving.')
+            for rule in rules:
+                if (not rule.enabled or rule.approval_status!='PENDING' or not rule.location_id
+                        or rule.revision!=expected_revisions[rule.id]):
+                    raise ReviewConflict('One or more mapping rules changed. Reload before approving.')
+            rule_ids=[rule.id for rule in rules]
+            location_ids={rule.location_id for rule in rules}
+            locations={location.id:location for location in (await self.session.scalars(
+                select(Location).where(Location.id.in_(location_ids)))).all()}
+            if len(locations)!=len(location_ids):
+                raise ReviewConflict('One or more reporting locations no longer exist. Reload before approving.')
+
+            async def device_counts():
+                rows=await self.session.execute(select(ConfigurationItem.location_rule_id,func.count()).where(
+                    ConfigurationItem.location_rule_id.in_(rule_ids),ConfigurationItem.is_active.is_(True)
+                ).group_by(ConfigurationItem.location_rule_id))
+                return dict(rows.all())
+
+            before_counts=await device_counts()
+            before={rule.id:rule_data(rule,locations[rule.location_id],before_counts.get(rule.id,0)) for rule in rules}
+            now=datetime.now(timezone.utc)
+            event_ids={rule.id:uuid.uuid4() for rule in rules}
+            for rule in rules:
+                rule.approval_status='APPROVED';rule.reviewed_by=reviewer;rule.reviewed_at=now
+                rule.revision=hashlib.sha256((rule.revision+'|'+str(event_ids[rule.id])).encode()).hexdigest()
+            await self.session.flush()
+            assignment_results={}
+            for source in sorted({rule.source_system for rule in rules}):
+                assignment_results[source]=await LocationService(self.session).backfill(
+                    source_system=source,bootstrap=False)
+            after_counts=await device_counts()
+            for rule in rules:
+                after=rule_data(rule,locations[rule.location_id],after_counts.get(rule.id,0))
+                self.session.add(LocationMappingReview(id=event_ids[rule.id],rule_id=rule.id,reviewed_by=reviewer,
+                    reviewed_at=now,comment=comment,before_data=before[rule.id],after_data=after))
+            await self.session.commit()
+            try:
+                invalidate_summaries_for_sources(assignment_results,session=self.session)
+            except Exception:
+                logger.warning('Batch mapping review saved, but summary invalidation failed for %s',
+                               ', '.join(assignment_results))
+            return dict(reviewed_rules=len(rules),changed_assignments=sum(
+                result.get('changed_assignments',0) for result in assignment_results.values()),
+                assignments=assignment_results)
+        except Exception:
+            await self.session.rollback()
+            raise
+        finally:
+            sync._release_in_memory_lock()
+
     async def decide(self, rule_id, status, reviewer, location_id, expected_revision, comment=None):
         reviewer=reviewer.strip();comment=comment.strip() if comment else None
         if status not in STATUSES or not reviewer or len(reviewer)>128 or (comment and len(comment)>512):

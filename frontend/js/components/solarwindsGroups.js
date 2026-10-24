@@ -1,6 +1,6 @@
 import { itomApi } from '../api.js?v=11';
 import { escapeHtml, formatNumber } from '../utils.js';
-import { renderGroupPanel } from './groupPanel.js?v=1';
+import { renderGroupPanel } from './groupPanel.js?v=2';
 import { openCiDrawer } from './drawer.js?v=4';
 
 let generation = 0;

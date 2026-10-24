@@ -4,6 +4,7 @@ from sqlalchemy import select
 from app.models.location import LocationMappingRule
 from app.models.ci import ConfigurationItem
 from app.services.location_service import LocationService, LocationResolver
+from app.services.location_review_service import LocationReviewService, ReviewConflict
 from tests.factories import make_ci, make_run
 import pytest
 import pytest_asyncio
@@ -61,6 +62,52 @@ async def test_approve_records_reviewer_date_history_and_assignments(api_client,
     assert history[0]['after']['approval_status']=='APPROVED'
     after=(await api_client.get('/api/v1/locations/'+ci.location_id+'/score')).json()['data']
     assert after['scores']['endpoints']['value']==100
+
+
+async def test_bulk_approve_records_each_rule_and_refreshes_assignments_once(session):
+    locations=LocationService(session)
+    await locations.install_rules([
+        dict(source_system='INTUNE',match_key='BULK-A-',location='Bulk office'),
+        dict(source_system='INTUNE',match_key='BULK-B-',location='Bulk office'),
+    ])
+    session.add_all([
+        make_ci('INTUNE','BULK-A-001','Compliant','High'),
+        make_ci('INTUNE','BULK-B-001','Compliant','High'),
+    ])
+    await session.flush();await locations.backfill();await session.commit()
+    rules=(await session.scalars(select(LocationMappingRule).order_by(LocationMappingRule.match_key))).all()
+    expected_revisions={rule.id:rule.revision for rule in rules}
+    await session.rollback()
+
+    result=await LocationReviewService(session).approve_many(
+        expected_revisions,'Local portal operator')
+
+    assert result['reviewed_rules']==2
+    rules=(await session.scalars(select(LocationMappingRule).order_by(LocationMappingRule.match_key))).all()
+    assert all(rule.approval_status=='APPROVED' and rule.reviewed_by=='Local portal operator' for rule in rules)
+    assert len((await session.scalars(select(LocationMappingReview))).all())==2
+    devices=(await session.scalars(select(ConfigurationItem).order_by(ConfigurationItem.name))).all()
+    assert all(device.location_resolution=='mapped' for device in devices)
+
+
+async def test_bulk_approve_rolls_back_all_rules_when_one_revision_changed(session):
+    locations=LocationService(session)
+    await locations.install_rules([
+        dict(source_system='INTUNE',match_key='BULK-A-',location='Bulk office'),
+        dict(source_system='INTUNE',match_key='BULK-B-',location='Bulk office'),
+    ])
+    await session.commit()
+    rules=(await session.scalars(select(LocationMappingRule).order_by(LocationMappingRule.match_key))).all()
+    expected_revisions={rule.id:rule.revision for rule in rules}
+    expected_revisions[rules[-1].id]='stale-revision'
+    await session.rollback()
+
+    with pytest.raises(ReviewConflict):
+        await LocationReviewService(session).approve_many(expected_revisions,'Local portal operator')
+
+    rules=(await session.scalars(select(LocationMappingRule))).all()
+    assert all(rule.approval_status=='PENDING' and rule.reviewed_by is None for rule in rules)
+    assert (await session.scalars(select(LocationMappingReview))).all()==[]
 
 
 async def test_reject_removes_assignment_and_stale_decision_is_conflict(api_client,session):

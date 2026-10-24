@@ -1,6 +1,7 @@
 import { itomApi } from '../api.js?v=9';
 import { escapeHtml, formatNumber } from '../utils.js';
 
+const LOCAL_REVIEW_ACTOR = 'Local portal operator';
 const statusName = status => ({PENDING:'Pending',APPROVED:'Approved',REJECTED:'Rejected'}[status] || 'Pending');
 const statusTone = status => status === 'APPROVED' ? 'healthy' : status === 'REJECTED' ? 'critical' : 'warning';
 const reviewedAt = raw => raw ? new Date(/Z$|[+-]\d\d:\d\d$/.test(raw) ? raw : raw+'Z').toLocaleString() : 'Not recorded';
@@ -14,7 +15,7 @@ export function openLocationReviews(host, onClose) {
     <div class="grid-toolbar"><label>Status<select id="reviewStatus" class="filter-select"><option value="PENDING">Pending</option><option value="APPROVED">Approved</option><option value="REJECTED">Rejected</option><option value="">All statuses</option></select></label><label>Source<select id="reviewSource" class="filter-select"><option value="">All sources</option><option value="INTUNE">Intune</option><option value="SOLARWINDS">SolarWinds</option></select></label><label>Search<input id="reviewSearch" type="search" class="filter-select" placeholder="Prefix, alias or location"></label><button id="reviewReload" type="button" class="btn-filter-reset">Reload rules</button></div>
     <div class="grid-scroll"><table class="itom-table"><caption class="sr-only">Location mapping review queue</caption><thead><tr><th scope="col">Source key</th><th scope="col">Location</th><th scope="col">Approval</th><th scope="col">Linked devices</th><th scope="col">Reviewer</th><th scope="col">Last review</th></tr></thead><tbody id="reviewRules"></tbody></table></div>
     <div class="grid-footer"><button id="reviewPrev" type="button" class="btn-filter-reset">Previous</button><span id="reviewPage"></span><button id="reviewNext" type="button" class="btn-filter-reset">Next</button></div>
-    <p class="location-health-note">Linked devices use current assignment provenance. A review can also affect overlapping source fields. Human reviewer names are recorded as entered; this local portal has no sign-in.</p>
+    <p class="location-health-note">Linked devices use current assignment provenance. A review can also affect overlapping source fields. Decisions are recorded as the local portal operator because this portal has no sign-in.</p>
     <section id="reviewEditor" class="location-review-editor" hidden aria-label="Mapping decision"></section>`;
   const element=id=>host.querySelector('#'+id);
   element('reviewClose').onclick=()=>{ if(saving)return;clearTimeout(timer);generation++;historyGeneration++;closed=true;host.hidden=true;onClose(changed); };
@@ -63,7 +64,7 @@ export function openLocationReviews(host, onClose) {
     selected=rule;
     const editor=element('reviewEditor');editor.hidden=false;
     editor.innerHTML=`<h3 id="reviewEditorTitle" tabindex="-1">Review ${escapeHtml(rule.match_key)}</h3><p>${escapeHtml(rule.source_system)} · ${formatNumber(rule.devices)} linked devices</p><p id="reviewLastDecision">${statusName(rule.approval_status)} · ${escapeHtml(rule.reviewed_by || 'Reviewer not recorded')} · ${escapeHtml(reviewedAt(rule.reviewed_at))}</p>${rule.review_note ? `<p class="location-review-note">Source note: ${escapeHtml(rule.review_note)}</p>` : ''}
-      <form id="reviewForm" class="location-review-form"><label>Reporting location<select id="reviewLocation" class="filter-select"><option value="">Not assigned</option>${data.locations.map(location=>`<option value="${escapeHtml(location.id)}">${escapeHtml(location.name)}</option>`).join('')}</select></label><label>Approval status<select id="reviewDecision" class="filter-select"><option value="PENDING">Pending</option><option value="APPROVED">Approved</option><option value="REJECTED">Rejected</option></select></label><label>Reviewer name<input id="reviewReviewer" class="filter-select" required maxlength="128" autocomplete="name" placeholder="Your name"></label><label>Review reason<textarea id="reviewComment" maxlength="512" rows="3" placeholder="Required for rejection; optional for approval"></textarea></label><p class="location-health-note">The review date is recorded by the server when you save. Source notes are informational and do not set approval.</p><button id="reviewSave" type="submit" class="btn-filter-reset" ${data.write_enabled ? '' : 'disabled'}>Save review</button></form><p id="reviewMessage" role="status"></p><div id="reviewHistory"></div>`;
+      <form id="reviewForm" class="location-review-form"><label>Reporting location<select id="reviewLocation" class="filter-select"><option value="">Not assigned</option>${data.locations.map(location=>`<option value="${escapeHtml(location.id)}">${escapeHtml(location.name)}</option>`).join('')}</select></label><label>Approval status<select id="reviewDecision" class="filter-select"><option value="PENDING">Pending</option><option value="APPROVED">Approved</option><option value="REJECTED">Rejected</option></select></label><label>Review reason<textarea id="reviewComment" maxlength="512" rows="3" placeholder="Required for rejection; optional for approval"></textarea></label><p class="location-health-note">The review date is recorded by the server when you save. Source notes are informational and do not set approval.</p><button id="reviewSave" type="submit" class="btn-filter-reset" ${data.write_enabled ? '' : 'disabled'}>Save review</button></form><p id="reviewMessage" role="status"></p><div id="reviewHistory"></div>`;
     element('reviewLocation').value=rule.location_id || '';
     element('reviewDecision').value=rule.approval_status;
     element('reviewDecision').onchange=()=>{element('reviewComment').required=element('reviewDecision').value==='REJECTED';};
@@ -77,7 +78,7 @@ export function openLocationReviews(host, onClose) {
   async function save(event) {
     event.preventDefault();if(saving)return;
     if(element('reviewDecision').value==='APPROVED' && !element('reviewLocation').value){element('reviewMessage').textContent='Choose a reporting location before approving.';return;}
-    const body={status:element('reviewDecision').value,reviewer:element('reviewReviewer').value.trim(),location_id:element('reviewLocation').value || null,expected_revision:selected.revision,comment:element('reviewComment').value.trim() || null};
+    const body={status:element('reviewDecision').value,reviewer:LOCAL_REVIEW_ACTOR,location_id:element('reviewLocation').value || null,expected_revision:selected.revision,comment:element('reviewComment').value.trim() || null};
     saving=true;element('reviewSave').disabled=true;element('reviewClose').disabled=true;
     element('reviewMessage').textContent='Saving decision and refreshing assignments…';
     try {
@@ -87,7 +88,7 @@ export function openLocationReviews(host, onClose) {
       element('reviewLastDecision').textContent=`${statusName(selected.approval_status)} · ${selected.reviewed_by} · ${reviewedAt(selected.reviewed_at)}`;
       await loadQueue();await loadHistory(selected.id);
     } catch(error) {
-      element('reviewMessage').textContent=error.status===409 ? 'The rule changed or a sync/review is running. Reload rules and reopen the mapping before retrying.' : error.status===422 ? 'Check the reviewer name, location and rejection reason. The decision was not saved.' : error.status===403 ? 'Decisions are available only from this local portal.' : 'The decision could not be saved. Reload the queue to verify its status before retrying.';
+      element('reviewMessage').textContent=error.status===409 ? 'The rule changed or a sync/review is running. Reload rules and reopen the mapping before retrying.' : error.status===422 ? 'Check the location and rejection reason. The decision was not saved.' : error.status===403 ? 'Decisions are available only from this local portal.' : 'The decision could not be saved. Reload the queue to verify its status before retrying.';
     } finally { saving=false;element('reviewSave').disabled=!data?.write_enabled;element('reviewClose').disabled=false; }
   }
 

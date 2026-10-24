@@ -1,8 +1,8 @@
 import { itomApi } from '../api.js?v=12';
 import { escapeHtml as e, formatNumber } from '../utils.js';
-import { scorePill } from './groupPanel.js?v=1';
+import { scorePill } from './groupPanel.js?v=2';
 import { renderIntuneLocationPanel, intuneFreshness } from './intuneLocationPanel.js?v=1';
-import { openLocationReviews } from './locationReviews.js?v=1';
+import { openLocationReviews } from './locationReviews.js?v=2';
 
 const state={search:'',status:'',level:'',selected:null};
 const n=value=>Number.isFinite(value) ? formatNumber(value) : 'Unavailable';

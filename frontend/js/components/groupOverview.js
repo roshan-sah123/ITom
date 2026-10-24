@@ -1,6 +1,6 @@
 import { itomApi } from '../api.js?v=11';
 import { escapeHtml as e, formatNumber as n } from '../utils.js';
-import { renderGroupPanel, nativeHealth, scorePill, snapshotNote } from './groupPanel.js?v=1';
+import { renderGroupPanel, nativeHealth, scorePill, snapshotNote } from './groupPanel.js?v=2';
 import { siteScoreLabel } from '../labels.js';
 
 let mode='infrastructure', search='', selected=null, version=0;

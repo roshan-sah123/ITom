@@ -6,7 +6,7 @@ import { initHeader } from './components/header.js?v=4';
 import { initModal } from './components/modal.js';
 import { initDrawer } from './components/drawer.js?v=4';
 import { renderHome } from './components/home.js?v=11';
-import { renderInfrastructureWorkspace } from './components/infraWorkspace.js?v=30';
+import { renderInfrastructureWorkspace } from './components/infraWorkspace.js?v=33';
 import { renderEndpoints } from './components/endpoints.js?v=15';
 import { renderCmdb } from './components/cmdb.js?v=15';
 import { renderSyncLedger } from './components/syncLedger.js?v=3';

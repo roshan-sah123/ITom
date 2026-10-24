@@ -153,8 +153,9 @@ def test_high_average_keeps_component_override_visible(portal_url, browser_conte
     override_catalogue(page, portal_url, mutate)
     open_scores(page, portal_url)
     pune = card(page, 'Pune')
-    expect(pune.locator('.location-score-value')).to_contain_text('Red')
-    expect(pune.locator('.location-score-value strong')).to_have_text('91.2')
+    combined = pune.get_by_role('button', name='View Combined Site Score evidence for Pune')
+    expect(combined).to_contain_text('Red')
+    expect(combined.locator('strong')).to_have_text('91.2')
     expect(pune.locator('.location-score-reason')).to_be_visible()
     expect(pune.locator('.location-score-reason')).to_contain_text('22,499 / 30,000')
     expect(pune.locator('.location-score-reason')).to_contain_text('high average cannot override')
@@ -211,6 +212,27 @@ def test_healthy_disclosure_keyboard_mobile_and_comparison(portal_url, catalogue
     assert page.evaluate('document.documentElement.scrollWidth <= innerWidth + 2')
     page.screenshot(path=str(captures / 'healthy-mobile.png'), full_page=True)
     assert errors == []
+    page.close()
+
+
+def test_combined_mode_shows_score_sequence_and_evidence(portal_url, catalogue_inventory, browser_context):
+    page = browser_context.new_page()
+    open_scores(page, portal_url)
+    page.locator('#locMode').select_option('combined')
+    expect(page.locator('#locCards')).to_be_visible()
+    expect(page.locator('#swGroupTree')).to_have_count(0)
+    pune = card(page, 'Pune')
+    flow = pune.locator('.location-score-flow')
+    expect(flow).to_contain_text('Intune Score')
+    expect(flow).to_contain_text('SolarWinds Score')
+    expect(flow).to_contain_text('Combined Site Score')
+    evidence_button = pune.get_by_role('button', name='View Combined Site Score evidence for Pune')
+    evidence_button.click()
+    details = pune.locator('details.location-card-details')
+    expect(details).to_have_attribute('open','')
+    expect(details).to_contain_text('Evidence confidence')
+    expect(details).to_contain_text('Freshness')
+    expect(details).to_contain_text('Coverage')
     page.close()
 
 

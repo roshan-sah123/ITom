@@ -6,7 +6,7 @@ Implemented 12 October 2026 for the local portal. Open **Infrastructure → Loca
 
 1. Start with Pending rules. Filter by source or search a prefix, source alias or reporting location.
 2. Open the source key. Check its original source note, proposed reporting location and currently linked-device count. Counts reflect current assignment provenance; overlapping SolarWinds source fields can affect additional devices.
-3. Choose an existing reporting location and a decision. Enter your reviewer name. Rejection requires a reason; an approval comment is optional.
+3. Choose an existing reporting location and a decision. Rejection requires a reason; an approval comment is optional.
 4. Save review. The server records the review date/time, preserves before/after rule evidence and re-evaluates the source's active device assignments in the same transaction.
 5. Read the saved reviewer/date and decision history. Back to location health reloads the scorecards after a saved change.
 
@@ -35,7 +35,7 @@ Reviews update location metadata only. Source statuses, raw locations, check-in 
 
 ## Local trust boundary
 
-This portal currently has no authenticated user identity. Reviewer names are **recorded as entered**, not verified against an account. Write requests require a loopback peer, a localhost/loopback hostname and, when supplied, a matching portal Origin; cross-site submissions are rejected. Remote queue readers receive `write_enabled=false`.
+This portal currently has no authenticated user identity, so decisions are recorded under the fixed audit actor **Local portal operator** instead of collecting a reviewer name. Write requests require a loopback peer, a localhost/loopback hostname and, when supplied, a matching portal Origin; cross-site submissions are rejected. Remote queue readers receive `write_enabled=false`.
 
 Do not expose these local review writes through a reverse proxy that hides the original client and rewrites its host/origin. An authenticated reviewer role and authorization checks are required before enabling remote or production approvals. This workflow records a decision; it does not prove that a device is physically present at the assigned location.
 

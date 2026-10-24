@@ -33,13 +33,13 @@ def test_location_review_approval_and_history(portal_url,review_inventory,browse
     expect(page.locator('#reviewRules')).to_contain_text('NONCOMPLIANT-')
     page.locator('#reviewRules button').click()
     page.locator('#reviewDecision').select_option('APPROVED')
-    page.locator('#reviewReviewer').fill('Test site owner')
+    expect(page.locator('#reviewReviewer')).to_have_count(0)
     page.locator('#reviewComment').fill('Verified with location owner')
     page.get_by_role('button',name='Save review',exact=True).click()
     expect(page.locator('#reviewMessage')).to_contain_text('Approved',timeout=15000)
-    expect(page.locator('#reviewLastDecision')).to_contain_text('Test site owner')
+    expect(page.locator('#reviewLastDecision')).to_contain_text('Local portal operator')
     page.locator('#reviewStatus').select_option('APPROVED')
-    expect(page.locator('#reviewRules')).to_contain_text('Test site owner')
+    expect(page.locator('#reviewRules')).to_contain_text('Local portal operator')
     expect(page.locator('#reviewHistory')).to_contain_text('PENDING → APPROVED')
     result=page.request.get(urljoin(portal_url,'/api/v1/locations/pune/devices?issue=noncompliant')).json()['data']
     assert result['items'][0]['location_resolution']=='mapped'

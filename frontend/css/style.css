@@ -1546,6 +1546,14 @@ html,body { background:var(--bg-canvas); color:var(--text-primary); }
 .location-score-value { display:flex; align-items:center; gap:12px; margin-top:16px; }
 .location-score-value strong { font-size:32px; line-height:1.2; }
 .location-score-value span { color:#526579; font-size:13px; }
+.location-score-flow { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; margin-top:14px; }
+.location-score-flow > div, .location-score-flow > button { min-height:76px; padding:9px 10px; border:1px solid #dce3eb; border-radius:6px; background:#f8fafc; color:#334155; font:inherit; text-align:left; }
+.location-score-flow > button { cursor:pointer; }
+.location-score-flow > button:hover { border-color:#2563eb; background:#eff6ff; }
+.location-score-flow span, .location-score-flow strong, .location-score-flow small { display:block; }
+.location-score-flow span { color:#526579; font-size:11px; }
+.location-score-flow strong { margin-top:4px; font-size:18px; line-height:1.2; }
+.location-score-flow small { margin-top:3px; color:#64748b; font-size:10px; }
 .location-score-reason { min-height:34px; font-size:12px; line-height:1.5; color:#526579; margin:10px 0; }
 .score-critical .location-score-reason { color:#9f302b; }
 .location-components { margin:12px 0; font-size:12px; }

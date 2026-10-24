@@ -6,7 +6,7 @@
 import { itomApi } from '../api.js?v=11';
 import { formatNumber, formatPercent, formatLatency, escapeHtml, calculateNewPageAnchor, debounce, exportToCsv, fetchAllFilteredRows, destroyChartSafe, generatePaginationControls } from '../utils.js';
 import { openCiDrawer } from './drawer.js?v=4';
-import { renderLocationScorecards } from './locations.js?v=17';
+import { renderLocationScorecards } from './locations.js?v=20';
 
 const resourcePercent = (value) => {
   if (value == null || typeof value === 'boolean' || String(value).trim() === '') return 'Unavailable';
