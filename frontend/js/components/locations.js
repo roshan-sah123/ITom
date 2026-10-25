@@ -133,7 +133,7 @@ export async function renderLocationScorecards(options = {}) {
     if (host) await renderIntuneLocations(host, mode => renderLocationScorecards({mode}), savedFilters);
     return;
   }
-  if ((savedFilters.locMode || 'infrastructure') === 'infrastructure') {
+  if (['infrastructure', 'combined'].includes(savedFilters.locMode || 'infrastructure')) {
     catalogueRequest++; listRequest++; clearTimeout(searchTimer);
     const groupHost = document.getElementById('locationScorecards');
     if (groupHost) await renderSolarWindsGroups(groupHost, mode => renderLocationScorecards({mode}), savedFilters.locMode || 'infrastructure');

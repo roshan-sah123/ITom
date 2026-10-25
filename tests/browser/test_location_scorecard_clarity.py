@@ -215,10 +215,10 @@ def test_healthy_disclosure_keyboard_mobile_and_comparison(portal_url, catalogue
     page.close()
 
 
-def test_combined_mode_shows_score_sequence_and_evidence(portal_url, catalogue_inventory, browser_context):
+def test_available_source_cards_show_combined_score_evidence(portal_url, catalogue_inventory, browser_context):
     page = browser_context.new_page()
     open_scores(page, portal_url)
-    page.locator('#locMode').select_option('combined')
+    expect(page.locator('#locMode')).to_have_value('auto')
     expect(page.locator('#locCards')).to_be_visible()
     expect(page.locator('#swGroupTree')).to_have_count(0)
     pune = card(page, 'Pune')

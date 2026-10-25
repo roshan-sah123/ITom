@@ -73,6 +73,15 @@ removed groups, and moves approved links to REVIEW when the group disappears or
 becomes a child. Reappearing groups require explicit reapproval. Children never
 inherit a parent's link.
 
+The Site Score View selector uses the native SolarWinds group browser for both
+SolarWinds and Combined. Combined preserves the exact source names, hierarchy,
+inventory and top-level group count, including empty and unlinked groups. That
+count is not the number of available combined scores. Unlinked groups remain
+visible with an unavailable score and an explicit approval requirement. The
+By available sources view retains the canonical location cards and their
+component evidence; Digital Workspace / Intune retains its own location list.
+Changing the view never renames devices, changes assignments or approves links.
+
 ## Local rollout and verification
 
 Stop the supervisor and create a checked SQLite backup before `alembic upgrade

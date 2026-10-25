@@ -83,6 +83,34 @@ def test_expand_drilldown_filters_back_and_drawer(portal_url, group_inventory, b
     page.close()
 
 
+def test_combined_uses_native_groups_without_inventing_location_links(portal_url, group_inventory, browser_context):
+    page = browser_context.new_page()
+    errors = []
+    requests = []
+    page.on('pageerror', lambda error: errors.append(str(error)))
+    page.on('request', lambda request: requests.append((request.method, request.url)))
+    open_groups(page, portal_url)
+    names = page.locator('#swGroupTree > li > .sw-group-row .sw-group-name').all_text_contents()
+    count = page.locator('#catSitesVal').inner_text()
+
+    page.locator('#locMode').select_option('combined')
+    expect(page.locator('#swGroupTree')).to_be_visible()
+    expect(page.locator('#locMode')).to_have_value('combined')
+    assert page.locator('#swGroupTree > li > .sw-group-row .sw-group-name').all_text_contents() == names
+    expect(page.locator('#catSitesVal')).to_have_text(count)
+    expect(page.locator('#locCards')).to_have_count(0)
+    page.get_by_role('button', name='BOCBA(Bolivia,Cochabamba-Encora)', exact=True).click()
+    expect(page.locator('#swGroupDetail')).to_contain_text('An explicit approved Intune location link is required')
+    expect(page.locator('#swGroupDevices tr')).to_have_count(2)
+    page.locator('#swGroupRefresh').click()
+    expect(page.locator('#locMode')).to_have_value('combined')
+    expect(page.locator('#swGroupDetail')).to_contain_text('An explicit approved Intune location link is required')
+    assert any('score_mode=combined' in url for method, url in requests)
+    assert all(method == 'GET' for method, url in requests if '/api/v1/' in url)
+    assert errors == []
+    page.close()
+
+
 def test_error_retry_and_unsynced_states(portal_url, browser_context):
     page = browser_context.new_page()
     page.route('**/api/v1/solarwinds/groups', lambda route: route.fulfill(status=503, json={'detail':'Unavailable'}))
