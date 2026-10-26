@@ -80,6 +80,32 @@ test("successful empty group snapshots remain distinct from unavailable groups",
   assert.deepEqual(model.siteRows, []);
 });
 
+test("site scores retain their policy status and monitored-node denominator", () => {
+  const model = buildPortalModel({
+    groups: {
+      data_available: true,
+      items: [
+        {
+          group: { group_id: 35, name: "Fenchurch", status: "Up" },
+          total_devices: 19,
+          server_count: 8,
+          network_count: 9,
+          site_score: { value: 94.4, status: "warning" },
+          status_breakdown: { Up: 17, Warning: 1, Unmanaged: 1 },
+          components: {
+            node_status: { value: 94.44, denominator: 18, usable: true },
+          },
+        },
+      ],
+    },
+  });
+  assert.equal(model.locations[0].status, "Up");
+  assert.equal(model.locations[0].scoreStatus, "Warning");
+  assert.equal(model.locations[0].monitored, 18);
+  assert.equal(model.locations[0].availability, "94.44%");
+  assert.equal(model.siteRows[0].availability, model.locations[0].availability);
+});
+
 test("donut segments use actual proportions including zero and missing data", () => {
   assert.equal(donutGradient([]), "#e3e9f2");
   assert.equal(

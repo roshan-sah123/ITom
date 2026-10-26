@@ -817,7 +817,7 @@ button:disabled { opacity: .55; cursor: wait; }
 .bar-column--interactive:hover .bar-track, .bar-column--interactive[aria-pressed="true"] .bar-track { outline: 2px solid #91b5f8; outline-offset: 2px; }
 .bar-fill { min-height: 0; }
 .chart-hint { margin: 0 0 14px; color: var(--muted); font-size: 11px; }
-.drilldown-target { scroll-margin-top: 85px; }
+.drilldown-target { min-width: 0; overflow-x: clip; scroll-margin-top: 85px; }
 .drilldown-target:focus-visible { outline: 2px solid #91b5f8; outline-offset: 4px; border-radius: 8px; }
 .inventory-selection { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 16px; background: var(--blue-bg); border-bottom: 1px solid var(--line); font-size: 12px; color: var(--brand); }
 .inventory-selection span { min-width: 0; overflow-wrap: anywhere; }

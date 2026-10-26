@@ -43,7 +43,7 @@ export type Group = {
   total_devices: number;
   server_count: number;
   network_count: number;
-  site_score: { value: number | null; reason?: string };
+  site_score: { value: number | null; status?: string; reason?: string };
   status_breakdown: Counts;
   components?: { node_status?: Metric };
 };
@@ -233,12 +233,22 @@ export function buildPortalModel(snapshot: Snapshot) {
     network: row.network_count,
     total: row.total_devices,
     score: row.site_score.value,
+    scoreStatus:
+      row.site_score.value == null
+        ? "Unavailable"
+        : ({ healthy: "Healthy", warning: "Warning", critical: "Critical" } as Record<string, string>)[
+            row.site_score.status ?? ""
+          ] ?? "Unknown",
     scoreReason: row.site_score.reason ?? "Backend Site Score",
     healthy: row.status_breakdown.Up ?? 0,
     warning: row.status_breakdown.Warning ?? 0,
     critical:
       (row.status_breakdown.Critical ?? 0) + (row.status_breakdown.Down ?? 0),
     status: row.group.status,
+    monitored: row.components?.node_status?.denominator,
+    availabilityValue: row.components?.node_status?.usable
+      ? (row.components.node_status.value ?? null)
+      : null,
     availability: row.components?.node_status?.usable
       ? percent(row.components.node_status.value)
       : "—",

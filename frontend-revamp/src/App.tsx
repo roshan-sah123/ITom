@@ -4,7 +4,6 @@ import {
   donutGradient,
   downloadCsv,
   number,
-  percent,
   ageLabel,
   donutSlice,
 } from "./data";
@@ -444,9 +443,13 @@ function App() {
       id: 0,
       name: "No location snapshot",
       score: null,
+      scoreStatus: "Unavailable",
       scoreReason: "Location data unavailable",
       servers: null,
       total: null,
+      monitored: undefined,
+      availability: "—",
+      availabilityValue: null,
       healthy: null,
       warning: null,
       critical: null,
@@ -830,13 +833,7 @@ function App() {
                     </div>
                     <div>
                       <p>Site Score</p>
-                      <StatusBadge
-                        status={
-                          selectedLocation.score == null
-                            ? "Unavailable"
-                            : selectedLocation.status
-                        }
-                      />
+                      <StatusBadge status={selectedLocation.scoreStatus} />
                       <small>{selectedLocation.scoreReason}</small>
                     </div>
                   </div>
@@ -858,14 +855,8 @@ function App() {
                       <small>Nodes reporting Up</small>
                       <strong>{number(selectedLocation.healthy)}</strong>
                       <p>
-                        {selectedLocation.total
-                          ? percent(
-                              ((selectedLocation.healthy ?? 0) /
-                                selectedLocation.total) *
-                                100,
-                            )
-                          : "—"}{" "}
-                        of nodes
+                        {selectedLocation.availability} of{" "}
+                        {number(selectedLocation.monitored)} monitored nodes
                       </p>
                     </div>
                   </div>
@@ -874,7 +865,7 @@ function App() {
                       <span
                         className="health-bar health-bar--healthy"
                         style={{
-                          width: `${selectedLocation.total ? ((selectedLocation.healthy ?? 0) / selectedLocation.total) * 100 : 0}%`,
+                          width: `${selectedLocation.availabilityValue ?? 0}%`,
                         }}
                       />
                     </div>
@@ -988,9 +979,9 @@ function App() {
                           "Location",
                           "Servers",
                           "Network devices",
-                          "Nodes reporting Up",
+                          "Monitored nodes Up (%)",
                           "Site Score",
-                          "Status",
+                          "Native group status",
                           "Last synchronized",
                         ],
                         visibleRows.map((row) => [
@@ -1016,9 +1007,9 @@ function App() {
                       <th>Location</th>
                       <th>Servers</th>
                       <th>Network devices</th>
-                      <th>Nodes reporting Up</th>
+                      <th>Monitored nodes Up (%)</th>
                       <th>Site score</th>
-                      <th>Health</th>
+                      <th>Native group status</th>
                       <th>Last updated</th>
                       <th>
                         <span className="sr-only">Actions</span>

@@ -227,6 +227,29 @@ def test_group_drilldown_retries_and_preserves_exact_source_scope(revamp_groups_
     page.close()
 
 
+def test_site_score_status_and_monitored_percentage_remain_distinct(revamp_groups_url, browser_context):
+    page = browser_context.new_page()
+
+    def group_with_unmanaged_node(route):
+        response = route.fetch()
+        payload = response.json()
+        group = payload['data']['items'][0]
+        group['total_devices'] = 3
+        group['status_breakdown'] = {'Up': 2, 'Unmanaged': 1}
+        group['components']['node_status'].update(
+            numerator=2, denominator=2, value=100, usable=True)
+        route.fulfill(response=response, json=payload)
+
+    page.route('**/api/v1/solarwinds/groups/overview', group_with_unmanaged_node)
+    page.goto(revamp_groups_url)
+    expect(page.locator('.score-card .status')).to_have_text('Healthy')
+    expect(page.locator('.location-panel')).to_contain_text('100% of 2 monitored nodes')
+    assert page.locator('.health-bar').evaluate('element => element.style.width') == '100%'
+    expect(page.locator('.overview-panel tbody tr').first).to_contain_text('100%')
+    expect(page.locator('.overview-panel tbody tr').first).to_contain_text('Critical')
+    page.close()
+
+
 def test_summary_failures_are_unavailable_and_global_search_reads_assets(revamp_portal_url, browser_context):
     page = browser_context.new_page()
     page.route('**/api/v1/intune/summary', lambda route: route.fulfill(status=503, json={'error': 'Unavailable'}))
@@ -269,7 +292,10 @@ def test_layout_and_navigation_at_supported_widths(revamp_portal_url, browser_co
     assert page.evaluate('document.documentElement.scrollWidth <= innerWidth + 2'), page.evaluate('''() =>
         JSON.stringify({vw: innerWidth, doc: document.documentElement.scrollWidth, boxes:
           [...document.querySelectorAll('main, .app-shell, .navigation, .navigation__inner, .drilldown-target, .inventory-panel, .table-wrap, .analytics-grid')]
-          .map(el => ({class: el.className, client: el.clientWidth, scroll: el.scrollWidth, overflow: getComputedStyle(el).overflowX, right: el.getBoundingClientRect().right}))})''')
+                    .map(el => ({class: el.className, client: el.clientWidth, scroll: el.scrollWidth, overflow: getComputedStyle(el).overflowX, right: el.getBoundingClientRect().right})),
+                    escaping: [...document.querySelectorAll('.inventory-panel *')]
+                    .filter(el => el.getBoundingClientRect().right > innerWidth && !el.closest('.table-wrap'))
+                    .map(el => ({tag: el.tagName, class: el.className, width: el.getBoundingClientRect().width, right: el.getBoundingClientRect().right, position: getComputedStyle(el).position}))})''')
     page.get_by_role('button', name='Knowledge Center', exact=True).click()
     expect(page.get_by_role('heading', name='Knowledge Center', exact=True)).to_be_visible()
     page.close()

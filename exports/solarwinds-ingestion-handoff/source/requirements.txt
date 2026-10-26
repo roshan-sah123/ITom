@@ -1,0 +1,28 @@
+# Enterprise ITOM Operations Platform Dependencies
+# Pinned direct dependencies. Bump deliberately and run the relevant tests;
+# do not widen these to range specifiers (>=) as that breaks reproducible builds.
+
+# Core Web & API Framework
+fastapi==0.141.1
+uvicorn[standard]==0.52.3
+pydantic==2.13.4
+pydantic-settings==2.15.0
+
+# Relational Persistence & Migrations
+sqlalchemy==2.0.52
+asyncpg==0.30.0
+aiosqlite==0.22.1
+alembic==1.19.1
+
+# Background Scheduling & Ingestion
+apscheduler==3.11.3
+
+# HTTP Clients & Telemetry Integrations
+requests==2.34.2
+httpx==0.28.1
+urllib3==2.7.0
+python-dotenv==1.2.2
+
+# Testing & Verification
+pytest==9.1.1
+pytest-asyncio==1.4.0
