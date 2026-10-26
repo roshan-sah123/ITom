@@ -44,6 +44,21 @@ async def group_summary(group_id: int = Path(ge=1), score_mode: Literal['infrast
     return await group_response(SolarWindsGroupService(session).summary(group_id, score_mode))
 
 
+@router.get('/groups/ungrouped/devices')
+async def list_ungrouped_devices(page: int = Query(1, ge=1), page_size: int = Query(25),
+                                search: str = Query('', max_length=255),
+                                status_filter: Optional[str] = Query(None, alias='status', max_length=64),
+                                category: Optional[str] = Query(None, max_length=255),
+                                category_missing: bool = False,
+                                source_type: Optional[str] = Query(None, max_length=255),
+                                session=Depends(get_db)):
+    if page_size not in ALLOWED_PAGE_SIZES:
+        raise HTTPException(422, 'page_size must be one of the supported page sizes')
+    return await group_response(SolarWindsGroupService(session).ungrouped_devices(
+        page=page, page_size=page_size, search=search, status=status_filter,
+        category=category, category_missing=category_missing, source_type=source_type))
+
+
 @router.get('/groups/{group_id}/devices')
 async def list_group_devices(group_id: int = Path(ge=1), page: int = Query(1, ge=1),
                              page_size: int = Query(25),

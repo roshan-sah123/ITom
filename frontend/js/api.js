@@ -51,6 +51,7 @@ export const itomApi = {
   getGroupSummary: (id, mode = 'infrastructure') => fetchJson(`/solarwinds/groups/${encodeURIComponent(id)}/summary?score_mode=${encodeURIComponent(mode)}`),
   getSolarWindsGroupMembers: id => fetchJson(`/solarwinds/groups/${encodeURIComponent(id)}/members`),
   getSolarWindsGroupDevices: (id, params = {}) => fetchJson(`/solarwinds/groups/${encodeURIComponent(id)}/devices?${new URLSearchParams(params)}`),
+  getSolarWindsUngroupedDevices: (params = {}) => fetchJson(`/solarwinds/groups/ungrouped/devices?${new URLSearchParams(params)}`),
   getSolarWindsNodes: (params = {}) => {
     const query = new URLSearchParams(params).toString();
     return fetchJson(`/solarwinds/nodes?${query}`);

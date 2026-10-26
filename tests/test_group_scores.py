@@ -61,6 +61,39 @@ async def test_overview_reconciles_all_inventory_shared_nodes_and_unknowns(sessi
     assert typed_group['total'] == 1
 
 
+async def test_outside_regular_groups_reconciles_and_filters_without_assignments(session, api_client):
+    client = native_client()
+    client.members += [member(13, 11, 'Orion.Groups')]
+    await ingest(session, client)
+    base = '/api/v1/solarwinds/groups/ungrouped/devices'
+    response = await api_client.get(base)
+    assert response.status_code == 200
+    data = response.json()['data']
+    assert data['group'] is None
+    assert data['scope'] == 'outside_regular_groups'
+    assert data['total'] == 2
+    assert {row['source_id'] for row in data['items']} == {'SW-NODE-3', 'SW-NODE-4'}
+    overview = (await api_client.get('/api/v1/solarwinds/groups/overview')).json()['data']
+    assert data['total'] == overview['fleet']['ungrouped_devices']
+    assert data['snapshot_id'] == overview['snapshot_id']
+    filtered = (await api_client.get(base + '?search=Device+3')).json()['data']
+    assert filtered['total'] == 1 and filtered['items'][0]['name'] == 'Device 3'
+    assert (await api_client.get(base + '?category=Telecom')).json()['data']['total'] == 1
+    assert (await api_client.get(base + '?search=%25')).json()['data']['total'] == 0
+    assert (await api_client.get(base + '?page_size=3')).status_code == 422
+    assert (await api_client.get(base + '?page=0')).status_code == 422
+    assert (await api_client.post(base)).status_code == 405
+    assert (await api_client.get('/api/v1/solarwinds/groups/10/summary')).json()['data']['total_devices'] == 2
+    client.nodes.extend(dict(NodeID=node_id, Caption=f'Device {node_id}', Status=1) for node_id in range(5, 17))
+    await ingest(session, client)
+    first = (await api_client.get(base + '?page_size=10')).json()['data']
+    second = (await api_client.get(base + '?page_size=10&page=2')).json()['data']
+    assert first['total'] == second['total'] == 14
+    assert first['total_pages'] == second['total_pages'] == 2
+    assert len(first['items']) == 10 and len(second['items']) == 4
+    assert len({row['id'] for row in first['items'] + second['items']}) == 14
+
+
 @pytest.mark.parametrize('up,other,state,score', [(90,3,'healthy',90), (89,3,'warning',89),
     (75,3,'warning',75),(74,3,'critical',74),(99,2,'warning',99),
     (99,9,'healthy',100),(95,0,'healthy',95),(94,0,'unavailable',None)])

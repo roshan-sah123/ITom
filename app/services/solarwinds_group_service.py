@@ -110,3 +110,6 @@ class SolarWindsGroupService:
 
     async def devices(self, group_id, **filters):
         return await self.repository.devices(group_id, **filters)
+
+    async def ungrouped_devices(self, **filters):
+        return await self.repository.devices(None, **filters)

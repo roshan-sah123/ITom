@@ -129,16 +129,21 @@ class SolarWindsGroupRepository:
         return dict(group=self.group_data(group, bool(items)), items=items, **await self.evidence())
 
     async def devices(self, group_id, page=1, page_size=25, search='', status=None, category=None, category_missing=False, source_type=None):
-        group = await self.session.get(Group, group_id)
-        if group is None or not group.is_active:
-            return None
-        descendants = select(literal(group_id).label('group_id')).cte('descendant_groups', recursive=True)
-        descendants = descendants.union(select(Member.child_group_id).join(
-            descendants, Member.group_id == descendants.c.group_id).where(Member.child_group_id.is_not(None)))
-        node_ids = select(Member.ci_id).where(Member.group_id.in_(select(descendants.c.group_id)),
-                                             Member.ci_id.is_not(None))
-        query = select(ConfigurationItem).where(ConfigurationItem.source_system == 'SOLARWINDS',
-                                                ConfigurationItem.id.in_(node_ids))
+        group = None
+        query = select(ConfigurationItem).where(ConfigurationItem.source_system == 'SOLARWINDS')
+        if group_id is None:
+            query = query.where(~exists().where(Member.ci_id == ConfigurationItem.id,
+                Member.group_id == Group.group_id, Group.is_active.is_(True)))
+        else:
+            group = await self.session.get(Group, group_id)
+            if group is None or not group.is_active:
+                return None
+            descendants = select(literal(group_id).label('group_id')).cte('descendant_groups', recursive=True)
+            descendants = descendants.union(select(Member.child_group_id).join(
+                descendants, Member.group_id == descendants.c.group_id).where(Member.child_group_id.is_not(None)))
+            node_ids = select(Member.ci_id).where(Member.group_id.in_(select(descendants.c.group_id)),
+                                                 Member.ci_id.is_not(None))
+            query = query.where(ConfigurationItem.id.in_(node_ids))
         if '\x00' in search:
             query = query.where(false())
         elif search:
@@ -158,6 +163,8 @@ class SolarWindsGroupRepository:
         total = await self.session.scalar(select(func.count()).select_from(query.subquery()))
         nodes = (await self.session.scalars(query.order_by(ConfigurationItem.name, ConfigurationItem.source_id)
                  .offset((page - 1) * page_size).limit(page_size))).all()
-        return dict(group=self.group_data(group, bool(total)), items=[node.to_dict() for node in nodes],
+        return dict(group=self.group_data(group, bool(total)) if group is not None else None,
+                scope='regular_group' if group is not None else 'outside_regular_groups',
+                items=[node.to_dict() for node in nodes],
                     total=total, page=page, page_size=page_size,
                     total_pages=max(1, (total + page_size - 1) // page_size), **await self.evidence())

@@ -67,7 +67,7 @@ existing canonical/Intune location ID. Preview without writing:
 Replace placeholders with approved values. Add `--apply` to commit. To revoke,
 use `--revoke-group-link GROUP_ID --reviewer "REVIEWER" --comment "REASON" --apply`.
 The administration command records reviewer, UTC date, evidence and before/after
-decisions in database audit tables. There is no new mapping-review screen.
+decisions in database audit tables. Browser previews cannot approve or revoke links.
 Source sync updates stable IDs in place, preserves links on rename, soft-deactivates
 removed groups, and moves approved links to REVIEW when the group disappears or
 becomes a child. Reappearing groups require explicit reapproval. Children never
@@ -81,6 +81,36 @@ visible with an unavailable score and an explicit approval requirement. The
 By available sources view retains the canonical location cards and their
 component evidence; Digital Workspace / Intune retains its own location list.
 Changing the view never renames devices, changes assignments or approves links.
+
+## Site mapping and coverage workbench
+
+In Site Score, Combined exposes a read-only Site mapping & coverage workbench.
+Readiness counters distinguish approved, unmapped, review-required and rejected
+links. Scoreable and empty groups are additional subsets, not mutually exclusive
+mapping states. All counts come from the current group overview, and failed reads
+show unavailable readiness rather than zero. Empty groups keep their native names.
+
+The table filters by mapping state, scoreability or empty population. Selecting a
+group opens its current link and a manually selected candidate Intune location.
+Candidate options retain canonical names and level, including city, tower or
+country distinctions. No candidate is selected automatically. Population previews
+show native SolarWinds device counts, Intune endpoint counts and both source
+observation times and freshness; they do not calculate an unapproved Combined
+score or persist a link. Named reviewer evidence and the local approval command
+above remain required. Existing approved links and actual scores stay visible.
+
+View outside groups opens a searchable, status-filtered, paginated inventory with
+device details. `GET /api/v1/solarwinds/groups/ungrouped/devices` uses the complement
+of active regular-group membership, excluding shared and descendant members once.
+It accepts the existing group-device filters and supported page sizes, returns
+`scope: outside_regular_groups`, `group: null`, source evidence and snapshot ID.
+Private/Maps group membership does not count as regular-group coverage. This is
+an inventory scope, not a synthetic site; device assignments are never changed.
+Panels reject inventory from a different source snapshot and offer retry/reload.
+
+This workbench adds no browser write API, database migration, source sync or
+access-control change. Shared deployment still requires authenticated inventory
+access and authorized operator actions at the deployment boundary.
 
 ## Local rollout and verification
 

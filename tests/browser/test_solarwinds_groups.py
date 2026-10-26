@@ -111,6 +111,73 @@ def test_combined_uses_native_groups_without_inventing_location_links(portal_url
     page.close()
 
 
+def test_mapping_workbench_previews_without_approving(portal_url, group_inventory, browser_context):
+    page = browser_context.new_page()
+    errors, requests = [], []
+    page.on('pageerror', lambda error: errors.append(str(error)))
+    page.on('request', lambda request: requests.append((request.method, request.url)))
+    open_groups(page, portal_url)
+    expect(page.locator('#swMappingToggle')).to_have_count(0)
+    expect(page.locator('#swGroupTree > li')).not_to_have_count(0)
+    root_count = page.locator('#swGroupTree > li').count()
+    page.locator('#locMode').select_option('combined')
+    expect(page.locator('#swMappingSummary')).to_contain_text('Scoreable')
+    expect(page.locator('#swMappingSummary')).to_contain_text('Unmapped')
+    page.locator('#swMappingToggle').click()
+    expect(page.locator('#swMappingRows tr')).to_have_count(root_count)
+    page.locator('#swMappingFilter').select_option('empty')
+    expect(page.locator('#swMappingRows tr')).to_have_count(2)
+    expect(page.locator('#swMappingRows')).to_contain_text('Empty  (Kraków, Poland)')
+    page.locator('#swMappingFilter').select_option('unmapped')
+    expect(page.locator('#swMappingRows tr')).to_have_count(root_count)
+    page.route('**/api/v1/locations', lambda route: route.fulfill(status=503, json={'detail':'Unavailable'}))
+    page.locator('#swMappingRows [data-preview-group="10"]').click()
+    expect(page.locator('#swMappingPreview')).to_contain_text('Intune location catalogue unavailable')
+    page.unroute('**/api/v1/locations')
+    page.locator('#swMappingRetry').click()
+    expect(page.locator('#swMappingPreview')).to_contain_text('BOCBA(Bolivia,Cochabamba-Encora)')
+    expect(page.locator('#swMappingLocation')).to_have_value('')
+    page.locator('#swMappingLocation').select_option('pune')
+    expect(page.locator('#swMappingPopulation')).to_contain_text('2 Intune endpoints')
+    expect(page.locator('#swMappingPopulation')).to_contain_text('2 SolarWinds devices')
+    expect(page.locator('#swMappingPreview')).to_contain_text('Preview only')
+    expect(page.locator('#swMappingPreview')).to_contain_text('Current link: Unmapped')
+    after = page.request.get(urljoin(portal_url, '/api/v1/solarwinds/groups/10/summary?score_mode=combined'))
+    assert after.json()['data']['mapping']['status'] == 'UNMAPPED'
+    page.set_viewport_size({'width': 390, 'height': 844})
+    assert page.evaluate('document.documentElement.scrollWidth <= innerWidth + 2')
+    assert all(method == 'GET' for method, url in requests if '/api/v1/' in url)
+    assert errors == []
+    page.close()
+
+
+def test_outside_groups_inventory_filters_and_drawer(portal_url, group_inventory, browser_context):
+    page = browser_context.new_page()
+    errors = []
+    page.on('pageerror', lambda error: errors.append(str(error)))
+    open_groups(page, portal_url)
+    page.locator('#swGroupOutsideInventory').click()
+    expect(page.locator('#swOutsideDevices tr')).to_have_count(2)
+    expect(page.locator('#swOutsideDevices')).to_contain_text('Device 3')
+    expect(page.locator('#swOutsideDevices')).not_to_contain_text('Device 1')
+    page.locator('#swOutsideSearch').fill('Device 3')
+    expect(page.locator('#swOutsideSelection')).to_contain_text('1 matching device')
+    expect(page.locator('#swOutsideDevices tr')).to_have_count(1)
+    page.locator('#swOutsideDevices').get_by_role('button', name='Device 3', exact=True).click()
+    expect(page.locator('#slideDrawer')).to_be_visible()
+    page.keyboard.press('Escape')
+    expect(page.locator('#swOutsideDevices').get_by_role('button', name='Device 3', exact=True)).to_be_focused()
+    page.locator('#swOutsideReset').click()
+    expect(page.locator('#swOutsideSelection')).to_contain_text('2 matching devices')
+    page.set_viewport_size({'width': 390, 'height': 844})
+    assert page.evaluate('document.documentElement.scrollWidth <= innerWidth + 2')
+    page.locator('#swOutsideClose').click()
+    expect(page.locator('#swOutsideInventory')).to_be_hidden()
+    expect(page.locator('#swGroupOutsideInventory')).to_be_focused()
+    assert errors == []
+    page.close()
+
+
 def test_error_retry_and_unsynced_states(portal_url, browser_context):
     page = browser_context.new_page()
     page.route('**/api/v1/solarwinds/groups', lambda route: route.fulfill(status=503, json={'detail':'Unavailable'}))
@@ -118,6 +185,9 @@ def test_error_retry_and_unsynced_states(portal_url, browser_context):
     page.locator('.nav-tab[data-view="infrastructure"]').click()
     page.locator('.category-card-tab[data-subtab="sites"]').click()
     expect(page.locator('#swGroupMessage')).to_contain_text('Group data unavailable')
+    page.locator('#locMode').select_option('combined')
+    expect(page.locator('#swMappingSummary')).to_have_text('Mapping readiness unavailable.')
+    expect(page.locator('#swMappingToggle')).to_be_disabled()
     page.unroute('**/api/v1/solarwinds/groups')
     page.locator('#swGroupRetry').click()
     expect(page.locator('#swGroupMessage')).to_contain_text('No successful SolarWinds group snapshot yet')

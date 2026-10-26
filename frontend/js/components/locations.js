@@ -2,7 +2,7 @@ import { itomApi } from '../api.js?v=9';
 import { escapeHtml, formatNumber } from '../utils.js';
 import { openCiDrawer } from './drawer.js?v=4';
 import { openLocationReviews } from './locationReviews.js?v=2';
-import { renderSolarWindsGroups } from './solarwindsGroups.js?v=3';
+import { renderSolarWindsGroups } from './solarwindsGroups.js?v=4';
 import { renderIntuneLocations } from './intuneLocations.js?v=1';
 
 let catalogue = [], currentMode = 'auto', selected = null, issue = 'all', source = '', page = 1;
