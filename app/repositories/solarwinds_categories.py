@@ -1,7 +1,7 @@
 """Shared SolarWinds source-category counts and resource evidence."""
 from collections import Counter, defaultdict
 
-from app.repositories.decision_metrics import resources
+from app.repositories.decision_metrics import resources, above_resource_thresholds
 
 
 def _category(row):
@@ -29,10 +29,7 @@ def category_evidence(rows):
             cpu_count += cpu is not None
             memory_count += memory is not None
             both_count += cpu is not None and memory is not None
-            pressure_count += (
-                (cpu is not None and cpu >= 75.0)
-                or (memory is not None and memory >= 80.0)
-            )
+            pressure_count += above_resource_thresholds(cpu, memory)
         evidence.append({
             "value": value,
             "name": value if value is not None else "Unclassified",

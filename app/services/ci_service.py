@@ -60,6 +60,8 @@ class CIService:
         category: Optional[str] = None,
         category_missing: bool = False,
         source_type: Optional[str] = None,
+        resource_pressure: bool = False,
+        ci_type_exact: bool = False,
         sort_by: Optional[str] = "name",
         sort_order: Optional[str] = "asc",
     ) -> Dict[str, Any]:
@@ -81,6 +83,8 @@ class CIService:
             category=category,
             category_missing=category_missing,
             source_type=source_type,
+            resource_pressure=resource_pressure,
+            ci_type_exact=ci_type_exact,
             sort_by=sort_by,
             sort_order=sort_order,
         )

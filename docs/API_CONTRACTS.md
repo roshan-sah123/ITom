@@ -62,6 +62,14 @@ database query fails. A datastore outage must not be displayed as an empty fleet
 Search terms containing a NUL character return zero matches to prevent SQLite
 from truncating the search pattern and matching unrelated assets.
 
+Dashboard drill-downs use the same inventory endpoints and pagination. Intune
+`/devices?ci_type=...` matches an exact source OS family from `os_distribution`.
+SolarWinds `/nodes?resource_pressure=true` selects active nodes with validated
+CPU >= 75% or memory >= 80%, using the summary's reading validation and legacy
+attribute aliases. Filtering happens before totals and pagination. The CMDB
+summary includes `source_breakdown`, an active-record count by source system;
+the UI derives source totals, options and distributions from this map.
+
 ## Data and error states
 
 Summaries are computed from persisted telemetry. A domain with no ingested data may return 503. Freshness reports use `FRESH`, `STALE` and `UNKNOWN`; a successful HTTP response does not establish that upstream ingestion is current. Optional freshness timestamps are absent when there is no known successful refresh.

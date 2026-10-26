@@ -14,6 +14,7 @@ from app.models.history import CIStatusHistory
 from app.models.location import Location
 from app.repositories.base import BaseRepository
 from app.repositories.solarwinds_categories import category_counts
+from app.repositories.decision_metrics import resources, above_resource_thresholds
 
 logger = logging.getLogger("itom.ci_repo")
 
@@ -93,6 +94,8 @@ class CIRepository(BaseRepository[ConfigurationItem]):
         category: Optional[str] = None,
         category_missing: bool = False,
         source_type: Optional[str] = None,
+        resource_pressure: bool = False,
+        ci_type_exact: bool = False,
         sort_by: Optional[str] = "name",
         sort_order: Optional[str] = "asc",
     ) -> Tuple[List[Any], int]:
@@ -106,6 +109,16 @@ class CIRepository(BaseRepository[ConfigurationItem]):
 
             # Filters
             filters = []
+            if resource_pressure:
+                # Reuse the summary's validated readings, including legacy JSON
+                # aliases and malformed-value handling, before count/pagination.
+                readings = (await self.session.execute(select(
+                    ConfigurationItem.id, ConfigurationItem.attributes
+                ).where(ConfigurationItem.source_system == 'SOLARWINDS',
+                        ConfigurationItem.is_active.is_(True)))).all()
+                pressure_ids = [row.id for row in readings
+                                if above_resource_thresholds(*resources(row.attributes))]
+                filters.append(ConfigurationItem.id.in_(pressure_ids))
             if source_system:
                 filters.append(ConfigurationItem.source_system == source_system.upper())
             if category is not None:
@@ -116,7 +129,8 @@ class CIRepository(BaseRepository[ConfigurationItem]):
                 filters.append(or_(ConfigurationItem.attributes['node_category'].as_string().is_(None),
                                    func.trim(ConfigurationItem.attributes['node_category'].as_string()) == ''))
             if ci_type:
-                filters.append(ConfigurationItem.ci_type.ilike(f"%{ci_type}%"))
+                filters.append(ConfigurationItem.ci_type == ci_type if ci_type_exact
+                               else ConfigurationItem.ci_type.ilike(f"%{ci_type}%"))
             if vendor:
                 filters.append(ConfigurationItem.vendor.ilike(f"%{vendor}%"))
             if health_tier:
@@ -383,6 +397,9 @@ class CIRepository(BaseRepository[ConfigurationItem]):
 
             return {
                 "data_available": True,
+                "source_breakdown": dict((await self.session.execute(select(
+                    ConfigurationItem.source_system, func.count(ConfigurationItem.id)
+                ).group_by(ConfigurationItem.source_system))).all()),
                 "total_cis": total,
                 "high_health_count": high_health,
                 "medium_health_count": med_health,

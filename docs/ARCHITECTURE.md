@@ -21,15 +21,16 @@ There are two independent flows: scheduled collection updates the database, and 
 
 ## Frontend
 
-The deployed frontend is `frontend/`, served directly without a bundler. It uses HTML, CSS, JavaScript ES modules, and Chart.js.
+The current frontend is the Figma-based React/TypeScript application in `frontend-revamp/`. Vite builds static assets into `frontend/`, which FastAPI and NGINX serve without a Node runtime.
 
 | Entry point | Responsibility |
 | --- | --- |
-| `frontend/index.html` | Workspace containers and page structure |
-| `frontend/js/app.js` | Startup and navigation |
-| `frontend/js/components/` | Overview, infrastructure, endpoints, CMDB, and sync views |
-| `frontend/js/api.js` | Shared FastAPI client |
-| `frontend/css/style.css` | Current portal styling |
+| `frontend-revamp/src/App.tsx` | Current workspace layout and navigation |
+| `frontend-revamp/src/Inventory.tsx` | Inventory, device inspection, and sync history |
+| `frontend-revamp/src/data.ts` | Source-backed view models and chart distributions |
+| `frontend-revamp/src/api.ts` | Shared FastAPI client and snapshot loading |
+| `frontend-revamp/src/index.css` | Current Figma portal styling |
+| `frontend/index.html`, `frontend/revamp-assets/` | Generated deployment output |
 
 The API client uses `/api/v1` on the current origin. `window.ITOM_API_BASE` can override this selection. Failed requests propagate errors instead of silently substituting static JSON.
 
@@ -108,8 +109,8 @@ See `docker-compose.yml`, `nginx.conf`, and `scripts/local_itom_supervisor.py` f
 
 ## Historical code
 
-Root-level frontend copies, the file-based HTTP server and the Firestore snapshot runner were retired. Current portal code lives in `frontend/`; historical specifications and reports are under `docs/archive/legacy-2026-09/`. Standalone infrastructure and CMDB pages in `frontend/` remain available.
+The former HTML/CSS/JavaScript frontend, standalone pages, old exports and legacy-only UI tests are kept locally in `not-in-use/legacy-frontend/`. That directory is ignored by Git, excluded from Docker builds and outside the served frontend. Historical specifications and reports remain under `docs/archive/legacy-2026-09/`. All current UI changes belong in `frontend-revamp/`.
 
 ## Suggested reading order
 
-Follow one feature: `frontend/js/components/endpoints.js` → `frontend/js/api.js` → `app/api/v1/endpoints/intune.py` → `app/services/ci_service.py` → `app/repositories/ci_repository.py`. Then read `app/services/telemetry_sources.py` and `app/services/sync_service.py` to learn how those records arrive.
+Follow one feature: `frontend-revamp/src/Inventory.tsx` → `frontend-revamp/src/api.ts` → `app/api/v1/endpoints/intune.py` → `app/services/ci_service.py` → `app/repositories/ci_repository.py`. Then read `app/services/telemetry_sources.py` and `app/services/sync_service.py` to learn how those records arrive.

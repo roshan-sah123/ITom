@@ -39,3 +39,4 @@ data/*.json
 
 # UI previews are design artifacts, not deployed assets
 frontend/demo_previews/
+not-in-use/

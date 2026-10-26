@@ -20,8 +20,8 @@ Live source clients are called directly by the adapters. Staged JSON files are n
 ## Browser request
 
 ```text
-frontend/js/components/*
-  -> frontend/js/api.js
+frontend-revamp/src/App.tsx / Inventory.tsx
+  -> frontend-revamp/src/api.ts
   -> /api/v1 endpoint
   -> service
   -> repository

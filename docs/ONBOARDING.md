@@ -24,8 +24,9 @@ Open `http://localhost:8080/`. The same listener serves `frontend/` and `/api/v1
 
 ## Where to work
 
-- `frontend/index.html`, `frontend/css/style.css`, `frontend/js/app.js` and `frontend/js/components/`: current portal.
-- `frontend/js/api.js`: same-origin API client; `window.ITOM_API_BASE` overrides the base.
+- `frontend-revamp/src/`: the only editable current UI; run `npm run build` in `frontend-revamp/` to update served files in `frontend/`.
+- `frontend-revamp/src/api.ts`: same-origin API client; `window.ITOM_API_BASE` overrides the base.
+- `not-in-use/legacy-frontend/`: local, ignored archive of the retired UI; not served or used by active tests.
 - `app/api/v1/endpoints/`, `app/services/`, `app/repositories/`: routes, orchestration and database queries.
 - `src/sync/graph_client.py`, `src/sync/solarwinds_client.py`, `app/services/telemetry_sources.py`: live extraction and normalization.
 - `app/models/`, `alembic/`: schema and migrations.

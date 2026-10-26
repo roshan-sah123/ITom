@@ -16,8 +16,9 @@
 
 ## UI
 
-- Follow `frontend/css/style.css` and existing components rather than copying old root assets.
-- Escape untrusted values with `escapeHtml()` before rendering HTML.
+- Work exclusively in the current React source at `frontend-revamp/`; build its static output into `frontend/`.
+- Preserve the exported design in `frontend-revamp/src/index.css` and the existing React components. Let React escape untrusted values; avoid raw HTML injection.
+- The retired UI is local-only in the ignored `not-in-use/legacy-frontend/` directory. Do not import or restore it for current work.
 - Compute labels and counts from API responses rather than historical baselines.
 
 ## Secrets

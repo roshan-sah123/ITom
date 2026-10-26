@@ -21,6 +21,11 @@ def resources(attributes):
     return resource_value(first(('cpu_load', 'CPULoad'))), resource_value(first(('memory_used', 'percent_memory_used', 'PercentMemoryUsed', 'ram_used')))
 
 
+def above_resource_thresholds(cpu, memory):
+    """The shared observed-pressure policy used by summaries and drill-downs."""
+    return (cpu is not None and cpu >= 75) or (memory is not None and memory >= 80)
+
+
 def evidence_builder(rows, source, now):
     timestamps = [row.last_sync_time.replace(tzinfo=timezone.utc) if row.last_sync_time.tzinfo is None else row.last_sync_time for row in rows if row.last_sync_time]
     observed = max(timestamps).isoformat() if timestamps else None
@@ -78,15 +83,14 @@ def solarwinds_evidence(rows, now=None):
     health = Counter({key:0 for key in ('normal','elevated','critical','insufficient_data')})
     for row in rows:
         cpu, memory = resources(row.attributes)
+        pressure += above_resource_thresholds(cpu, memory)
         cpu_known += cpu is not None
         memory_known += memory is not None
         both += cpu is not None and memory is not None
         if (cpu is not None and cpu > 90) or (memory is not None and memory > 90):
             health['critical'] += 1
-            pressure += 1
         elif (cpu is not None and cpu >= 75) or (memory is not None and memory >= 80):
             health['elevated'] += 1
-            pressure += 1
         elif cpu is not None and memory is not None:
             health['normal'] += 1
         else:

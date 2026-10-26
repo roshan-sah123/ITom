@@ -19,16 +19,16 @@ python -m playwright install chromium
 python -m pytest tests/browser/ --run-browser -q
 ```
 
-Browser journeys launch headless Edge or Chromium and start a seeded portal on an ephemeral loopback port. They do not use port 8080 or the live inventory. The default run excludes `tests/browser/`; CI runs the whole offline suite. Shared browser fixtures stub external chart rendering and fonts for deterministic checks; their portal modules and database APIs remain real.
+Browser journeys launch headless Edge or Chromium and start a seeded portal on an ephemeral loopback port. They do not use port 8080 or the live inventory. The default run excludes `tests/browser/`; CI runs the whole offline suite. Current browser journeys use the built React UI and real isolated database APIs. No legacy chart or module stubs are required. Retired frontend tests are archived locally under the ignored not-in-use/legacy-frontend/tests/ directory and are outside collection.
 
 ## Requirement and feature coverage
 
 | Requirement / feature | Evidence |
 |---|---|
-| Intune inventory reporting locations, review badges, combined filters, pagination, CSV, retry and mobile layout | `test_intune_inventory_locations.py`, `browser/test_endpoint_inventory_locations.py` |
+| Intune inventory reporting locations, review badges, combined filters, pagination, CSV, retry and mobile layout | `test_intune_inventory_locations.py`, `browser/test_figma_revamp.py` |
 | PRD §6/§10: source filtering, search, sorting, bounded inventory pages | `test_api_contracts.py`, `test_location_and_network_contracts.py` |
 | PRD §7/§14: source-backed sites reconcile with location-filtered inventory | `test_api_contracts.py`, `test_location_and_network_contracts.py`, `test_remediation_contracts.py` |
-| PRD §6/§9: Intune compliance, OS/vendor and storage summaries | `test_step1_summaries.py`, `test_intune_forecast.py`, `test_endpoint_storage_panel.py` |
+| PRD §6/§9: Intune compliance, OS/vendor and storage summaries | `test_step1_summaries.py`, `test_intune_forecast.py`, `frontend-revamp/tests/data.test.ts` |
 | PRD §6: detail/history, JSON serialization and audit visibility | `test_api_contracts.py`, `test_persistence_contracts.py`, `test_ingestion_scenarios.py` |
 | PRD §8/§11: failed extraction does not advance freshness; source outcomes remain distinct | `test_step3_freshness.py`, `test_step4_live_sync.py`, `test_api_contracts.py` |
 | Complete snapshot retirement, reappearance and rollback | `test_snapshot_reconciliation.py`, `test_persistence_contracts.py` |
@@ -36,12 +36,12 @@ Browser journeys launch headless Edge or Chromium and start a seeded portal on a
 | PRD §11: configurable scheduler and overlap guards | `test_scheduler_and_locking.py` |
 | PRD §12: relational integrity and clean migration install | `test_persistence_contracts.py`, `test_migration_contracts.py`, `test_sqlite_runtime_pragmas.py` |
 | Summary cache consistency, invalidation and concurrency | `test_summary_cache.py` |
-| Current portal navigation, unavailable states and asset/module linkage | `test_portal_navigation_contract.py`, `test_ui_truthfulness.py`, `test_zero_build_compliance.py` |
-| Overview operator-queue drilldown and clearing filters | `browser/test_operator_queue.py` |
+| Current portal navigation, unavailable states and asset/module linkage | `test_current_frontend.py`, `test_single_port_portal.py`, `browser/test_figma_revamp.py` |
+| Overview operator-queue drilldown and clearing filters | `browser/test_figma_revamp.py` |
 | Local service and deployment entry points | `test_local_service_environment.py`, `test_server_resilience.py`, `test_docker_infra_compliance.py` |
 | Optional snapshot/export utilities | `test_payload_generator.py`, `test_challenger_adversarial_deep.py`, `test_tier5_adversarial.py` |
 
-The tests use small synthetic inputs to check the production implementations. They do not define alternative database, API, router or chart implementations. AST/text checks are retained only for relevant zero-build wiring, unsupported UI states and configuration contracts.
+The tests use small synthetic inputs to check the production implementations. They do not define alternative database, API, router or chart implementations. The active frontend checks verify built assets, retired-route exclusion, live React interactions and source-backed data states. Run npm --prefix frontend-revamp test for frontend data checks before building.
 
 ## Two documented defects
 

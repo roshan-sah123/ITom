@@ -25,6 +25,8 @@ The API documentation is at [http://127.0.0.1:8080/docs](http://127.0.0.1:8080/d
 
 Open `http://127.0.0.1:8080/` for the portal. FastAPI serves `frontend/` and the API on the same origin; a separate static server is unnecessary. Apply `alembic upgrade head` before expecting `/ready` to report migration readiness.
 
+The portal uses the supplied Figma React design, connected to the existing API. All UI work belongs in `frontend-revamp/`. To edit it, run `npm ci`, `npm test`, and `npm run build` there; the build updates the static files in `frontend/`. Node.js is needed only for frontend development and builds, not to serve the deployed portal. The retired UI is preserved locally in `not-in-use/legacy-frontend/`, ignored by Git and excluded from the web server and Docker builds. See [frontend integration](docs/FRONTEND_REVAMP.md).
+
 The frontend API client supports `window.ITOM_API_BASE` when a separately hosted UI needs another API origin. See [deployment](docs/DEPLOYMENT.md) for supported local supervisor and container setups.
 
 ### Docker Compose
@@ -39,7 +41,7 @@ Open `http://localhost:8080`. Compose exposes the portal through NGINX, which se
 
 ## What the application contains
 
-- **Portal:** zero-build HTML, CSS, and JavaScript modules in `frontend/`, including summary views, infrastructure analytics, inventory tables, and sync status.
+- **Portal:** Figma React source in `frontend-revamp/`, with deployable static output in `frontend/`. Retired frontend files are kept outside the application in the ignored `not-in-use/` directory.
 - **API:** FastAPI endpoints under `/api/v1` for CMDB, Intune, SolarWinds, analytics, freshness, and sync history.
 - **Ingestion:** APScheduler invokes the sync service on `SYNC_INTERVAL_SECONDS` (default 600 seconds). Intune Graph and SolarWinds SWIS adapters normalize source records before persistence.
 - **Persistence:** asynchronous SQLAlchemy models and repositories; PostgreSQL is the production target, with SQLite support for local development and tests. Alembic migrations are under `alembic/`.
@@ -86,6 +88,7 @@ Use the commands above according to the configured environment. Live connectivit
 | Path | Purpose |
 | --- | --- |
 | `frontend/` | Current browser application and static assets |
+| `frontend-revamp/` | Editable React frontend, build configuration, and data mapping tests |
 | `app/api/v1/endpoints/` | Versioned HTTP routes |
 | `app/services/` | Sync orchestration and application logic |
 | `app/repositories/` | Database reads and aggregates |

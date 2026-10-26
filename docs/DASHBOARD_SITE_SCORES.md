@@ -1,15 +1,10 @@
 # Dashboard nomenclature and group Site Scores
 
-The visible workspaces are Home page, Operations Analytics, Digital Workspace,
-and Assets Analytics. Their route IDs remain `home`, `infrastructure`, `endpoints`,
-and `cmdb`. `frontend/js/labels.js` owns shared workspace labels. Global search
-opens Assets Analytics; the Home Overview Table has its own location search.
+The active Figma React frontend lives in `frontend-revamp/`. `src/App.tsx` owns current workspace navigation, `src/data.ts` maps Site Score and group evidence, and `src/Inventory.tsx` opens source group inventories. Built output is served from `frontend/`. The previous HTML/CSS/JavaScript UI is retired under the ignored `not-in-use/legacy-frontend/` archive.
 
-Home's three decision tiles use compact spacing with unchanged text sizes.
-Definitions and detailed coverage evidence expand on demand. Freshness and
-coverage warnings remain visible. Reload snapshot reads persisted data only;
-it never calls the source ingestion endpoint. Location, score mode and filters
-survive reloads.
+The current workspaces are Home Page, Operations Analytics, Digital Workspace, Assets Analytics, Knowledge Center and Automations. Global search opens Assets Analytics; Home has a separate location filter. Reload and automatic page refresh read persisted snapshots without triggering ingestion.
+
+The backend contracts below remain authoritative. Presentation descriptions that refer to the old expandable decision tiles, Combined selector or pressure list describe historical UI behavior; new frontend work must use the current React source and its available controls.
 
 ## Location and classification scope
 

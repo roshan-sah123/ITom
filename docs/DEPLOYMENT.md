@@ -21,6 +21,8 @@ start_itom_service.bat --stop
 
 It binds the portal to `127.0.0.1:8080`. `--open-browser` opens the portal after launch. The older `start_server.bat` is a forwarding alias to this launcher.
 
+For ten-minute ingestion, set `SCHEDULER_ENABLED=true` and `SYNC_INTERVAL_SECONDS=600` in the runtime environment or `.env`, then restart the backend. Environment variables inherited by an already running process remain authoritative until it is restarted. Verify `/api/v1/sync/scheduler` reports `enabled=true`, `running=true`, `interval_seconds=600` and a future `next_run`; a healthy `/ready` response alone does not confirm ingestion is enabled.
+
 For login startup, use `scripts/register_local_itom_task.ps1`; its `-Status` and `-Remove` switches inspect or remove that task. The older root `register_startup_service.ps1` manages a differently named task and remains available for existing installations. Do not register both tasks for one checkout.
 
 ## Linux service

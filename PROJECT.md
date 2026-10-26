@@ -1,6 +1,6 @@
 # Project reference
 
-The current ITOM Portal combines Microsoft Intune and SolarWinds telemetry in a relational CMDB and presents it through FastAPI and the zero-build frontend.
+The current ITOM Portal combines Microsoft Intune and SolarWinds telemetry in a relational CMDB and presents it through FastAPI and the React frontend in `frontend-revamp/`. Built assets are served from `frontend/`. The retired UI is preserved locally in the ignored `not-in-use/legacy-frontend/` directory and must not be used for current work.
 
 Use these maintained references:
 

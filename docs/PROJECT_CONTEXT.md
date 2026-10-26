@@ -64,11 +64,12 @@ Do not fabricate metrics, trends, topology, patch coverage, lifecycle scores, se
 - `src/sync/graph_client.py` — Microsoft Graph pagination client
 - `app/repositories/ci_repository.py` — inventory queries and location aggregation
 - `app/repositories/summary_repository.py` — source-backed analytics
-- `frontend/index.html` — SPA structure
-- `frontend/js/components/infraWorkspace.js` — infrastructure and Location Health UI
-- `frontend/js/components/endpoints.js` — Intune UI
-- `frontend/js/components/cmdb.js` — CMDB UI
-- `frontend/css/style.css` — shared design system
+- `frontend-revamp/src/App.tsx` — current React workspaces and Location Health UI
+- `frontend-revamp/src/Inventory.tsx` — source-backed inventories and device details
+- `frontend-revamp/src/api.ts`, `src/data.ts` — API integration and view models
+- `frontend-revamp/src/index.css` — current Figma design
+- `frontend/` — generated static deployment output
+- `not-in-use/legacy-frontend/` — ignored local archive, never used for current UI work
 
 ## API groups
 

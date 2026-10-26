@@ -29,17 +29,22 @@ async def operator_inventory(session):
     await session.commit()
 
 
-@pytest_asyncio.fixture
-async def catalogue_inventory(operator_inventory, session):
-    now = datetime.now(timezone.utc)
-    for index in range(27):
-        location_id = f'office-{index}'
-        session.add(Location(id=location_id, name=f'Office {index:02}', level='office'))
-        await session.flush()
-        session.add(make_ci('INTUNE', f'OFFICE-{index}-LAPTOP', 'Compliant', 'High',
-                            location_id=location_id, location_resolution='mapped',
-                            attributes={'last_sync_date_time': now.isoformat()}))
-    await session.commit()
+@pytest.fixture
+def browser_context():
+    """Exercise the current React UI with the isolated API, without legacy stubs."""
+    playwright_api = pytest.importorskip('playwright.sync_api')
+    playwright = playwright_api.sync_playwright().start()
+    try:
+        browser = playwright.chromium.launch(channel='msedge', headless=True)
+    except Exception:
+        browser = playwright.chromium.launch(headless=True)
+    context = browser.new_context(viewport={'width': 1440, 'height': 900})
+    try:
+        yield context
+    finally:
+        context.close()
+        browser.close()
+        playwright.stop()
 
 
 @pytest.fixture
@@ -55,8 +60,14 @@ def portal_url(api_environment, operator_inventory):
         while not server.started and worker.is_alive() and time.monotonic() < deadline:
             time.sleep(0.01)
         assert server.started, "Isolated portal failed to start"
-        yield f"http://127.0.0.1:{port}/index.html"
+        yield f"http://127.0.0.1:{port}/"
     finally:
         server.should_exit = True
         worker.join(timeout=10)
         sock.close()
+
+
+@pytest.fixture
+def revamp_portal_url(portal_url):
+    """Run the new frontend against the same isolated backend inventory."""
+    return portal_url

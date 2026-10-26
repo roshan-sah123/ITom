@@ -53,3 +53,7 @@ outputs/
 scratch/
 test-results/
 playwright-report/
+.playwright-cli/
+
+# Retired frontend and its historical tests; current UI is frontend-revamp/.
+/not-in-use/
