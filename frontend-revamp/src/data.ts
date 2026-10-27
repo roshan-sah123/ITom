@@ -62,6 +62,24 @@ export type Snapshot = {
   freshness?: Freshness;
   groups?: { data_available: boolean; items: Group[]; as_of?: string };
   locations?: { items: Array<{ id: string; name: string; endpoints: number }> };
+  locationMatches?: {
+    data_available: boolean;
+    matched_locations: number;
+    named_intune_locations: number;
+    unassigned_intune_endpoints: number;
+    conflicting_solarwinds_nodes: number;
+    freshness?: Freshness;
+    items: Array<{
+      location_id: string;
+      location_name: string;
+      intune_endpoints: number;
+      status: "matched" | "unmatched";
+      match_level: "city" | "country" | "region" | null;
+      solarwinds_nodes: number;
+      evidence: Array<{ source_label: string; nodes: number }>;
+      reason?: string | null;
+    }>;
+  };
 };
 export type InventoryFilters = {
   status?: string;

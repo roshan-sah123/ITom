@@ -69,6 +69,52 @@ def test_longest_prefix_and_unknown():
     assert resolver.resolve('INTUNE', 'anything')['resolution'] == 'unassigned'
 
 
+@pytest.mark.parametrize('source_label,alias,location_name', [
+    ('India - Gurugram', 'GURUGRAM', 'Gurugram'),
+    ('USA - New Jersey', 'NEW JERSEY', 'New Jersey'),
+    ('USA - Charleston - South', 'CHARLESTON_SOUTH', 'Charleston / South'),
+    ('Singapore -Singapore', 'SINGAPORE', 'Singapore'),
+    ('India- Bengaluru', 'BANGALORE', 'Bengaluru'),
+    ('India - Greater Noida - TD', 'GR.NOIDA-TD', 'Greater Noida / Tower D'),
+])
+def test_solarwinds_country_and_separator_variants_reuse_existing_rules(source_label, alias, location_name):
+    rule = dict(id='existing-rule', source_system='SOLARWINDS', match_key=alias,
+                location_id='known-location', revision='v1', approval_status='APPROVED')
+    resolver = LocationResolver([rule], {'known-location': location_name})
+    result = resolver.resolve('SOLARWINDS', 'node', source_label, {'city': source_label})
+    assert result['location_id'] == 'known-location'
+    assert result['location_rule_id'] == 'existing-rule'
+    assert result['resolution'] == 'mapped'
+
+
+@pytest.mark.parametrize('approval,expected', [('PENDING', 'review'), ('REJECTED', 'unassigned')])
+def test_solarwinds_normalized_alias_preserves_review_decisions(approval, expected):
+    rule = dict(id='reviewed-rule', source_system='SOLARWINDS', match_key='GURUGRAM',
+                location_id='known-location', revision='v1', approval_status=approval)
+    resolver = LocationResolver([rule], {'known-location': 'Gurugram'})
+    assert resolver.resolve('SOLARWINDS', 'node', 'India - Gurugram')['resolution'] == expected
+
+
+def test_solarwinds_normalized_alias_does_not_discard_office_or_country_uncertainty():
+    rules = [
+        dict(id='city-rule', source_system='SOLARWINDS', match_key='GURUGRAM',
+             location_id='city', revision='v1', approval_status='APPROVED'),
+        dict(id='uncertain-rule', source_system='SOLARWINDS', match_key='SAN-JOSE',
+             location_id='uncertain', revision='v1', approval_status='APPROVED'),
+    ]
+    resolver = LocationResolver(rules, {'city': 'Gurugram', 'uncertain': 'San Jose / Country unconfirmed'})
+    assert resolver.resolve('SOLARWINDS', 'node', 'India - Gurugram - Office 2')['location_id'] is None
+    assert resolver.resolve('SOLARWINDS', 'node', 'Costa Rica-San Jose')['location_id'] is None
+
+
+def test_solarwinds_normalized_alias_collision_is_not_automatically_selected():
+    rules = [dict(id=target, source_system='SOLARWINDS', match_key=alias,
+                  location_id=target, revision='v1', approval_status='APPROVED')
+             for alias, target in [('CHARLESTON-SOUTH', 'office-one'), ('CHARLESTON_SOUTH', 'office-two')]]
+    resolver = LocationResolver(rules, {'office-one': 'Office one', 'office-two': 'Office two'})
+    assert resolver.resolve('SOLARWINDS', 'node', 'USA - Charleston - South')['location_id'] is None
+
+
 def test_conflicting_solarwinds_fields():
     resolver = LocationResolver([
         dict(id='a', source_system='SOLARWINDS', match_key='Bangalore-Encora', location_id='blr', revision='v1'),
@@ -100,6 +146,59 @@ async def test_periodic_history_contains_observed_scores(api_client,session):
     assert history['data_available'] and len(history['items'])==1
     assert history['items'][0]['data']['scores']['endpoints']['value']==100
     assert history['items'][0]['data']['scores']['combined']['value'] is None
+
+
+@pytest.mark.asyncio
+async def test_geographic_matches_preserve_offices_and_exclude_missing_or_conflicting_evidence(api_client, session):
+    location_names = {
+        'hyderabad-qe': 'Hyderabad / QE',
+        'brazil': 'Brazil',
+        'mumbai': 'Mumbai',
+        'canada': 'Canada',
+        'tower-a': 'Greater Noida / Tower A',
+        'noida': 'Noida',
+    }
+    session.add_all([Location(id=target, name=name, level='city') for target, name in location_names.items()])
+    await session.flush()
+    session.add_all([make_ci('INTUNE', target, 'Compliant', 'High', location_id=target,
+                            location_resolution='mapped') for target in location_names])
+    session.add(make_ci('INTUNE', 'unknown-endpoint', 'Compliant', 'High'))
+    source_labels = [
+        ('India-Hyderabad -Gachibowli', None),
+        ('India - Hyderabad-Madhapur', None),
+        ('Brazil-Campinas', None),
+        ('India - Greater Noida - T-AB', None),
+        ('Cloud-Azure', None),
+        ('India-Pune-Shanti One', 'HYDERABAD'),
+    ]
+    for index, (city, itsm) in enumerate(source_labels):
+        session.add(make_ci('SOLARWINDS', f'geo-node-{index}', 'Up', 'High', location=city,
+                            attributes={'city': city, 'itsm_location': itsm}))
+    await session.commit()
+
+    response = await api_client.get('/api/v1/locations/matches')
+    assert response.status_code == 200, response.text
+    report = response.json()['data']
+    items = {item['location_id']: item for item in report['items']}
+    assert report['named_intune_locations'] == 6
+    assert report['matched_locations'] == 3
+    assert report['unmatched_locations'] == 3
+    assert report['unassigned_intune_endpoints'] == 1
+    assert report['conflicting_solarwinds_nodes'] == 1
+    assert items['hyderabad-qe']['match_level'] == 'city'
+    assert items['hyderabad-qe']['solarwinds_nodes'] == 2
+    assert items['hyderabad-qe']['location_name'] == 'Hyderabad / QE'
+    assert len(items['hyderabad-qe']['evidence']) == 2
+    assert items['brazil']['match_level'] == 'country'
+    assert items['brazil']['solarwinds_nodes'] == 1
+    assert items['tower-a']['match_level'] == 'city'
+    assert items['tower-a']['solarwinds_nodes'] == 1
+    assert all(items[target]['status'] == 'unmatched' for target in ['noida', 'mumbai', 'canada'])
+    assert all(items[target]['solarwinds_nodes'] == 0 for target in ['noida', 'mumbai', 'canada'])
+    nodes = (await session.scalars(select(ConfigurationItem).where(ConfigurationItem.source_system == 'SOLARWINDS'))).all()
+    assert all(node.location_id is None for node in nodes)
+    endpoints = (await session.scalars(select(ConfigurationItem).where(ConfigurationItem.source_system == 'INTUNE'))).all()
+    assert {endpoint.location_id for endpoint in endpoints if endpoint.location_id} == set(location_names)
 
 
 @pytest.mark.asyncio

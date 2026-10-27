@@ -39,6 +39,7 @@ export function usePortalSnapshot(revision: number) {
       groups: "/solarwinds/groups/overview",
       freshness: "/system/freshness",
       locations: "/locations",
+      locationMatches: "/locations/matches",
     };
     void Promise.allSettled(
       Object.values(routes).map((route) => getJson(route, controller.signal)),
@@ -50,7 +51,7 @@ export function usePortalSnapshot(revision: number) {
         const key = Object.keys(routes)[i];
         if (result.status === "fulfilled") {
           const value = result.value as { data?: unknown };
-          next[key] = ["groups", "locations"].includes(key)
+          next[key] = ["groups", "locations", "locationMatches"].includes(key)
             ? value.data
             : value;
         } else failures.push(key);

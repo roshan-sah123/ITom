@@ -7,7 +7,7 @@ import {
   ageLabel,
   donutSlice,
 } from "./data";
-import type { IconName, WorkspaceConfig, Drilldown } from "./data";
+import type { IconName, WorkspaceConfig, Drilldown, Snapshot } from "./data";
 import { usePortalSnapshot } from "./api";
 import { InventoryPanel, SyncHistory } from "./Inventory";
 import { GroupSelector } from "./Groups";
@@ -408,6 +408,62 @@ function WorkspacePage({
   );
 }
 
+function LocationMatches({ report, loading }: { report?: Snapshot["locationMatches"]; loading: boolean }) {
+  const [query, setQuery] = useState("");
+  const [status, setStatus] = useState("");
+  const available = !!report?.data_available;
+  const rows = (report?.items ?? []).filter((item) =>
+    item.location_name.toLowerCase().includes(query.toLowerCase()) && (!status || item.status === status),
+  );
+  return (
+    <details className="location-matches">
+      <summary>
+        <h2>Intune and SolarWinds location matches</h2>
+        <span>{available ? `${report.matched_locations} / ${report.named_intune_locations} matched` : loading ? "Loading matches" : "Unavailable"}</span>
+      </summary>
+      <div className="panel__header">
+        <div className="table-tools">
+          <label className="table-search">
+            <Icon name="search" size={15} />
+            <input type="search" aria-label="Search cross-source locations" placeholder="Search locations" value={query} onChange={(event) => setQuery(event.target.value)} />
+          </label>
+          <select className="button button--secondary" aria-label="Location match status" value={status} onChange={(event) => setStatus(event.target.value)}>
+            <option value="">All matches</option>
+            <option value="matched">Matched</option>
+            <option value="unmatched">Unmatched</option>
+          </select>
+          <button type="button" className="button button--secondary" disabled={!available} onClick={() => downloadCsv(
+            "itom-location-matches.csv",
+            ["Intune location", "Intune endpoints", "Match status", "Geographic level", "SolarWinds nodes", "Source evidence"],
+            rows.map((item) => [item.location_name, String(item.intune_endpoints), item.status, item.match_level ?? "", String(item.solarwinds_nodes), item.evidence.map((entry) => `${entry.source_label} (${entry.nodes})`).join("; ")]),
+          )}>
+            <Icon name="external" size={15} /> Export location matches
+          </button>
+        </div>
+      </div>
+      <div className="table-wrap">
+        <table>
+          <thead><tr><th>Intune location</th><th>Endpoints</th><th>Geographic match</th><th>SolarWinds nodes</th><th>Source location evidence</th></tr></thead>
+          <tbody>{available && rows.map((item) => (
+            <tr key={item.location_id}>
+              <td><strong>{item.location_name}</strong></td>
+              <td>{number(item.intune_endpoints)}</td>
+              <td title={item.reason ?? undefined}>{item.match_level ? item.match_level[0].toUpperCase() + item.match_level.slice(1) : "Unmatched"}</td>
+              <td>{number(item.solarwinds_nodes)}</td>
+              <td className="match-evidence">{item.evidence.length ? item.evidence.map((entry) => `${entry.source_label} (${entry.nodes})`).join("; ") : item.reason}</td>
+            </tr>
+          ))}</tbody>
+        </table>
+        {(!available || rows.length === 0) && <div className="empty-state">{loading ? "Loading location matches" : !available ? "SolarWinds location evidence unavailable." : "No locations match these filters."}</div>}
+      </div>
+      <div className="table-footer">
+        <span>{available ? `${report.matched_locations} matched / ${report.named_intune_locations} named Intune locations` : "Matching data unavailable"}</span>
+        {available && <span>{number(report.unassigned_intune_endpoints)} unassigned endpoints | {number(report.conflicting_solarwinds_nodes)} conflicting nodes excluded | {report.freshness?.sources?.SOLARWINDS?.status ?? "UNKNOWN"}</span>}
+      </div>
+    </details>
+  );
+}
+
 function App() {
   const [activeNav, setActiveNav] = useState("Home Page");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -420,11 +476,9 @@ function App() {
     const refreshVisibleSnapshot = () => {
       if (!document.hidden) setRevision((value) => value + 1);
     };
-    const timer = window.setInterval(refreshVisibleSnapshot, 60_000);
-    document.addEventListener("visibilitychange", refreshVisibleSnapshot);
+    const timer = window.setInterval(refreshVisibleSnapshot, 600_000);
     return () => {
       window.clearInterval(timer);
-      document.removeEventListener("visibilitychange", refreshVisibleSnapshot);
     };
   }, []);
   const { snapshot, loading, errors } = usePortalSnapshot(revision);
@@ -932,6 +986,8 @@ function App() {
                 </button>
               </aside>
             </section>
+
+            <LocationMatches report={snapshot.locationMatches} loading={loading} />
 
             <section
               ref={homeTableRef}

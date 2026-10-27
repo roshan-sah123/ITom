@@ -5,7 +5,7 @@ Open **Infrastructure → Location Health**. The page uses database-owned locati
 ## What is implemented
 
 - Stable location IDs, reporting levels, database source rules and per-device assignment provenance.
-- Literal longest-prefix matching for Intune and normalized exact aliases for SolarWinds.
+- Literal longest-prefix matching for Intune and normalized aliases for SolarWinds. Exact aliases take priority; a unique country-prefix/separator variant can reuse an existing rule without changing its approval state. Ambiguous aliases and country-unconfirmed targets are not selected through that fallback.
 - More precise known locations are preferred when both source fields agree geographically. Conflicting cities/offices remain unassigned conflicts; generic country labels do not override a known office.
 - Original source locations and device telemetry remain intact. CI details show canonical and raw location separately.
 - Mapping revisions include the resolver version. Every future ingestion batch resolves assignments, including unchanged-health records.
@@ -14,6 +14,14 @@ Open **Infrastructure → Location Health**. The page uses database-owned locati
 - A separate unassigned coverage task, 24 cards initially with progressive disclosure, source scope on each card, specific low-component explanations and numerator/denominator evidence. Issue counts can overlap.
 - Focused inventory replaces the card catalogue while inspecting a location. Back restores filters and keyboard focus. Refresh preserves filters. Inventory shows semantic status badges, last Intune check-in age and readable assignment state; raw location remains in device details and CSV.
 - Source freshness, unassigned/review counts and observed score history. Earlier data is not synthesized; the UI displays only matching policy/mapping revisions.
+
+## Cross-source geographic matches
+
+The current React home page has a separate **Intune and SolarWinds location matches** table. It compares populated Intune reporting locations with active SolarWinds `City`/`ITSM_Location` evidence at city, country or region level. Search, match-status filtering and CSV export retain the source-label evidence and node counts.
+
+This is a read-only geographic report, not an office-link approval or a Combined health score. Office names, canonical IDs, exact assignments and review decisions remain unchanged. Greater Noida and Noida stay distinct. Cloud labels are not treated as physical sites. Contradictory source cities/countries are excluded; countries and regions are not silently promoted to office-level precision. Known city spellings and countries use explicit geography knowledge, not fuzzy similarity or an LLM decision.
+
+Unassigned endpoints are reported separately and are not a named Intune location. A missing SolarWinds snapshot is unavailable, not zero coverage. Locations without unambiguous source evidence stay unmatched. The same SolarWinds node can support multiple geographic reporting rows, such as a country and a city or two offices in that city; do not sum these rows into fleet totals. The freshness metadata identifies the saved source observations, not current physical presence.
 
 ## Reading and acting on a card
 
@@ -37,7 +45,7 @@ Each component requires at least **95% known field coverage**, an eligible nonze
 - **Infrastructure:** `H`.
 - **Combined:** `0.40C + 0.35H + 0.25R`, only with both usable sources.
 
-All score modes require the group's assignments to have no unresolved mapping review. Pending rules with a proposed location retain tentative assignment evidence (`review`); rejected rules do not assign a location. Policy `location-v2` and resolver `assignment-v2` keep these approval rules distinct from earlier observations. Weights and numerical bands have not changed.
+All score modes require the group's assignments to have no unresolved mapping review. Pending rules with a proposed location retain tentative assignment evidence (`review`); rejected rules do not assign a location. Policy `location-v2` and resolver `assignment-v3` keep these approval rules distinct from earlier observations. Weights and numerical bands have not changed.
 
 Green means >=90; Warning means 75–<90, Down/Critical node attention, or a failed latest refresh while the previous successful snapshot is still fresh. Red means <75 or a required component <75. Unavailable scores are grey. These are initial operating bands, not industry-certified targets. Compare scores within the same mode and reporting level. No automatic business-critical outage override is claimed without authoritative service/criticality mapping.
 
@@ -73,6 +81,7 @@ Use **Infrastructure → Location Health → Review location mappings** for Pend
 ## API
 
 - `GET /api/v1/locations`: all reporting locations, scores, source coverage and freshness.
+- `GET /api/v1/locations/matches`: read-only geographic matches, unmatched named Intune locations, source-label evidence, conflicting-node counts and freshness. No assignments or group approvals are written.
 - `GET /api/v1/locations/{id}/score`: one location's components, denominators, reasons and provenance.
 - `GET /api/v1/locations/{id}/devices`: `source`, `issue`, `search`, `page`, `page_size`.
 - `GET /api/v1/locations/{id}/export`: the same source/issue/search selection, CSV formula-safe output.

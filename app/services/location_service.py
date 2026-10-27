@@ -20,16 +20,84 @@ from app.repositories.freshness_repository import FreshnessRepository
 from app.services.telemetry_sources import ORION_STATUS_MAP
 
 POLICY_VERSION = 'location-v2'
-RESOLVER_VERSION = 'assignment-v2'
+RESOLVER_VERSION = 'assignment-v3'
 INTUNE_EXACT_NAME_PREFIX = 'NAME:'
 MIN_FIELD_COVERAGE = 0.95
 ISSUES = {'all','compliant','noncompliant','other_compliance','recent_checkins','old_checkins','old_30d','invalid_checkins',
           'up','down','critical','warning','unmanaged','conflict'}
 SOURCES = {'INTUNE','SOLARWINDS'}
+GEOGRAPHIC_COUNTRIES = {
+    'India': ('INDIA',), 'United States': ('UNITED STATES', 'USA', 'US'),
+    'United Kingdom': ('UNITED KINGDOM', 'UK'), 'Australia': ('AUSTRALIA',),
+    'Brazil': ('BRAZIL',), 'Canada': ('CANADA',), 'Costa Rica': ('COSTA RICA', 'COSTARICA'),
+    'Mexico': ('MEXICO',), 'Poland': ('POLAND',), 'Spain': ('SPAIN',),
+    'Germany': ('GERMANY',), 'Romania': ('ROMANIA',), 'Macedonia': ('MACEDONIA',),
+    'Philippines': ('PHILIPPINES',), 'Singapore': ('SINGAPORE',), 'Thailand': ('THAILAND',),
+    'Colombia': ('COLOMBIA',), 'Bolivia': ('BOLIVIA',), 'Peru': ('PERU',),
+    'United Arab Emirates': ('UNITED ARAB EMIRATES', 'UAE'), 'Malaysia': ('MALAYSIA',),
+}
+GEOGRAPHIC_CITIES = {
+    'Ahmedabad': ('India', ('AHMEDABAD',)), 'Bengaluru': ('India', ('BENGALURU', 'BANGALORE')),
+    'Bhubaneswar': ('India', ('BHUBANESWAR',)), 'Chennai': ('India', ('CHENNAI',)),
+    'Greater Noida': ('India', ('GREATER NOIDA', 'GR NOIDA')), 'Noida': ('India', ('NOIDA',)),
+    'Gurugram': ('India', ('GURUGRAM', 'GURGAON')), 'Hyderabad': ('India', ('HYDERABAD',)),
+    'Kolhapur': ('India', ('KOLHAPUR',)), 'Kolkata': ('India', ('KOLKATA',)),
+    'Mumbai': ('India', ('MUMBAI',)), 'Pune': ('India', ('PUNE',)),
+    'Augusta': ('United States', ('AUGUSTA',)), 'Charleston': ('United States', ('CHARLESTON',)),
+    'Chicago': ('United States', ('CHICAGO',)), 'Dallas': ('United States', ('DALLAS',)),
+    'Irving': ('United States', ('IRVING',)), 'New Jersey': ('United States', ('NEW JERSEY',)),
+    'New York': ('United States', ('NEW YORK',)), 'Santa Clara': ('United States', ('SANTA CLARA',)),
+    'Ashburn': ('United States', ('ASHBURN',)), 'Tulsa': ('United States', ('TULSA',)),
+    'Manila': ('Philippines', ('MANILA',)), 'Makati': ('Philippines', ('MAKATI',)),
+    'Melbourne': ('Australia', ('MELBOURNE',)), 'Bangkok': ('Thailand', ('BANGKOK',)),
+    'Singapore': ('Singapore', ('SINGAPORE',)), 'Dubai': ('United Arab Emirates', ('DUBAI',)),
+    'Kuala Lumpur': ('Malaysia', ('KUALA LUMPUR',)), 'Campinas': ('Brazil', ('CAMPINAS',)),
+    'London': ('United Kingdom', ('LONDON', 'FENCHURCH')), 'Telford': ('United Kingdom', ('TELFORD',)),
+    'Krakow': ('Poland', ('KRAKOW', 'KRAK\u00d3W')), 'Madrid': ('Spain', ('MADRID',)),
+    'Bucharest': ('Romania', ('BUCHAREST',)), 'Craiova': ('Romania', ('CRAIOVA',)),
+    'Skopje': ('Macedonia', ('SKOPJE',)), 'Cochabamba': ('Bolivia', ('COCHABAMBA',)),
+    'Cali': ('Colombia', ('CALI',)), 'Lima': ('Peru', ('LIMA',)),
+    'Hermosillo': ('Mexico', ('HERMOSILLO', 'HERMOSILO')),
+    'Mexico City': ('Mexico', ('MEXICO CITY',)), 'San Luis Potosi': ('Mexico', ('SAN LUIS POTOSI',)),
+    'Heredia': ('Costa Rica', ('HEREDIA',)),
+}
+EUROPEAN_COUNTRIES = {'United Kingdom', 'Poland', 'Spain', 'Germany', 'Romania', 'Macedonia'}
 
 
 def normalized(value):
     return re.sub(r'\s+', ' ', str(value or '').strip()).upper()
+
+
+def solarwinds_alias_key(value):
+    value = re.sub(r'[\W_]+', ' ', normalized(value)).strip()
+    value = re.sub(
+        r'^(?:UNITED STATES|UNITED KINGDOM|COSTA RICA|AUSTRALIA|PHILIPPINES|SINGAPORE|'
+        r'COLOMBIA|MACEDONIA|THAILAND|ROMANIA|BOLIVIA|BRAZIL|MEXICO|POLAND|SPAIN|INDIA|PERU|USA|UK)\s+',
+        '', value,
+    )
+    value = re.sub(r'\bBANGALORE\b', 'BENGALURU', value)
+    return re.sub(r'\bGR NOIDA\b', 'GREATER NOIDA', value)
+
+
+def location_geography(value):
+    tokens = ' ' + re.sub(r'[\W_]+', ' ', normalized(value)).strip() + ' '
+    if any(' ' + cloud + ' ' in tokens for cloud in ['CLOUD', 'AWS', 'AZURE', 'GCP']):
+        return None
+    countries = {country for country,aliases in GEOGRAPHIC_COUNTRIES.items()
+                 if any(' ' + alias + ' ' in tokens for alias in aliases)}
+    cities = {city for city,(_,aliases) in GEOGRAPHIC_CITIES.items()
+              if any(' ' + alias + ' ' in tokens for alias in aliases)}
+    if 'Greater Noida' in cities:
+        cities.discard('Noida')
+    inferred = {GEOGRAPHIC_CITIES[city][0] for city in cities}
+    if len(countries | inferred) > 1:
+        return dict(conflict=True)
+    country = next(iter(countries | inferred), None)
+    city = next(iter(cities)) if len(cities) == 1 else None
+    region = 'Europe' if country in EUROPEAN_COUNTRIES or ' EUROPE ' in tokens else None
+    if country or city or region:
+        return dict(country=country, city=city, region=region, conflict=False)
+    return None
 
 
 def stable_id(kind, value):
@@ -82,6 +150,19 @@ class LocationResolver:
         self.prefixes = [(key,r) for key,r in intune_rules if not key.startswith(INTUNE_EXACT_NAME_PREFIX)]
         self.names = names
         self.aliases = {normalized(r['match_key']):r for r in rules if r['source_system']=='SOLARWINDS'}
+        variants = defaultdict(list)
+        for rule in self.aliases.values():
+            variants[solarwinds_alias_key(rule['match_key'])].append(rule)
+        self.alias_variants = {key:matches[0] for key,matches in variants.items() if key and len(matches)==1}
+
+    def solarwinds_alias(self, value):
+        exact = self.aliases.get(normalized(value))
+        if exact is not None:
+            return exact
+        rule = self.alias_variants.get(solarwinds_alias_key(value))
+        if rule and not self.names.get(rule['location_id'], '').endswith(' / Country unconfirmed'):
+            return rule
+        return None
 
     def resolve(self, source, name, raw=None, attributes=None):
         source = source.upper()
@@ -99,8 +180,8 @@ class LocationResolver:
                     break
         elif source == 'SOLARWINDS':
             attrs = attributes or {}
-            city = self.aliases.get(normalized(attrs.get('city')))
-            itsm = self.aliases.get(normalized(attrs.get('itsm_location')))
+            city = self.solarwinds_alias(attrs.get('city'))
+            itsm = self.solarwinds_alias(attrs.get('itsm_location'))
             city = city if city and city.get('approval_status') != 'REJECTED' else None
             itsm = itsm if itsm and itsm.get('approval_status') != 'REJECTED' else None
             if city and itsm and city['location_id'] and itsm['location_id'] and city['location_id']!=itsm['location_id']:
@@ -113,8 +194,8 @@ class LocationResolver:
                                 location_resolution='conflict',resolution='conflict',location_revision=self.assignment_revision(city['revision']))
                 if b.startswith(a+' / '):
                     city=itsm  # Both agree geographically; use the more precise known rule.
-            raw_rule=self.aliases.get(normalized(raw))
-            rejected_fallback = city or raw_rule or itsm or self.aliases.get(normalized(attrs.get('city'))) or self.aliases.get(normalized(attrs.get('itsm_location')))
+            raw_rule=self.solarwinds_alias(raw)
+            rejected_fallback = city or raw_rule or itsm or self.solarwinds_alias(attrs.get('city')) or self.solarwinds_alias(attrs.get('itsm_location'))
             raw_rule = raw_rule if raw_rule and raw_rule.get('approval_status') != 'REJECTED' else None
             rule = next((r for r in [city,raw_rule,itsm] if r and r['location_id']),city or raw_rule or itsm or rejected_fallback)
         approval = rule.get('approval_status','PENDING') if rule else 'PENDING'
@@ -277,6 +358,62 @@ class LocationService:
             if before==await self.observation_token():
                 return now,locations,cis,fresh
         raise RuntimeError('Location inventory changed during assessment; retry the request')
+
+    async def geographic_matches(self):
+        for _ in range(3):
+            before = await self.observation_token()
+            locations = (await self.session.execute(
+                select(Location.id, Location.name, func.count(ConfigurationItem.id).label('endpoints'))
+                .join(ConfigurationItem, ConfigurationItem.location_id == Location.id)
+                .where(ConfigurationItem.source_system == 'INTUNE', ConfigurationItem.is_active.is_(True))
+                .group_by(Location.id, Location.name).order_by(Location.name))).all()
+            unassigned = await self.session.scalar(select(func.count()).select_from(ConfigurationItem).where(
+                ConfigurationItem.source_system == 'INTUNE', ConfigurationItem.is_active.is_(True),
+                ConfigurationItem.location_id.is_(None)))
+            nodes = (await self.session.execute(select(ConfigurationItem.location, ConfigurationItem.attributes).where(
+                ConfigurationItem.source_system == 'SOLARWINDS', ConfigurationItem.is_active.is_(True)))).all()
+            freshness = await self.freshness()
+            if before == await self.observation_token():
+                break
+        else:
+            raise RuntimeError('Location inventory changed during assessment; retry the request')
+        evidence = []
+        conflicts = 0
+        for node in nodes:
+            attrs = node.attributes or {}
+            labels = {str(value).strip() for value in [node.location, attrs.get('city'), attrs.get('itsm_location')]
+                      if value and str(value).strip()}
+            geographies = [geo for label in labels if (geo := location_geography(label))]
+            countries = {geo.get('country') for geo in geographies if geo.get('country')}
+            cities = {geo.get('city') for geo in geographies if geo.get('city')}
+            if any(geo.get('conflict') for geo in geographies) or len(countries) > 1 or len(cities) > 1:
+                conflicts += 1
+                continue
+            if not countries:
+                continue
+            country = next(iter(countries))
+            evidence.append(dict(country=country, city=next(iter(cities), None),
+                                 region='Europe' if country in EUROPEAN_COUNTRIES else None,
+                                 source_label=node.location or attrs.get('city') or attrs.get('itsm_location')))
+        items = []
+        for location in locations:
+            target = location_geography(location.name)
+            level = 'city' if target and target.get('city') else 'country' if target and target.get('country') else 'region'
+            matches = [node for node in evidence if target and not target.get('conflict')
+                       and target.get(level) and node[level] == target[level]]
+            source_labels = Counter(node['source_label'] for node in matches)
+            items.append(dict(location_id=location.id, location_name=location.name, intune_endpoints=location.endpoints,
+                              status='matched' if matches else 'unmatched', match_level=level if matches else None,
+                              solarwinds_nodes=len(matches),
+                              evidence=[dict(source_label=label, nodes=count) for label,count in sorted(source_labels.items())],
+                              reason=None if matches else 'No unambiguous SolarWinds evidence at this geographic level'))
+        matched = sum(item['status'] == 'matched' for item in items)
+        return dict(items=items, named_intune_locations=len(items), matched_locations=matched,
+                    unmatched_locations=len(items)-matched, unassigned_intune_endpoints=unassigned,
+                    conflicting_solarwinds_nodes=conflicts, solarwinds_total_nodes=len(nodes),
+                    data_available=bool(nodes), freshness=freshness, as_of=datetime.now(timezone.utc).isoformat(),
+                    match_policy='geographic-v1',
+                    scope='Geographic reporting only; office assignments and approvals are unchanged. Nodes may support multiple reporting locations.')
 
     async def catalogue(self):
         now,locations,cis,fresh=await self.score_inputs()

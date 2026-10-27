@@ -79,6 +79,62 @@ def test_group_card_and_endpoint_asset_charts_open_matching_data(revamp_groups_u
     page.close()
 
 
+def test_geographic_location_matches_show_source_evidence_and_filter(revamp_portal_url, browser_context):
+    page = browser_context.new_page()
+    page.goto(revamp_portal_url)
+    page.locator('.location-matches > summary').click()
+    report = page.locator('.location-matches')
+    expect(report.locator('tbody tr')).to_have_count(1)
+    expect(report.locator('tbody')).to_contain_text('Pune')
+    expect(report.locator('tbody')).to_contain_text('City')
+    expect(report.locator('.table-footer')).to_contain_text('1 matched / 1 named Intune locations')
+    page.get_by_label('Location match status').select_option('unmatched')
+    expect(report.locator('tbody tr')).to_have_count(0)
+    expect(report.locator('.empty-state')).to_contain_text('No locations match')
+    page.get_by_label('Location match status').select_option('')
+    page.get_by_role('searchbox', name='Search cross-source locations').fill('Pune')
+    expect(report.locator('tbody tr')).to_have_count(1)
+    with page.expect_download() as download:
+        page.get_by_role('button', name='Export location matches', exact=True).click()
+    rows = list(csv.DictReader(Path(download.value.path()).read_text(encoding='utf-8-sig').splitlines()))
+    assert len(rows) == 1 and rows[0]['Intune location'] == 'Pune'
+    assert rows[0]['SolarWinds nodes'] == '2'
+    page.close()
+
+
+def test_snapshot_refreshes_only_once_every_ten_minutes(revamp_portal_url, browser_context):
+    page = browser_context.new_page()
+    page.clock.install()
+    requests = []
+    page.on('request', lambda request: requests.append(request.url)
+            if request.url.endswith('/api/v1/solarwinds/summary') else None)
+    page.goto(revamp_portal_url)
+    expect(page.locator('.freshness').first).not_to_contain_text('Loading snapshot')
+    assert len(requests) == 1
+
+    page.evaluate('''() => {
+        for (let cycle = 0; cycle < 3; cycle++) {
+            Object.defineProperty(document, 'hidden', {configurable: true, value: true});
+            document.dispatchEvent(new Event('visibilitychange'));
+            Object.defineProperty(document, 'hidden', {configurable: true, value: false});
+            document.dispatchEvent(new Event('visibilitychange'));
+        }
+    }''')
+    page.clock.run_for(100)
+    assert len(requests) == 1
+    page.clock.fast_forward(598_900)
+    assert len(requests) == 1
+    with page.expect_request('**/api/v1/solarwinds/summary'):
+        page.clock.fast_forward(1_000)
+    expect(page.locator('.freshness').first).not_to_contain_text('Loading snapshot')
+    assert len(requests) == 2
+    with page.expect_request('**/api/v1/solarwinds/summary'):
+        page.clock.fast_forward(600_000)
+    expect(page.locator('.freshness').first).not_to_contain_text('Loading snapshot')
+    assert len(requests) == 3
+    page.close()
+
+
 def test_selected_card_refreshes_current_rows_without_losing_filter(drilldown_url, browser_context):
     page = browser_context.new_page()
     page.clock.install()
@@ -104,7 +160,7 @@ def test_selected_card_refreshes_current_rows_without_losing_filter(drilldown_ur
 
     page.route('**/api/v1/solarwinds/nodes?*category=Server*', updated_inventory)
     page.route('**/api/v1/solarwinds/summary', updated_summary)
-    page.clock.fast_forward(60_000)
+    page.clock.fast_forward(600_000)
     expect(page.get_by_label('Source category')).to_have_value('Server')
     expect(page.locator('.inventory-panel .table-footer')).to_contain_text('of 15 records')
     expect(page.locator('tbody')).to_contain_text('UPDATED-SERVER')
@@ -265,20 +321,31 @@ def test_summary_failures_are_unavailable_and_global_search_reads_assets(revamp_
     page.close()
 
 
-def test_completed_source_updates_appear_without_manual_reload(revamp_portal_url, browser_context):
+def test_source_updates_refresh_after_ten_minutes_not_before(revamp_portal_url, browser_context):
     page = browser_context.new_page()
     page.clock.install()
     page.goto(revamp_portal_url)
     expect(page.locator('.kpi-card').first).to_contain_text('3')
-    page.route('**/api/v1/intune/summary', lambda route: route.fulfill(json={
-        'metrics': {'total_managed_devices': 120, 'compliant_devices': 100, 'noncompliant_devices': 20},
-        'decision_metrics': {'confirmed_compliance': {'value': 83.33}},
-        'status_breakdown': {'Compliant': 100, 'NonCompliant': 20},
-        'os_distribution': {'Windows': 120},
-    }))
+    summary_reads = []
+
+    def updated_summary(route):
+        summary_reads.append(route.request.url)
+        route.fulfill(json={
+            'metrics': {'total_managed_devices': 120, 'compliant_devices': 100, 'noncompliant_devices': 20},
+            'decision_metrics': {'confirmed_compliance': {'value': 83.33}},
+            'status_breakdown': {'Compliant': 100, 'NonCompliant': 20},
+            'os_distribution': {'Windows': 120},
+        })
+
+    page.route('**/api/v1/intune/summary', updated_summary)
+    page.clock.fast_forward(540_000)
+    page.wait_for_load_state('networkidle')
+    assert not summary_reads
+    expect(page.locator('.kpi-card').first).to_contain_text('3')
     page.clock.fast_forward(60_000)
     expect(page.locator('.kpi-card').first).to_contain_text('120')
     expect(page.locator('.kpi-card').first).to_contain_text('100 compliant')
+    assert len(summary_reads) == 1
     page.close()
 
 

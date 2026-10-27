@@ -38,6 +38,11 @@ async def catalogue(session=Depends(get_db)):
     return envelope(await read(LocationService(session).catalogue()))
 
 
+@router.get('/matches')
+async def geographic_matches(session=Depends(get_db)):
+    return envelope(await read(LocationService(session).geographic_matches()))
+
+
 @router.get('/{location_id}/score')
 async def score(location_id: str,session=Depends(get_db)):
     return envelope(await read(LocationService(session).one_score(location_id)))
