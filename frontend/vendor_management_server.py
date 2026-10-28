@@ -4,6 +4,7 @@ import base64
 import hashlib
 import io
 import json
+from datetime import datetime, timezone
 from pathlib import Path, PurePosixPath
 import re
 import sqlite3
@@ -103,14 +104,22 @@ def validate_phone(value):
 
 
 def validate_portal(value):
-    if not isinstance(value, dict) or set(value) != {"what_to_do", "how_to_do"}:
-        raise ValueError("Portal details require What to do and How to do only.")
-    result = {}
-    for key, label in (("what_to_do", "What to do"), ("how_to_do", "How to do")):
-        text = email_template(value[key], label, 2000)
-        if not text.strip():
-            raise ValueError(label + " is required.")
-        result[key] = text
+    # Accept the prior single-pair API shape as one step while new clients send a list.
+    if isinstance(value, dict) and set(value) == {"what_to_do", "how_to_do"}:
+        value = [value]
+    if not isinstance(value, list) or not 1 <= len(value) <= MAX_STEPS:
+        raise ValueError("Portal details require 1–30 paired steps.")
+    result = []
+    for position, pair in enumerate(value, 1):
+        if not isinstance(pair, dict) or set(pair) != {"what_to_do", "how_to_do"}:
+            raise ValueError("Each Portal step requires What to do and How to do only.")
+        cleaned = {}
+        for key, label in (("what_to_do", "What to do"), ("how_to_do", "How to do")):
+            text = email_template(pair[key], "Portal step " + str(position) + " " + label, MAX_STEP_TEXT)
+            if not text.strip():
+                raise ValueError("Portal step " + str(position) + " " + label + " is required.")
+            cleaned[key] = text
+        result.append(cleaned)
     return result
 
 
@@ -327,7 +336,12 @@ def initialize(database):
     connection = connect(database)
     try:
         with connection:
-            connection.execute("CREATE TABLE IF NOT EXISTS vm_vendors (vendor_key TEXT PRIMARY KEY, name TEXT NOT NULL)")
+            connection.execute("CREATE TABLE IF NOT EXISTS vm_vendors (vendor_key TEXT PRIMARY KEY, name TEXT NOT NULL, updated_at TEXT, modified_by TEXT)")
+            vendor_columns = {row[1] for row in connection.execute("PRAGMA table_info(vm_vendors)")}
+            if "updated_at" not in vendor_columns:
+                connection.execute("ALTER TABLE vm_vendors ADD COLUMN updated_at TEXT")
+            if "modified_by" not in vendor_columns:
+                connection.execute("ALTER TABLE vm_vendors ADD COLUMN modified_by TEXT")
             connection.execute("CREATE TABLE IF NOT EXISTS vm_vendor_methods (vendor_key TEXT NOT NULL REFERENCES vm_vendors(vendor_key), method_key TEXT NOT NULL, label TEXT NOT NULL, PRIMARY KEY(vendor_key, method_key))")
             connection.execute("CREATE TABLE IF NOT EXISTS vm_method_steps (vendor_key TEXT NOT NULL, method_key TEXT NOT NULL, position INTEGER NOT NULL CHECK(position >= 1), instruction TEXT NOT NULL, PRIMARY KEY(vendor_key, method_key, position), FOREIGN KEY(vendor_key, method_key) REFERENCES vm_vendor_methods(vendor_key, method_key))")
             connection.execute("CREATE TABLE IF NOT EXISTS vm_sops (id TEXT PRIMARY KEY, vendor_key TEXT NOT NULL REFERENCES vm_vendors(vendor_key), name TEXT NOT NULL, mime TEXT NOT NULL, size INTEGER NOT NULL, sha256 TEXT NOT NULL, data BLOB NOT NULL, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)")
@@ -336,6 +350,9 @@ def initialize(database):
             connection.execute("CREATE TABLE IF NOT EXISTS vm_email_details (vendor_key TEXT NOT NULL, method_key TEXT NOT NULL CHECK(method_key = 'email'), address TEXT NOT NULL, subject TEXT NOT NULL, opening TEXT NOT NULL, body TEXT NOT NULL, PRIMARY KEY(vendor_key, method_key), FOREIGN KEY(vendor_key, method_key) REFERENCES vm_vendor_methods(vendor_key, method_key))")
             connection.execute("CREATE TABLE IF NOT EXISTS vm_phone_details (vendor_key TEXT NOT NULL, method_key TEXT NOT NULL CHECK(method_key = 'phone'), number TEXT NOT NULL, contact_name TEXT NOT NULL, account_id TEXT NOT NULL, extension TEXT NOT NULL, notes TEXT NOT NULL, PRIMARY KEY(vendor_key, method_key), FOREIGN KEY(vendor_key, method_key) REFERENCES vm_vendor_methods(vendor_key, method_key))")
             connection.execute("CREATE TABLE IF NOT EXISTS vm_portal_details (vendor_key TEXT NOT NULL, method_key TEXT NOT NULL CHECK(method_key = 'portal'), what_to_do TEXT NOT NULL, how_to_do TEXT NOT NULL, PRIMARY KEY(vendor_key, method_key), FOREIGN KEY(vendor_key, method_key) REFERENCES vm_vendor_methods(vendor_key, method_key))")
+            connection.execute("CREATE TABLE IF NOT EXISTS vm_portal_steps (vendor_key TEXT NOT NULL, method_key TEXT NOT NULL CHECK(method_key = 'portal'), position INTEGER NOT NULL CHECK(position BETWEEN 1 AND 30), what_to_do TEXT NOT NULL, how_to_do TEXT NOT NULL, PRIMARY KEY(vendor_key, method_key, position), FOREIGN KEY(vendor_key, method_key) REFERENCES vm_vendor_methods(vendor_key, method_key))")
+            # Preserve the prior single Portal pair as Step 1. NOT EXISTS makes restart migration idempotent.
+            connection.execute("INSERT INTO vm_portal_steps(vendor_key, method_key, position, what_to_do, how_to_do) SELECT d.vendor_key, d.method_key, 1, d.what_to_do, d.how_to_do FROM vm_portal_details d WHERE NOT EXISTS (SELECT 1 FROM vm_portal_steps s WHERE s.vendor_key = d.vendor_key AND s.method_key = d.method_key)")
             connection.execute("CREATE TABLE IF NOT EXISTS vm_portal_sops (sop_id TEXT PRIMARY KEY REFERENCES vm_sops(id), vendor_key TEXT NOT NULL, method_key TEXT NOT NULL CHECK(method_key = 'portal'), FOREIGN KEY(vendor_key, method_key) REFERENCES vm_vendor_methods(vendor_key, method_key))")
     finally:
         connection.close()
@@ -375,13 +392,16 @@ def save(database, payload):
                                 phone[field] = previous_phone[index]
                     connection.execute("INSERT INTO vm_phone_details(vendor_key, method_key, number, contact_name, account_id, extension, notes) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT(vendor_key, method_key) DO UPDATE SET number=excluded.number, contact_name=excluded.contact_name, account_id=excluded.account_id, extension=excluded.extension, notes=excluded.notes", (key, method_key, phone["number"], phone["contact_name"], phone["account_id"], phone["extension"], phone["notes"]))
                 if "portal_details" in value:
-                    portal = value["portal_details"]
-                    connection.execute("INSERT INTO vm_portal_details(vendor_key, method_key, what_to_do, how_to_do) VALUES (?, ?, ?, ?) ON CONFLICT(vendor_key, method_key) DO UPDATE SET what_to_do=excluded.what_to_do, how_to_do=excluded.how_to_do", (key, method_key, portal["what_to_do"], portal["how_to_do"]))
+                    portal_steps = value["portal_details"]
+                    connection.execute("DELETE FROM vm_portal_steps WHERE vendor_key = ? AND method_key = ?", (key, method_key))
+                    connection.executemany("INSERT INTO vm_portal_steps(vendor_key, method_key, position, what_to_do, how_to_do) VALUES (?, ?, ?, ?, ?)", [(key, method_key, position, pair["what_to_do"], pair["how_to_do"]) for position, pair in enumerate(portal_steps, 1)])
             if sop:
                 sop_id = uuid.uuid4().hex
                 connection.execute("INSERT INTO vm_sops(id, vendor_key, name, mime, size, sha256, data) VALUES (?, ?, ?, ?, ?, ?, ?)", (sop_id, key, sop["name"], sop["mime"], sop["size"], sop["sha256"], sop["data"]))
                 if "portal" in methods:
                     connection.execute("INSERT INTO vm_portal_sops(sop_id, vendor_key, method_key) VALUES (?, ?, 'portal')", (sop_id, key))
+            updated_at = datetime.now(timezone.utc).isoformat(timespec="microseconds").replace("+00:00", "Z")
+            connection.execute("UPDATE vm_vendors SET updated_at = ?, modified_by = NULL WHERE vendor_key = ?", (updated_at, key))
             connection.execute("INSERT INTO vm_submissions(request_id, payload_hash) VALUES (?, ?)", (request_id, payload_hash))
     finally:
         connection.close()
@@ -393,22 +413,22 @@ def load(database):
         # One read snapshot keeps directory methods, instructions and SOP metadata consistent.
         with connection:
             connection.execute("BEGIN")
-            rows = connection.execute("SELECT v.vendor_key, v.name, m.method_key, m.label FROM vm_vendors v LEFT JOIN vm_vendor_methods m ON m.vendor_key = v.vendor_key ORDER BY v.vendor_key, m.method_key").fetchall()
+            rows = connection.execute("SELECT v.vendor_key, v.name, v.updated_at, v.modified_by, m.method_key, m.label FROM vm_vendors v LEFT JOIN vm_vendor_methods m ON m.vendor_key = v.vendor_key ORDER BY v.vendor_key, m.method_key").fetchall()
             steps = connection.execute("SELECT vendor_key, method_key, instruction FROM vm_method_steps ORDER BY vendor_key, method_key, position").fetchall()
             sops = connection.execute("SELECT id, vendor_key, name, mime, size, sha256, created_at FROM vm_sops WHERE rowid IN (SELECT MAX(rowid) FROM vm_sops WHERE id NOT IN (SELECT sop_id FROM vm_portal_sops) GROUP BY vendor_key)").fetchall()
             emails = connection.execute("SELECT vendor_key, address, subject, opening, body FROM vm_email_details").fetchall()
             phones = connection.execute("SELECT vendor_key, number, contact_name, account_id, extension, notes FROM vm_phone_details").fetchall()
-            portals = connection.execute("SELECT vendor_key, what_to_do, how_to_do FROM vm_portal_details").fetchall()
+            portals = connection.execute("SELECT vendor_key, what_to_do, how_to_do FROM vm_portal_steps ORDER BY vendor_key, position").fetchall()
             portal_sops = connection.execute("SELECT s.id, s.vendor_key, s.name, s.mime, s.size, s.sha256, s.created_at FROM vm_sops s JOIN vm_portal_sops p ON p.sop_id = s.id AND p.vendor_key = s.vendor_key WHERE s.rowid IN (SELECT MAX(s2.rowid) FROM vm_sops s2 JOIN vm_portal_sops p2 ON p2.sop_id = s2.id AND p2.vendor_key = s2.vendor_key GROUP BY s2.vendor_key)").fetchall()
     finally:
         connection.close()
     vendors = {}
-    for key, name, method_key, label in rows:
-        value = vendors.setdefault(key, {"name": name, "methods": [], "steps": {}, "sop": None, "email_details": None, "phone_details": None, "portal_details": None, "portal_sop": None})
+    for key, name, updated_at, modified_by, method_key, label in rows:
+        value = vendors.setdefault(key, {"name": name, "methods": [], "steps": {}, "sop": None, "email_details": None, "phone_details": None, "portal_details": None, "portal_sop": None, "updated_at": updated_at, "modified_by": modified_by})
         if method_key is not None:
             value["methods"].append(label)
             value["steps"][label] = []
-    labels = {(key, method_key): label for key, _, method_key, label in rows}
+    labels = {(key, method_key): label for key, _, _, _, method_key, label in rows}
     for key, method_key, text in steps:
         vendors[key]["steps"][labels[(key, method_key)]].append(text)
     for identifier, key, name, mime, size, digest, created_at in sops:
@@ -418,7 +438,9 @@ def load(database):
     for key, number, contact_name, account_id, extension, notes in phones:
         vendors[key]["phone_details"] = {"number": number, "contact_name": contact_name, "account_id": account_id, "extension": extension, "notes": notes}
     for key, what_to_do, how_to_do in portals:
-        vendors[key]["portal_details"] = {"what_to_do": what_to_do, "how_to_do": how_to_do}
+        if vendors[key]["portal_details"] is None:
+            vendors[key]["portal_details"] = []
+        vendors[key]["portal_details"].append({"what_to_do": what_to_do, "how_to_do": how_to_do})
     for identifier, key, name, mime, size, digest, created_at in portal_sops:
         vendors[key]["portal_sop"] = {"id": identifier, "name": name, "mime": mime, "size": size, "sha256": digest, "created_at": created_at}
     return list(vendors.values())
@@ -457,7 +479,7 @@ class VendorServer(ThreadingHTTPServer):
         hashes = {}
         for tag in ("script", "style"):
             hashes[tag] = " ".join("'sha256-" + base64.b64encode(hashlib.sha256(s.encode()).digest()).decode() + "'" for s in re.findall(r"<" + tag + r">(.*?)</" + tag + r">", text, re.S))
-        self.csp = "default-src 'none'; script-src " + hashes["script"] + "; style-src " + hashes["style"] + "; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'"
+        self.csp = "default-src 'none'; script-src " + hashes["script"] + "; style-src " + hashes["style"] + "; img-src 'self' data: blob:; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'"
         super().__init__(("127.0.0.1", port), Handler)
         try:
             initialize(self.database)

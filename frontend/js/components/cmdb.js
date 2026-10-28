@@ -5,6 +5,7 @@
 import { itomApi } from '../api.js?v=6';
 import { formatNumber, formatPercent, escapeHtml, calculateNewPageAnchor, debounce, exportToCsv, fetchAllFilteredRows, generatePaginationControls } from '../utils.js';
 import { openCiDrawer } from './drawer.js';
+import { initializeCmdbInventory } from './cmdbInventory.js?v=3';
 
 let currentCmdbPage = 1;
 let currentCmdbPageSize = 25;
@@ -19,6 +20,10 @@ let cachedTotalCis = 0;
 let globalSearchInitialized = false;
 
 export async function renderCmdb() {
+  const cmdbView = document.getElementById('view-cmdb');
+  const viewport = document.querySelector('.main-viewport');
+  if (cmdbView && viewport && cmdbView.parentElement !== viewport) viewport.append(cmdbView);
+  initializeCmdbInventory();
   await loadCmdbKpis();
   await loadCmdbGrid();
   initCmdbFilters();

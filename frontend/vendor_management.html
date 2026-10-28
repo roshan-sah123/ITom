@@ -1,441 +1,509 @@
+<!-- frontend/vendor_management.html -->
 <!doctype html>
-<html lang="en" dir="ltr">
+<html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="color-scheme" content="light dark">
-<title>Vendor Management · ITom companion</title>
-<style>
-:root{--blue:#135bd6;--nav:#104eb4;--nav-muted:#c6dafb;--bg:#f4f7fb;--surface:#fff;--ink:#172a46;--muted:#60718a;--border:#dce4f0;--tint:#eaf2ff;--good:#107650;--error:#b42332;--shadow:0 8px 30px #1834560a;--white:#fff}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}.shell{min-block-size:100vh;display:grid;grid-template-columns:230px 1fr}.sidebar{background:var(--nav);color:var(--white);padding:30px 18px;display:flex;flex-direction:column;gap:30px}.brand{font-size:27px;font-weight:800;letter-spacing:-1px;padding-inline:14px}.brand small{display:block;font-size:11px;letter-spacing:1.6px;font-weight:500;color:var(--nav-muted);text-transform:uppercase}.nav-label{font-size:11px;text-transform:uppercase;letter-spacing:1.5px;padding-inline:14px;color:var(--nav-muted)}.active{display:flex;align-items:center;gap:12px;background:var(--blue);padding:13px 14px;border-radius:9px;font-weight:600}.vendor-icon{border:1px solid currentColor;border-radius:5px;inline-size:25px;block-size:25px;display:inline-grid;place-items:center;font-size:11px;font-weight:800}.sidebar-note{margin-block-start:auto;padding:14px;font-size:12px;color:var(--nav-muted)}.header{background:var(--surface);border-block-end:1px solid var(--border);padding:19px 36px;display:flex;justify-content:space-between;align-items:center}.crumb{color:var(--muted);font-size:13px}.local{background:var(--tint);color:var(--blue);padding:5px 11px;border-radius:20px;font-size:12px;font-weight:600}main{max-inline-size:1300px;margin-inline:auto;padding:32px 36px}h1{font-size:29px;letter-spacing:-.7px;line-height:1.25;margin:0 0 10px}h2{font-size:18px;margin:0 0 6px}p{margin:0 0 16px}.subtext,.helper{color:var(--muted)}.helper{font-size:12px}.intro{margin-block-end:25px}.grid{display:grid;grid-template-columns:minmax(310px,1fr) minmax(330px,1.1fr);gap:24px;align-items:start}.card{background:var(--surface);border:1px solid var(--border);border-radius:13px;box-shadow:var(--shadow);overflow:hidden}.card-head{padding:23px 25px;border-block-end:1px solid var(--border)}.card-head p{margin:0;font-size:13px;color:var(--muted)}.card-body{padding:24px 25px}label.field-label,legend{display:block;font-size:13px;font-weight:650;margin-block-end:8px}select,input[type=text],input[type=email],input[type=search],textarea{font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--border);border-radius:7px;inline-size:100%;padding:11px 12px}select{min-block-size:46px}.field{margin-block-end:22px}fieldset{border:0;padding:0;margin:0 0 24px;min-inline-size:0}legend{padding:0}.choices{display:grid;grid-template-columns:1fr 1fr;gap:10px}.choice{display:flex;align-items:center;gap:10px;padding:13px;border:1px solid var(--border);border-radius:7px;cursor:pointer;font-size:14px}.choice:has(input:checked){border-color:var(--blue);background:var(--tint)}input[type=checkbox]{accent-color:var(--blue);inline-size:17px;block-size:17px;margin:0}.conditional{margin-block-start:14px}.actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap}button{font:inherit;font-size:13px;font-weight:650;border:1px solid var(--border);border-radius:7px;background:var(--surface);color:var(--ink);padding:11px 17px;cursor:pointer}button.primary{background:var(--blue);border-color:var(--blue);color:var(--white)}button:disabled{opacity:.6;cursor:wait}:focus-visible{outline:3px solid var(--blue);outline-offset:3px}.save-note{font-size:12px;color:var(--muted);margin:15px 0 0}.status{font-size:13px;margin-block-start:14px;min-block-size:21px;white-space:pre-wrap}.status.error{color:var(--error)}.status.success{color:var(--good)}.directory-tools{display:flex;align-items:center;gap:10px;margin-block-end:20px}.directory-tools input{min-inline-size:0}.count{color:var(--muted);font-size:12px;margin-block-end:10px}.vendor-list{display:grid;gap:12px}.vendor-row{border:1px solid var(--border);border-radius:9px;padding:16px;overflow-wrap:anywhere}.vendor-row h3{font-size:15px;margin:0 0 10px;display:flex;gap:10px;align-items:center}.vendor-row .vendor-icon{color:var(--blue);background:var(--tint);flex-shrink:0}.tags{display:flex;gap:7px;flex-wrap:wrap}.tag{font-size:12px;background:var(--tint);color:var(--blue);border-radius:5px;padding:4px 9px;overflow-wrap:anywhere;max-inline-size:100%}.empty{padding:24px 12px;text-align:center;color:var(--muted);border:1px dashed var(--border);border-radius:9px}.footnote{font-size:12px;color:var(--muted);margin-block-start:22px}[hidden]{display:none!important}
-@media(prefers-color-scheme:dark){:root{--bg:#101a2b;--surface:#19263a;--ink:#e5edfa;--muted:#a9b9cf;--border:#344660;--tint:#213c65;--blue:#619dff;--nav:#113575;--good:#72d6ae;--error:#ff9ea8;--shadow:none}.primary{color:var(--bg)!important}}
-@media(max-width:1050px){.shell{grid-template-columns:185px 1fr}.grid{grid-template-columns:1fr}.header{padding:18px 24px}main{padding:28px 24px}}
-@media(max-width:650px){.shell{display:block}.sidebar{padding:15px 20px;gap:14px}.brand{font-size:23px;padding:0}.brand small,.nav-label,.sidebar-note{display:none}.active{padding:9px 12px;inline-size:fit-content}.header{padding:14px 20px}main{padding:24px 16px}.card-head,.card-body{padding:20px}h1{font-size:25px}.choices{grid-template-columns:1fr 1fr}}
-.method-steps{border-block-start:1px solid var(--border);padding-block:18px}.method-steps h3{font-size:15px;margin-block:0 14px}.step-list{list-style:none;padding:0;margin-block:0 16px}.step-list li{margin-block-end:14px}.step-line{display:flex;gap:8px;align-items:center}.step-line input{min-inline-size:0}.step-line button{padding-inline:10px}.vendor-row details{margin-block-end:10px}.vendor-row summary{cursor:pointer;color:var(--blue);font-weight:600}.vendor-row a{display:block;color:var(--blue);margin-block-start:12px}dialog{max-inline-size:590px;inline-size:calc(100% - 32px);max-block-size:85vh;overflow:auto;border:1px solid var(--border);border-radius:13px;background:var(--surface);color:var(--ink);padding:28px;box-shadow:var(--shadow)}dialog::backdrop{background:var(--ink);opacity:.5}dialog h2{margin-block-end:14px}input[type=file]{max-inline-size:100%;font:inherit;color:var(--ink);margin-block-end:12px}
-textarea{resize:vertical;min-block-size:90px}.email-values{margin-block:12px}.email-values dt{font-size:13px;font-weight:650}.email-values dd{margin-inline:0;margin-block:4px 14px;white-space:pre-wrap;overflow-wrap:anywhere}
-.portal-fields{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px}.portal-fields .field{min-inline-size:0}
-@media(max-width:650px){.portal-fields{grid-template-columns:1fr}}
-</style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Vendor Management · ITo  python frontend/vendor_management_server.py  python frontend/vendor_management_server.pym</title>
+  <style>
+    :root{color-scheme:light;--blue:#135bd6;--nav:#104eb4;--bg:#f4f7fb;--surface:#fff;--ink:#172a46;--muted:#60718a;--border:#dce4f0;--tint:#eaf2ff;--good:#107650;--danger:#b42332}
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,"Segoe UI",sans-serif}
+    .shell{min-height:100vh;display:block}
+    aside{display:none}
+    .brand{font-size:25px;font-weight:800;margin:0 12px 32px}
+    .brand small{display:block;color:#c6dafb;font-size:11px;font-weight:500;letter-spacing:1px;text-transform:uppercase}
+    nav{display:grid;gap:8px}
+    nav a{padding:11px 13px;color:#dce9ff;text-decoration:none;border-radius:7px}
+    nav a[aria-current="page"],nav a:hover{background:var(--blue);color:white}
+    .workspace{min-width:0;max-width:1440px;margin-inline:auto}
+    header{height:62px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 32px}
+    header span{color:var(--muted);font-size:13px}
+    main{max-width:1380px;margin:auto;padding:32px}
+    h1{font-size:27px;margin:0 0 5px}
+    h2{font-size:17px;margin:0}
+    .muted{color:var(--muted);margin:0}
+    .section-head{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:22px}.add-vendor-button{display:inline-flex;align-items:center;gap:8px}.add-vendor-icon{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;background:currentColor;color:var(--surface);font-size:17px;line-height:1}.admin-only-actions{display:flex;gap:8px}
+    .surface{background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:24px}
+    .form-wrap{max-width:none}
+    label{display:block;font-size:13px;font-weight:650;margin-bottom:7px}
+    input[type=text],input[type=search],select,textarea{width:100%;padding:11px 12px;border:1px solid var(--border);border-radius:6px;background:white;color:var(--ink);font:inherit} textarea{resize:vertical;min-height:34px} input[readonly]{background:var(--tint);color:var(--muted)}
+    .field{margin-bottom:22px}
+    .entry-table{min-width:880px;table-layout:fixed}.entry-table th:nth-child(1){width:70px}.entry-table th:nth-child(2),.entry-table th:nth-child(3),.entry-table th:nth-child(4){width:calc((100% - 70px)/3)}.step-pair-list{display:grid;gap:8px;margin-bottom:8px}.step-pair{border:1px solid var(--border);border-radius:7px;padding:6px}.step-pair-head{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:4px}.step-pair-fields{display:grid;grid-template-columns:1fr 1fr;gap:6px}.step-pair label{font-size:12px}.step-image{margin-top:5px;padding-top:5px;border-top:1px dashed var(--border)}.step-image input{max-width:100%;font-size:12px}.image-name{display:block;margin-top:3px;color:var(--muted);font-size:12px}.sop-link{display:inline-block;margin-top:7px;color:var(--blue);font-weight:650;overflow-wrap:anywhere}.step-thumb{display:block;max-width:120px;max-height:80px;margin-top:7px;border:1px solid var(--border);border-radius:5px}.step-no{font-size:13px;font-weight:650;color:var(--muted)}.step-pair-head button,#add-step{padding:6px 9px;font-size:12px}
+    button{font:inherit;font-size:13px;font-weight:650;padding:10px 14px;border:1px solid var(--border);border-radius:6px;background:white;color:var(--ink);cursor:pointer}
+    button:hover{border-color:var(--blue);color:var(--blue)}
+    button.primary{background:var(--blue);border-color:var(--blue);color:white}
+    button.danger{color:var(--danger)}
+    button:disabled{opacity:.55;cursor:not-allowed}
+    :focus-visible{outline:3px solid #76a7ff;outline-offset:2px}
+    .actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:22px}
+    .status{min-height:22px;margin-top:12px;font-size:13px;color:var(--good)}
+    .toolbar{display:flex;gap:12px;align-items:center;margin-bottom:16px}
+    .toolbar input{max-width:340px}
+    .table-wrap{overflow:auto}
+    table{width:100%;border-collapse:collapse;min-width:760px}
+    th,td{text-align:left;vertical-align:top;padding:13px 12px;border-bottom:1px solid var(--border)}
+    th{font-size:12px;color:var(--muted);font-weight:650}
+    td{font-size:13px}
+    td ol{margin:6px 0 0;padding-left:20px}
+    td li{margin:3px 0;white-space:pre-wrap;overflow-wrap:anywhere}
+    .state{display:inline-block;padding:3px 8px;border-radius:4px;background:#fff3d6;color:#805600;font-size:12px;font-weight:650}
+    .state.validated{background:#e5f5ed;color:var(--good)}
+    .row-actions{display:flex;gap:6px;flex-wrap:wrap}.step-count{display:inline-flex;align-items:center;gap:6px;padding:5px 9px;border-radius:999px;background:var(--tint);color:var(--blue);font-size:12px;font-weight:650}.submission-dialog{width:min(820px,calc(100% - 32px));max-height:88vh;overflow:auto}.submission-meta{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:16px 0}.meta-card{border:1px solid var(--border);border-radius:7px;padding:11px}.meta-card span{display:block;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.05em}.meta-card strong{display:block;margin-top:3px}.detail-steps{display:grid;gap:12px}.detail-step{border:1px solid var(--border);border-radius:9px;padding:14px;background:linear-gradient(180deg,var(--surface),var(--tint))}.detail-step-head{display:flex;align-items:center;gap:9px;margin-bottom:10px}.step-badge{display:inline-grid;place-items:center;min-width:28px;height:28px;border-radius:50%;background:var(--blue);color:white;font-size:12px;font-weight:750}.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.detail-block{background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:10px}.detail-block h4{margin:0 0 5px;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.04em}.detail-block p{margin:0;white-space:pre-wrap;overflow-wrap:anywhere}.detail-image-button{display:block;width:100%;margin-top:12px;padding:0;border:0;background:transparent;text-align:left}.detail-image-button:hover{border:0}.detail-image{display:block;max-width:100%;max-height:420px;border:1px solid var(--border);border-radius:8px;background:var(--surface);cursor:zoom-in}.detail-file-actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:16px}.detail-file-actions button{color:var(--blue);font-weight:700}
+    .row-actions button{padding:7px 9px}
+    .empty{padding:28px;text-align:center;color:var(--muted)}dialog{width:min(560px,calc(100% - 32px));border:1px solid var(--border);border-radius:9px;background:var(--surface);color:var(--ink);padding:24px}dialog::backdrop{background:#172a467a}dialog h2{margin:0 0 8px}dialog input[type=file]{max-width:100%;margin:12px 0}.dialog-actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:18px}
+    [hidden]{display:none!important}
+    @media(prefers-color-scheme:dark){:root{--bg:#101a2b;--surface:#19263a;--ink:#e5edfa;--muted:#a9b9cf;--border:#344660;--tint:#213c65;--blue:#619dff;--nav:#113575;--good:#72d6ae;--danger:#ff9ea8}input[type=text],input[type=search],select,textarea{background:var(--surface)}}
+    @media(max-width:720px){.submission-meta,.detail-grid{grid-template-columns:1fr}.shell{grid-template-columns:1fr}aside{padding:14px 16px}.brand{margin:0 0 12px;font-size:21px}nav{display:flex;gap:6px}nav a{padding:8px 10px}header{height:52px;padding:0 16px}main{padding:22px 16px}.surface{padding:18px}.step-pair-fields{grid-template-columns:1fr}}
+  </style>
 </head>
 <body>
-<div class="shell">
-<aside class="sidebar" aria-label="Companion page">
-<div class="brand">ITom<small>Operations companion</small></div>
-<div><p class="nav-label">Vendor workspace</p><div class="active" aria-current="page"><span class="vendor-icon" aria-hidden="true">VM</span>Vendor Management</div></div>
-<div class="sidebar-note">Standalone local page.<br>Existing ITom navigation and dashboard are unchanged.</div>
-</aside>
-<div>
-<header class="header"><span class="crumb">IT operations / Vendors</span><span class="local">Local workspace</span></header>
-<main>
-<div class="intro"><h1>Vendor Management</h1><p class="subtext">Keep vendor ticket creation methods organized in one place.</p></div>
-<div class="grid">
-<section class="card" aria-labelledby="add-title">
-<div class="card-head"><h2 id="add-title">Add vendor methods</h2><p>Enter a vendor name, then describe how to create tickets for each method.</p></div>
-<div class="card-body">
-<form id="vendor-form">
-<div class="field"><label class="field-label" for="vendor">Vendor name <span aria-hidden="true">*</span></label>
-<input type="text" id="vendor" maxlength="100" required autocomplete="organization" placeholder="Enter vendor name" aria-describedby="vendor-help">
-<span id="vendor-help" class="helper">1–100 characters. Type any vendor name; there is no vendor type or dropdown.</span></div>
-<fieldset aria-describedby="method-help"><legend>Ticket creation methods *</legend><p class="helper" id="method-help">Select one or more. Portal requires What to do, How to do and a new SOP upload. Phone requires contact details. Email uses template details. Only Other requires a custom name and 1–30 ordered steps.</p>
-<div class="choices"><label class="choice"><input type="checkbox" name="method" value="Phone">Phone</label><label class="choice"><input type="checkbox" name="method" value="Email">Email</label><label class="choice"><input type="checkbox" name="method" value="Portal">Portal</label><label class="choice"><input type="checkbox" name="method" value="Other" id="other-method">Other</label></div>
-<div id="custom-method-wrap" class="conditional" hidden><label class="field-label" for="custom-method">Custom method name *</label><input type="text" id="custom-method" maxlength="80" autocomplete="off" disabled aria-describedby="custom-method-help"><span class="helper" id="custom-method-help">1–80 characters, for example Partner help desk.</span></div></fieldset>
-<div id="method-steps"></div>
-<div class="actions"><button type="submit" class="primary" id="save">Submit</button><button type="reset" id="clear">Clear</button></div>
-<p class="save-note">Submit validates the selected details, then asks about an SOP. Portal requires a new Portal SOP upload each submission, even with other methods selected. Without Portal, the SOP is optional and vendor-wide. Only Other has numbered steps. Selected details replace their previous values; prior notes, unselected methods and SOP revisions are retained. Toggling preserves drafts. Nothing is sent to a vendor.</p>
-<div id="save-status" class="status" role="status" aria-live="polite"></div>
-</form>
-</div></section>
-<section class="card" aria-labelledby="directory-title"><div class="card-head"><h2 id="directory-title">Vendor directory</h2><p>Your saved vendors and their available ticket creation methods.</p></div>
-<div class="card-body"><div class="directory-tools"><label for="search" hidden>Filter vendors and methods</label><input type="search" id="search" placeholder="Filter vendors or methods" aria-label="Filter vendors or methods"><button id="refresh" type="button">Refresh</button></div><div class="count" id="count"></div><div id="directory-status" class="status" role="status" aria-live="polite">Loading saved vendors…</div><div class="vendor-list" id="vendor-list"></div></div></section>
-</div>
-<p class="footnote">Fields revision 2026-10-14 · Portal: What to do / How to do · Phone: contact person name optional · Local single-user companion · Separate vendor_management.db storage · Records configuration only, not actual support tickets. No dashboard integration, vendor API connection, authentication or production multi-user support.</p>
-<noscript><p>JavaScript is required to load and save vendor methods.</p></noscript>
-</main></div></div>
-<dialog id="sop-dialog" aria-labelledby="sop-title" aria-describedby="sop-description">
-<h2 id="sop-title">Do you want to attach SOP?</h2>
-<p id="sop-description">Portal requires a new Portal SOP upload. Without Portal, an optional vendor-wide SOP can be attached. Earlier revisions are retained.</p>
-<div class="actions"><button type="button" class="primary" id="sop-yes">Yes, attach SOP</button><button type="button" id="sop-no">No, submit without SOP</button><button type="button" id="sop-cancel">Cancel</button></div>
-<div id="sop-picker" class="conditional" hidden>
-<label class="field-label" for="sop-file">SOP file *</label>
-<input id="sop-file" type="file" accept=".pdf,.docx,.txt" aria-describedby="sop-help">
-<p class="helper" id="sop-help">PDF, DOCX or UTF-8 TXT · Maximum 10 MiB. Restricted document checks reject macros, active/embedded content and unsafe archives; this is not an antivirus scan. Downloads only, never an inline preview.</p>
-<button type="button" class="primary" id="sop-save">Attach SOP and save</button>
-</div>
-<div id="sop-status" class="status" role="status" aria-live="polite"></div>
-</dialog>
-<script>
-'use strict';
-const $ = id => document.getElementById(id);
-const form = $('vendor-form');
-const methodInputs = Array.from(document.querySelectorAll('input[name="method"]'));
-const stepMethods = methodInputs.map(input => input.value).filter(method => method === 'Other');
-const drafts = Object.fromEntries(stepMethods.map(method => [method, ['']]));
-const emailFields = [
-  {key: 'address', label: 'Vendor support email', limit: 254, required: true, type: 'email'},
-  {key: 'subject', label: 'Subject template', limit: 200, required: true},
-  {key: 'opening', label: 'Opening / header text (greeting)', limit: 2000, multiline: true},
-  {key: 'body', label: 'Message body template', limit: 10000, multiline: true}
-];
-const phoneFields = [
-  {key: 'number', label: 'Phone number', limit: 40, required: true},
-  {key: 'contact_name', label: 'Contact person name', limit: 100, required: false},
-  {key: 'account_id', label: 'Account ID', limit: 100, required: true}
-];
-const portalFields = [
-  {key: 'what_to_do', label: 'What to do', limit: 2000, required: true},
-  {key: 'how_to_do', label: 'How to do', limit: 2000, required: true}
-];
-const dialog = $('sop-dialog');
-let vendors = [];
-let loaded = false;
-let pending = null;
-let saving = false;
-let retry = null;
-function status(id, message, kind = '') { const element = $(id); element.textContent = message; element.className = 'status ' + kind; }
-function selectedMethods() { return methodInputs.filter(input => input.checked).map(input => input.value); }
-function element(tag, text, className) {
-  const node = document.createElement(tag);
-  if (text !== undefined) node.textContent = text;
-  if (className) node.className = className;
-  return node;
-}
-function renderSteps(method, focusIndex = null) {
-  const container = $('steps-' + method);
-  container.replaceChildren();
-  drafts[method].forEach((value, index) => {
-    const row = element('li');
-    const id = 'instruction-' + method + '-' + index;
-    const label = element('label', 'Step ' + (index + 1), 'field-label'); label.htmlFor = id;
-    const line = element('div', undefined, 'step-line');
-    const input = document.createElement('input');
-    input.type = 'text'; input.id = id; input.value = value; input.maxLength = 2000;
-    input.required = true; input.disabled = !selectedMethods().includes(method);
-    input.placeholder = 'Describe what to do';
-    input.addEventListener('input', () => { drafts[method][index] = input.value; });
-    const remove = element('button', 'Remove'); remove.type = 'button';
-    remove.disabled = drafts[method].length === 1;
-    remove.setAttribute('aria-label', 'Remove ' + method + ' step ' + (index + 1));
-    remove.addEventListener('click', () => {
-      drafts[method].splice(index, 1);
-      renderSteps(method, Math.min(index, drafts[method].length - 1));
-    });
-    line.append(input, remove); row.append(label, line); container.append(row);
-  });
-  $('add-step-' + method).disabled = drafts[method].length >= 30;
-  if (focusIndex !== null) $('instruction-' + method + '-' + focusIndex).focus();
-}
-function toggleMethods() {
-  const selected = selectedMethods();
-  const other = selected.includes('Other');
-  $('custom-method-wrap').hidden = !other;
-  $('custom-method').disabled = !other;
-  $('custom-method').required = other;
-  for (const input of methodInputs) {
-    const active = selected.includes(input.value);
-    $('method-section-' + input.value).hidden = !active;
-    if (input.value === 'Other') {
-      for (const field of $('steps-' + input.value).querySelectorAll('input')) field.disabled = !active;
+  <div class="shell">
+    <div class="workspace">
+      <header><span>IT operations / Vendors</span><span>Vendor Management</span></header>
+      <main>
+        <section id="form-view" hidden>
+          <div class="section-head">
+            <div><h1 id="form-title">Add vendor</h1><p class="muted">Complete the vendor details and submit.</p></div>
+          </div>
+          <div class="surface form-wrap">
+            <form id="vendor-form">
+              <div class="table-wrap">
+                <table class="entry-table">
+                  <thead><tr><th>S.No</th><th>Vendor name</th><th>Method</th><th>Steps</th></tr></thead>
+                  <tbody><tr>
+                    <td><label for="entry-sno" hidden>S.No</label><input id="entry-sno" type="text" readonly aria-readonly="true"></td>
+                    <td><label for="vendor-name" hidden>Vendor name</label><input id="vendor-name" type="text" maxlength="120" required autocomplete="organization" placeholder="Vendor name"></td>
+                    <td><label for="vendor-method" hidden>Method</label><input id="vendor-method" type="text" maxlength="120" required autocomplete="off" placeholder="Enter method"></td>
+                    <td><div id="step-list" class="step-pair-list"></div><button id="add-step" type="button">+ Add step</button></td>
+                  </tr></tbody>
+                </table>
+              </div>
+              <div class="actions">
+                <button class="primary" type="submit" id="submit-button">Submit</button>
+                <button type="reset" id="clear-button">Clear</button>
+                <button type="button" id="cancel-edit" hidden>Cancel edit</button>
+                <button type="button" id="back-to-submissions">Back to submissions</button>
+              </div>
+              <div id="form-status" class="status" role="status" aria-live="polite"></div>
+            </form>
+          </div>
+        </section>
+
+        <section id="admin-view">
+          <div class="section-head">
+            <div><h1>Vendor Management</h1><p class="muted">Review submissions, validation details, screenshots and SOPs.</p></div>
+            <button id="open-vendor-form" type="button" class="primary add-vendor-button"><span class="add-vendor-icon" aria-hidden="true">+</span> Fill vendor form</button>
+          </div>
+          <div class="surface">
+            <div class="toolbar">
+              <input id="search" type="search" placeholder="Search vendors" aria-label="Search vendors">
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>S.No</th><th>Vendor name</th><th>Method</th><th>Steps</th><th>Validation</th><th>Validated on</th><th>Validated by</th><th>Actions</th></tr></thead>
+                <tbody id="vendor-rows"></tbody>
+              </table>
+              <div id="empty-state" class="empty" hidden>No vendor entries.</div>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <dialog id="submission-dialog" class="submission-dialog" aria-labelledby="submission-title">
+    <h2 id="submission-title">Submission details</h2>
+    <div id="submission-content"></div>
+    <div class="dialog-actions"><button type="button" class="primary" id="submission-close">Close</button></div>
+  </dialog>
+
+  <dialog id="sop-dialog" aria-labelledby="sop-title">
+    <h2 id="sop-title">Do you want to attach SOP?</h2>
+    <p class="muted">Attach a PDF, DOCX or TXT file, or submit without an SOP.</p>
+    <div id="sop-picker" hidden>
+      <label for="sop-file">SOP file *</label>
+      <input id="sop-file" type="file" accept=".pdf,.docx,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain">
+      <span id="sop-name" class="image-name"></span>
+    </div>
+    <div class="dialog-actions">
+      <button type="button" class="primary" id="sop-yes">Yes, attach SOP</button>
+      <button type="button" id="sop-no">No, submit</button>
+      <button type="button" id="sop-cancel">Cancel</button>
+      <button type="button" class="primary" id="sop-save" hidden>Attach SOP and submit</button>
+    </div>
+  </dialog>
+
+  <script>
+    'use strict';
+
+    // Frontend prototype only: localStorage and the Admin view do not provide admin security.
+    const STORAGE_KEY = 'itom-vendor-management-prototype';
+    const byId = id => document.getElementById(id);
+    const form = byId('vendor-form');
+    let records = loadRecords();
+    let draftSteps = [{whatToDo:'', howToDo:'', image:null}];
+    let editingId = null;
+    let pendingSubmission = null;
+
+    function normalizeRecord(record) {
+      const rawSteps = Array.isArray(record.steps) ? record.steps : [];
+      const steps = rawSteps.map(step => typeof step === 'string'
+        ? {whatToDo: step, howToDo: '', image:null}
+        : {whatToDo: String(step.whatToDo || ''), howToDo: String(step.howToDo || ''), image: step.image && typeof step.image.data === 'string' ? step.image : null});
+      return {...record, method: typeof record.method === 'string' ? record.method : '', steps: steps.length ? steps : [{whatToDo:'', howToDo:'', image:null}], sop: record.sop && typeof record.sop.data === 'string' ? record.sop : null};
     }
-  }
-  for (const [method, fields] of [['Email', emailFields], ['Phone', phoneFields], ['Portal', portalFields]]) {
-    for (const field of fields) {
-      const input = $(method.toLowerCase() + '-' + field.key);
-      input.disabled = !selected.includes(method);
-      input.required = selected.includes(method) && !!field.required;
-    }
-  }
-}
-function buildSteps() {
-  const target = $('method-steps');
-  for (const checkbox of methodInputs) {
-    const method = checkbox.value;
-    const section = element('section', undefined, 'method-steps'); section.id = 'method-section-' + method;
-    const title = element('h3', method === 'Other' ? 'Other · Ticket creation steps' : method + (method === 'Portal' ? ' · Required SOP' : ' ticket details')); title.id = 'method-title-' + method;
-    section.setAttribute('aria-labelledby', title.id);
-    section.append(title);
-    if (method === 'Portal') {
-      section.append(element('p', 'Portal requires a new SOP upload each submission; no numbered steps are required. Submit, then choose Yes to attach a PDF, DOCX or TXT (maximum 10 MiB). Existing SOPs do not replace this upload.', 'helper'));
-      const help = element('p', 'What to do and How to do are both required, up to 2,000 characters each. Newlines and tabs are allowed.', 'helper');
-      help.id = 'portal-help'; section.append(help);
-      const cells = element('div', undefined, 'portal-fields');
-      for (const field of portalFields) {
-        const wrapper = element('div', undefined, 'field');
-        const label = element('label', field.label + ' *', 'field-label');
-        label.htmlFor = 'portal-' + field.key;
-        const input = element('textarea'); input.id = label.htmlFor;
-        input.maxLength = field.limit; input.rows = 5;
-        input.setAttribute('aria-describedby', 'portal-help');
-        wrapper.append(label, input); cells.append(wrapper);
-      }
-      section.append(cells);
-    }
-    if (method === 'Email' || method === 'Phone') {
-      const prefix = method.toLowerCase() + '-';
-      section.append(element('p', method + ' uses the details below; no numbered steps are required.', 'helper'));
-      const help = element('p', method === 'Email' ? 'Store a reusable email template, not an outgoing email. Opening / header means greeting text, not SMTP headers. Address and subject are required; greeting and body are optional.' : 'Phone number and account ID are required; contact person name is optional. Number: 3–20 digits, optional leading +, spaces, parentheses, dots or hyphens. No call is made.', 'helper');
-      help.id = prefix + 'help'; section.append(help);
-      for (const field of method === 'Email' ? emailFields : phoneFields) {
-        const wrapper = element('div', undefined, 'field');
-        const label = element('label', field.label + (field.required ? ' *' : ' (optional)'), 'field-label');
-        label.htmlFor = prefix + field.key;
-        const input = element(field.multiline ? 'textarea' : 'input');
-        input.id = label.htmlFor; input.maxLength = field.limit;
-        if (field.multiline) input.rows = field.key === 'body' ? 6 : 3;
-        else input.type = field.type || 'text';
-        input.setAttribute('aria-describedby', prefix + 'help');
-        input.setAttribute('autocomplete', 'off');
-        wrapper.append(label, input); section.append(wrapper);
+
+    function loadRecords() {
+      try {
+        const value = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+        return Array.isArray(value) ? value.map(normalizeRecord) : [];
+      } catch {
+        return [];
       }
     }
-    target.append(section);
-    if (method === 'Other') {
-      const list = element('ol', undefined, 'step-list'); list.id = 'steps-' + method;
-      const add = element('button', '+ Add step'); add.type = 'button'; add.id = 'add-step-' + method;
-      add.setAttribute('aria-label', 'Add ' + method + ' step');
-      add.addEventListener('click', () => {
-        if (drafts[method].length >= 30) return;
-        drafts[method].push(''); renderSteps(method, drafts[method].length - 1);
+
+    function saveRecords() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+    }
+
+    function readFile(file, allowedTypes, limit, label) {
+      return new Promise((resolve, reject) => {
+        if (!file) return reject(new Error(`Choose ${label}.`));
+        if (!allowedTypes.includes(file.type) || file.size > limit) return reject(new Error(`${label} type or size is not allowed.`));
+        const reader = new FileReader();
+        reader.onload = () => resolve({name:file.name, type:file.type, size:file.size, data:reader.result});
+        reader.onerror = () => reject(new Error(`Could not read ${label}.`));
+        reader.readAsDataURL(file);
       });
-      section.append(list, add); renderSteps(method);
     }
-  }
-  toggleMethods();
-}
-function cleanCustom(input, label, limit, allowEmpty = false) {
-  const raw = input.value;
-  if (/\p{C}/u.test(raw)) throw new Error(label + ' cannot contain control or invisible format characters.');
-  const text = raw.normalize('NFKC').trim().replace(/\s+/gu, ' ');
-  if ((!text && !allowEmpty) || Array.from(text).length > limit) throw new Error(label + ' must contain ' + (allowEmpty ? '0' : '1') + '–' + limit + ' characters.');
-  return text;
-}
-function collectEmail() {
-  const raw = $('email-address').value;
-  if (/\p{C}/u.test(raw)) throw new Error('Vendor support email cannot contain controls.');
-  const address = raw.normalize('NFKC').trim();
-  const parts = address.split('@');
-  const local = parts[0]; const domain = parts[1] || '';
-  const labels = domain.split('.');
-  if (parts.length !== 2 || address.length > 254 || local.length > 64 ||
-      !/^[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+)*$/.test(local) ||
-      domain.length > 253 || labels.length < 2 ||
-      labels.some(label => !/^[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?$/.test(label)) ||
-      !/[A-Za-z]/.test(labels[labels.length - 1])) {
-    throw new Error('Enter one plain vendor support email address, for example support@vendor.com.');
-  }
-  const value = {address: local + '@' + domain.toLowerCase(), subject: cleanCustom($('email-subject'), 'Subject template', 200)};
-  for (const field of emailFields.filter(field => field.multiline)) {
-    const text = $('email-' + field.key).value.normalize('NFKC').replace(/\r\n?/g, '\n');
-    if (/\p{C}/u.test(text.replace(/[\n\t]/g, '')) || Array.from(text).length > field.limit) {
-      throw new Error(field.label + ' allows newlines/tabs, no other controls, and at most ' + field.limit + ' characters.');
+
+    function nextSerial() {
+      return records.reduce((max, record) => Math.max(max, Number(record.sno) || 0), 0) + 1;
     }
-    value[field.key] = text;
-  }
-  return value;
-}
-function collectPhone() {
-  const number = cleanCustom($('phone-number'), 'Phone number', 40);
-  const digits = (number.match(/[0-9]/g) || []).length;
-  if (!/^\+?[0-9(][0-9 () .-]*[0-9)]$/.test(number) || digits < 3 || digits > 20) {
-    throw new Error('Phone number needs 3–20 digits; use an optional leading +, spaces, parentheses, dots or hyphens.');
-  }
-  const value = {number};
-  for (const key of ['contact_name', 'account_id']) {
-    value[key] = cleanCustom($('phone-' + key), key === 'contact_name' ? 'Contact person name' : 'Account ID', 100, key === 'contact_name');
-    if (value[key] && !/[\p{L}\p{N}]/u.test(value[key])) throw new Error('Contact person name and account ID must contain a letter or digit when provided.');
-  }
-  return value;
-}
-function collectPortal() {
-  const value = {};
-  for (const field of portalFields) {
-    const text = $('portal-' + field.key).value.normalize('NFKC').replace(/\r\n?/g, '\n');
-    if (!text.trim() || /\p{C}/u.test(text.replace(/[\n\t]/g, '')) || Array.from(text).length > field.limit) {
-      throw new Error(field.label + ' is required, allows newlines/tabs, no other controls, and at most ' + field.limit + ' characters.');
+
+    function makeButton(text, action, label, className = '') {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.textContent = text;
+      button.setAttribute('aria-label', label);
+      if (className) button.className = className;
+      button.addEventListener('click', action);
+      return button;
     }
-    value[field.key] = text;
-  }
-  return value;
-}
-function collectPayload() {
-  const methods = selectedMethods();
-  if (!methods.length) throw new Error('Select at least one ticket creation method.');
-  const custom = methods.includes('Other') ? cleanCustom($('custom-method'), 'Custom method', 80) : '';
-  if (['email', 'phone', 'portal'].includes(custom.toLowerCase())) throw new Error('Select the Email, Phone or Portal checkbox instead of naming Other after a built-in method.');
-  if (methods.some(method => method !== 'Other' && method.toLowerCase() === custom.toLowerCase())) {
-    throw new Error('Other duplicates a selected method. Use a distinct method name.');
-  }
-  const steps = {};
-  for (const method of methods.filter(method => method === 'Other')) {
-    steps[method] = drafts[method].map((text, index) => cleanCustom({value: text}, method + ' step ' + (index + 1), 2000));
-  }
-  return {vendor: cleanCustom($('vendor'), 'Vendor name', 100), methods, custom_method: custom, steps, ...(methods.includes('Email') ? {email_details: collectEmail()} : {}), ...(methods.includes('Phone') ? {phone_details: collectPhone()} : {}), ...(methods.includes('Portal') ? {portal_details: collectPortal()} : {})};
-}
-function render() {
-  const list = $('vendor-list'); list.replaceChildren();
-  const query = $('search').value.trim().toLocaleLowerCase();
-  const visible = vendors.filter(v => [v.name, ...v.methods].join(' ').toLocaleLowerCase().includes(query));
-  $('count').textContent = loaded ? visible.length + ' shown · ' + vendors.length + ' saved vendors' : '';
-  if (!loaded) return;
-  if (!visible.length) { list.append(element('div', vendors.length ? 'No vendors match your filter.' : 'No vendors yet. Add your first vendor using the form.', 'empty')); return; }
-  for (const vendor of visible) {
-    const row = element('article', undefined, 'vendor-row');
-    const heading = element('h3');
-    const icon = element('span', 'VM', 'vendor-icon'); icon.setAttribute('aria-hidden', 'true');
-    heading.append(icon, element('span', vendor.name)); row.append(heading);
-    for (const method of vendor.methods) {
-      const details = element('details');
-      details.append(element('summary', method));
-      const isEmail = method.normalize('NFKC').trim().toLowerCase() === 'email';
-      if (isEmail) {
-        if (vendor.email_details) {
-          const values = element('dl', undefined, 'email-values');
-          for (const field of emailFields) {
-            values.append(element('dt', field.label), element('dd', vendor.email_details[field.key] || 'Not provided'));
-          }
-          details.append(values);
-        } else {
-          details.append(element('p', 'Legacy Email method — email details not yet recorded.', 'helper'));
+
+    function renderSteps(focusIndex = null) {
+      const list = byId('step-list');
+      list.replaceChildren();
+      draftSteps.forEach((value, index) => {
+        const row = document.createElement('div');
+        row.className = 'step-pair';
+        const head = document.createElement('div');
+        head.className = 'step-pair-head';
+        const number = document.createElement('span');
+        number.className = 'step-no';
+        number.textContent = `Step ${index + 1}`;
+        const remove = makeButton('Remove', () => {
+          if (draftSteps.length === 1) return;
+          draftSteps.splice(index, 1);
+          renderSteps(Math.min(index, draftSteps.length - 1));
+        }, `Remove step ${index + 1}`, 'danger');
+        remove.disabled = draftSteps.length === 1;
+        head.append(number, remove);
+        const fields = document.createElement('div');
+        fields.className = 'step-pair-fields';
+        for (const [key, labelText] of [['whatToDo','What to do'],['howToDo','How to do']]) {
+          const field = document.createElement('div');
+          const id = `step-${key}-${index}`;
+          const label = document.createElement('label');
+          label.htmlFor = id;
+          label.textContent = `${labelText} *`;
+          const input = document.createElement('textarea');
+          input.id = id;
+          input.required = true;
+          input.maxLength = 2000;
+          input.rows = 1;
+          input.value = value[key];
+          input.addEventListener('input', () => { draftSteps[index][key] = input.value; });
+          field.append(label, input);
+          fields.append(field);
         }
-      }
-      const canonical = method.normalize('NFKC').trim().toLowerCase();
-      if (canonical === 'phone') {
-        if (vendor.phone_details) {
-          const values = element('dl', undefined, 'email-values');
-          for (const field of phoneFields) values.append(element('dt', field.label), element('dd', vendor.phone_details[field.key] || 'Not provided'));
-          details.append(values);
-        } else details.append(element('p', 'Legacy Phone method — phone details not yet recorded.', 'helper'));
-      }
-      if (canonical === 'portal') {
-        if (vendor.portal_details) {
-          const values = element('dl', undefined, 'email-values');
-          for (const field of portalFields) values.append(element('dt', field.label), element('dd', vendor.portal_details[field.key]));
-          details.append(values);
-        } else details.append(element('p', 'Legacy Portal method — What to do and How to do not yet recorded.', 'helper'));
-        if (vendor.portal_sop && /^[0-9a-f]{32}$/.test(vendor.portal_sop.id)) {
-          const link = element('a', 'Download current Portal SOP: ' + vendor.portal_sop.name);
-          link.href = '/api/sops/' + vendor.portal_sop.id; link.download = vendor.portal_sop.name;
-          details.append(link);
-        } else details.append(element('p', 'Legacy Portal method — Portal SOP not yet recorded. A vendor-wide SOP does not count as a Portal SOP.', 'helper'));
-      }
-      const instructions = vendor.steps[method] || [];
-      if (['email', 'phone', 'portal'].includes(canonical)) {
-        if (instructions.length) {
-          details.append(element('p', 'Prior ' + method + ' notes (read-only) — retained for reference; no step entry required.', 'helper'));
-          const notes = element('ul');
-          for (const text of instructions) notes.append(element('li', text));
-          details.append(notes);
+        const imageWrap = document.createElement('div');
+        imageWrap.className = 'step-image';
+        const imageLabel = document.createElement('label');
+        imageLabel.htmlFor = `step-image-${index}`;
+        imageLabel.textContent = 'Screenshot / image (optional)';
+        const imageInput = document.createElement('input');
+        imageInput.type = 'file'; imageInput.id = imageLabel.htmlFor; imageInput.accept = 'image/png,image/jpeg,image/webp';
+        const imageName = document.createElement('span'); imageName.className = 'image-name';
+        imageName.textContent = value.image ? value.image.name : 'PNG, JPEG or WebP, maximum 1.5 MB';
+        imageInput.addEventListener('change', async () => {
+          try {
+            value.image = imageInput.files[0] ? await readFile(imageInput.files[0], ['image/png','image/jpeg','image/webp'], 1572864, 'an image') : null;
+            imageName.textContent = value.image ? value.image.name : 'PNG, JPEG or WebP, maximum 1.5 MB';
+            byId('form-status').textContent = '';
+          } catch (error) { imageInput.value = ''; value.image = null; imageName.textContent = error.message; }
+        });
+        imageWrap.append(imageLabel, imageInput, imageName);
+        row.append(head, fields, imageWrap);
+        list.append(row);
+      });
+      byId('add-step').disabled = draftSteps.length >= 30;
+      if (focusIndex !== null) byId(`step-whatToDo-${focusIndex}`)?.focus();
+    }
+
+    function showSubmissions() {
+      byId('form-view').hidden = true;
+      byId('admin-view').hidden = false;
+      renderAdmin();
+    }
+
+    function showForm(editing = false) {
+      byId('admin-view').hidden = true;
+      byId('form-view').hidden = false;
+      byId('form-title').textContent = editing ? 'Edit vendor' : 'Add vendor';
+      if (!editing) resetForm();
+    }
+
+    function appendStepPairs(cell, pairs) {
+      const list = document.createElement('ol');
+      pairs.forEach(pair => {
+        const item = document.createElement('li');
+        const what = document.createElement('div');
+        const how = document.createElement('div');
+        what.textContent = `What to do: ${pair.whatToDo || 'Not recorded'}`;
+        how.textContent = `How to do: ${pair.howToDo || 'Not recorded'}`;
+        item.append(what, how);
+        if (pair.image && pair.image.data) {
+          const image = document.createElement('img'); image.className = 'step-thumb'; image.src = pair.image.data; image.alt = pair.image.name || 'Step image';
+          item.append(image);
         }
+        list.append(item);
+      });
+      cell.append(list);
+    }
+
+    function renderAdmin() {
+      const body = byId('vendor-rows');
+      body.replaceChildren();
+      const query = byId('search').value.trim().toLocaleLowerCase();
+      const visible = records.filter(record =>
+        [record.name, record.method, ...record.steps.flatMap(step => [step.whatToDo, step.howToDo])].join(' ').toLocaleLowerCase().includes(query)
+      );
+
+      byId('empty-state').hidden = visible.length !== 0;
+      for (const record of visible) {
+        const row = document.createElement('tr');
+        const serial = document.createElement('td'); serial.textContent = record.sno;
+        const vendor = document.createElement('td'); vendor.textContent = record.name;
+        const method = document.createElement('td'); method.textContent = record.method || 'Not recorded';
+        const steps = document.createElement('td');
+        const count = document.createElement('span'); count.className = 'step-count';
+        count.textContent = `${record.steps.length} step${record.steps.length === 1 ? '' : 's'}${record.sop ? ' · SOP' : ''}`;
+        steps.append(count);
+        const validation = document.createElement('td');
+        const badge = document.createElement('span');
+        badge.className = `state${record.validatedOn ? ' validated' : ''}`;
+        badge.textContent = record.validatedOn ? 'Validated' : 'Pending';
+        validation.append(badge);
+        const validatedOn = document.createElement('td');
+        validatedOn.textContent = record.validatedOn ? new Date(record.validatedOn).toLocaleString() : '—';
+        const validatedBy = document.createElement('td'); validatedBy.textContent = record.validatedBy || '—';
+        const actions = document.createElement('td'); actions.className = 'row-actions';
+        actions.append(
+          makeButton('Open submission', () => openSubmission(record.id), `Open submission ${record.name}`),
+          makeButton('Edit', () => editRecord(record.id), `Edit ${record.name}`),
+          makeButton('Validate', () => validateRecord(record.id), `Validate ${record.name}`),
+          makeButton('Delete', () => deleteRecord(record.id), `Delete ${record.name}`, 'danger')
+        );
+        row.append(serial, vendor, method, steps, validation, validatedOn, validatedBy, actions);
+        body.append(row);
+      }
+    }
+
+    function blobUrlFromDataUrl(dataUrl) {
+      const match = /^data:([^;,]+);base64,(.+)$/s.exec(dataUrl || '');
+      if (!match) throw new Error('The attachment data is unavailable.');
+      const bytes = atob(match[2]);
+      const array = new Uint8Array(bytes.length);
+      for (let index = 0; index < bytes.length; index += 1) array[index] = bytes.charCodeAt(index);
+      return URL.createObjectURL(new Blob([array], {type: match[1]}));
+    }
+
+    function openAttachment(dataUrl) {
+      try {
+        const url = blobUrlFromDataUrl(dataUrl);
+        const opened = window.open(url, '_blank', 'noopener');
+        if (!opened) throw new Error('Allow pop-ups to view this attachment.');
+        setTimeout(() => URL.revokeObjectURL(url), 60000);
+      } catch (error) { byId('form-status').textContent = error.message; }
+    }
+
+    function downloadAttachment(dataUrl, name) {
+      try {
+        const url = blobUrlFromDataUrl(dataUrl);
+        const link = document.createElement('a'); link.href = url; link.download = name || 'attachment';
+        document.body.append(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+      } catch (error) { byId('form-status').textContent = error.message; }
+    }
+
+    function addMeta(container, label, value) {
+      const card = document.createElement('div'); card.className = 'meta-card';
+      const caption = document.createElement('span'); caption.textContent = label;
+      const text = document.createElement('strong'); text.textContent = value || 'Not recorded';
+      card.append(caption, text); container.append(card);
+    }
+
+    function openSubmission(id) {
+      const record = records.find(item => item.id === id);
+      if (!record) return;
+      const content = byId('submission-content'); content.replaceChildren();
+      const meta = document.createElement('div'); meta.className = 'submission-meta';
+      addMeta(meta, 'S.No', String(record.sno));
+      addMeta(meta, 'Vendor name', record.name);
+      addMeta(meta, 'Method', record.method);
+      addMeta(meta, 'Validation', record.validatedOn ? 'Validated' : 'Pending');
+      addMeta(meta, 'Validated on', record.validatedOn ? new Date(record.validatedOn).toLocaleString() : 'Not validated');
+      addMeta(meta, 'Validated by', record.validatedBy || 'Not validated');
+      content.append(meta);
+      const title = document.createElement('h3'); title.textContent = 'Steps'; content.append(title);
+      const stepHost = document.createElement('div'); stepHost.className = 'detail-steps';
+      record.steps.forEach((pair, index) => {
+        const card = document.createElement('article'); card.className = 'detail-step';
+        const head = document.createElement('div'); head.className = 'detail-step-head';
+        const badge = document.createElement('span'); badge.className = 'step-badge'; badge.textContent = String(index + 1);
+        const heading = document.createElement('strong'); heading.textContent = `Step ${index + 1}`;
+        head.append(badge, heading);
+        const grid = document.createElement('div'); grid.className = 'detail-grid';
+        for (const [label, value] of [['What to do', pair.whatToDo], ['How to do', pair.howToDo]]) {
+          const block = document.createElement('div'); block.className = 'detail-block';
+          const blockTitle = document.createElement('h4'); blockTitle.textContent = label;
+          const text = document.createElement('p'); text.textContent = value || 'Not recorded';
+          block.append(blockTitle, text); grid.append(block);
+        }
+        card.append(head, grid);
+        if (pair.image && pair.image.data) {
+          const imageTitle = document.createElement('h4'); imageTitle.textContent = 'Screenshot / image'; imageTitle.style.marginBottom = '6px';
+          const imageButton = document.createElement('button'); imageButton.type = 'button'; imageButton.className = 'detail-image-button';
+          imageButton.setAttribute('aria-label', `Open ${pair.image.name || `Step ${index + 1} screenshot`}`);
+          const image = document.createElement('img'); image.className = 'detail-image'; image.src = pair.image.data; image.alt = pair.image.name || `Step ${index + 1} screenshot`;
+          imageButton.append(image); imageButton.addEventListener('click', () => openAttachment(pair.image.data));
+          card.append(imageTitle, imageButton);
+        }
+        stepHost.append(card);
+      });
+      content.append(stepHost);
+      if (record.sop && record.sop.data) {
+        const fileActions = document.createElement('div'); fileActions.className = 'detail-file-actions';
+        const view = makeButton(`View SOP: ${record.sop.name}`, () => openAttachment(record.sop.data), `View SOP ${record.sop.name}`);
+        const download = makeButton('Download SOP', () => downloadAttachment(record.sop.data, record.sop.name), `Download SOP ${record.sop.name}`);
+        fileActions.append(view, download); content.append(fileActions);
+      }
+      byId('submission-dialog').showModal();
+    }
+
+    byId('submission-close').addEventListener('click', () => byId('submission-dialog').close());
+
+    function editRecord(id) {
+      const record = records.find(item => item.id === id);
+      if (!record) return;
+      editingId = id;
+      byId('entry-sno').value = record.sno;
+      byId('vendor-name').value = record.name;
+      byId('vendor-method').value = record.method || '';
+      draftSteps = record.steps.map(step => ({...step}));
+      byId('submit-button').textContent = 'Save changes';
+      byId('cancel-edit').hidden = false;
+      byId('form-status').textContent = '';
+      showForm(true);
+      renderSteps();
+      byId('vendor-name').focus();
+    }
+
+    function validateRecord(id) {
+      const record = records.find(item => item.id === id);
+      if (!record) return;
+      const name = prompt('Validated by');
+      if (!name || !name.trim()) return;
+      record.validatedOn = new Date().toISOString();
+      record.validatedBy = name.trim();
+      saveRecords();
+      renderAdmin();
+    }
+
+    function deleteRecord(id) {
+      const record = records.find(item => item.id === id);
+      if (!record || !confirm(`Delete ${record.name}?`)) return;
+      records = records.filter(item => item.id !== id);
+      saveRecords();
+      renderAdmin();
+    }
+
+    function resetForm() {
+      editingId = null;
+      draftSteps = [{whatToDo:'', howToDo:'', image:null}];
+      byId('submit-button').textContent = 'Submit';
+      byId('cancel-edit').hidden = true;
+      form.reset();
+      byId('entry-sno').value = nextSerial();
+      renderSteps();
+    }
+
+    byId('add-step').addEventListener('click', () => {
+      if (draftSteps.length >= 30) return;
+      draftSteps.push({whatToDo:'', howToDo:'', image:null});
+      renderSteps(draftSteps.length - 1);
+    });
+
+    byId('cancel-edit').addEventListener('click', resetForm);
+    byId('clear-button').addEventListener('click', () => setTimeout(resetForm, 0));
+    byId('search').addEventListener('input', renderAdmin);
+    byId('open-vendor-form').addEventListener('click', () => showForm(false));
+    byId('back-to-submissions').addEventListener('click', showSubmissions);
+
+    function persistSubmission(sop) {
+      const {name, method, steps} = pendingSubmission;
+      if (editingId) {
+        const record = records.find(item => item.id === editingId);
+        if (record) {
+          record.name = name; record.method = method; record.steps = steps; record.sop = sop || record.sop || null;
+          record.validatedOn = null; record.validatedBy = '';
+        }
+        byId('form-status').textContent = 'Changes saved in this browser.';
       } else {
-        const list = element('ol');
-        for (const text of instructions) list.append(element('li', text));
-        details.append(instructions.length ? list : element('p', 'Legacy method — steps not yet recorded.', 'helper'));
+        records.push({id:crypto.randomUUID(), sno:nextSerial(), name, method, steps, sop:sop || null, validatedOn:null, validatedBy:''});
+        byId('form-status').textContent = 'Vendor added in this browser.';
       }
-      row.append(details);
+      saveRecords(); pendingSubmission = null; byId('sop-dialog').close(); resetForm(); showSubmissions();
     }
-    if (vendor.sop && /^[0-9a-f]{32}$/.test(vendor.sop.id)) {
-      const link = element('a', 'Download SOP: ' + vendor.sop.name);
-      link.href = '/api/sops/' + vendor.sop.id; link.download = vendor.sop.name;
-      row.append(link, element('p', 'Current vendor-wide SOP · ' + vendor.sop.size.toLocaleString() + ' bytes', 'helper'));
-    }
-    list.append(row);
-  }
-}
-async function request(options = {}) {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 20000);
-  try {
-    const response = await fetch('/api/vendors', {...options, signal: controller.signal, credentials: 'same-origin', cache: 'no-store'});
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error || 'Request failed.');
-    return data;
-  } catch (error) {
-    if (error.name === 'AbortError') throw new Error('Request timed out. Retry the same choice/file safely; its submission ID is retained.');
-    if (error instanceof TypeError || error instanceof SyntaxError) throw new Error('Cannot reach the vendor service. Start it and open http://127.0.0.1:8081/vendor_management.html. Retry the same choice/file safely.');
-    throw error;
-  } finally { clearTimeout(timeout); }
-}
-async function refresh() {
-  $('refresh').disabled = true; status('directory-status', 'Loading saved vendors…');
-  try {
-    const data = await request(); vendors = data.vendors; loaded = true; render(); status('directory-status', '');
-  } catch (error) { status('directory-status', error.message + (loaded ? ' Previously loaded data is still shown.' : ''), 'error'); }
-  finally { $('refresh').disabled = false; }
-}
-function busy(value) {
-  saving = value;
-  for (const id of ['sop-yes', 'sop-no', 'sop-cancel', 'sop-save', 'sop-file', 'save', 'clear']) $(id).disabled = value;
-  dialog.setAttribute('aria-busy', String(value));
-}
-function closeDialog() {
-  if (saving) return;
-  pending = null; $('sop-file').value = ''; dialog.close(); $('save').focus();
-}
-function readFile(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result).split(',')[1]);
-    reader.onerror = () => reject(new Error('Cannot read this SOP file. Choose it again.'));
-    reader.onabort = () => reject(new Error('File reading was cancelled.'));
-    reader.readAsDataURL(file);
-  });
-}
-async function finalSave(attach) {
-  if (saving || !pending) return;
-  busy(true); status('sop-status', 'Saving…');
-  try {
-    const portal = pending.methods.includes('Portal');
-    if (portal && !attach) throw new Error('Portal requires a new SOP upload. Choose Yes and attach a file.');
-    let sop = null;
-    if (attach) {
-      const file = $('sop-file').files[0];
-      if (!file) throw new Error('Choose an SOP file before saving.');
-      if (!/\.(pdf|docx|txt)$/i.test(file.name) || !file.size || file.size > 10 * 1024 * 1024) {
-        throw new Error('Choose a nonempty PDF, DOCX or TXT file, up to 10 MiB.');
-      }
-      sop = {name: file.name, data: await readFile(file)};
-    }
-    const content = {...pending, sop};
-    const key = JSON.stringify(content);
-    if (!retry || retry.key !== key) retry = {key, id: crypto.randomUUID().replace(/-/g, '')};
-    const data = await request({method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({...content, request_id: retry.id})});
-    retry = null; busy(false); closeDialog();
-    status('save-status', data.message + (attach ? (portal ? ' New Portal SOP attached.' : ' New vendor-wide SOP attached.') : ' No new SOP attached.'), 'success');
-    refresh();
-  } catch (error) { status('sop-status', error.message, 'error'); }
-  finally { busy(false); }
-}
-for (const input of methodInputs) input.addEventListener('change', toggleMethods);
-$('search').addEventListener('input', render);
-$('refresh').addEventListener('click', refresh);
-$('sop-yes').addEventListener('click', () => { $('sop-picker').hidden = false; status('sop-status', ''); $('sop-file').focus(); });
-$('sop-no').addEventListener('click', () => finalSave(false));
-$('sop-save').addEventListener('click', () => finalSave(true));
-$('sop-cancel').addEventListener('click', closeDialog);
-dialog.addEventListener('cancel', event => { event.preventDefault(); closeDialog(); });
-form.addEventListener('reset', () => {
-  if (saving) return;
-  setTimeout(() => {
-    for (const method of Object.keys(drafts)) { drafts[method] = ['']; renderSteps(method); }
-    for (const [prefix, fields] of [['email-', emailFields], ['phone-', phoneFields], ['portal-', portalFields]]) for (const field of fields) $(prefix + field.key).value = '';
-    toggleMethods();
-  }, 0);
-  status('save-status', '');
-});
-form.addEventListener('submit', event => {
-  event.preventDefault();
-  if (saving) return;
-  status('save-status', '');
-  if (!form.reportValidity()) return;
-  try { pending = collectPayload(); }
-  catch (error) { status('save-status', error.message, 'error'); return; }
-  const portal = pending.methods.includes('Portal');
-  $('sop-title').textContent = portal ? 'Portal SOP is mandatory' : 'Do you want to attach SOP?';
-  $('sop-description').textContent = portal ? 'Choose Yes and upload a new Portal SOP for this submission, including when other methods are selected. Existing Portal or vendor-wide SOPs cannot replace this upload. Earlier revisions remain stored. Cancel returns to your draft.' : 'Attach an optional vendor-wide SOP. No saves without a new attachment and retains existing SOPs. This does not change any saved Portal SOP.';
-  $('sop-no').hidden = portal;
-  $('sop-picker').hidden = true; $('sop-file').value = ''; status('sop-status', '');
-  dialog.showModal(); $('sop-yes').focus();
-});
-buildSteps(); refresh();
-</script>
+
+    form.addEventListener('submit', event => {
+      event.preventDefault();
+      const name = byId('vendor-name').value.trim();
+      const method = byId('vendor-method').value.trim();
+      const steps = draftSteps.map(step => ({whatToDo:step.whatToDo.trim(), howToDo:step.howToDo.trim(), image:step.image || null}));
+      if (!name || !method || steps.some(step => !step.whatToDo || !step.howToDo)) return;
+      pendingSubmission = {name, method, steps};
+      byId('sop-picker').hidden = true; byId('sop-save').hidden = true; byId('sop-yes').hidden = false; byId('sop-no').hidden = false;
+      byId('sop-file').value = ''; byId('sop-name').textContent = ''; byId('sop-dialog').showModal();
+    });
+
+    byId('sop-yes').addEventListener('click', () => {
+      byId('sop-picker').hidden = false; byId('sop-save').hidden = false; byId('sop-yes').hidden = true; byId('sop-no').hidden = true;
+    });
+    byId('sop-no').addEventListener('click', () => persistSubmission(null));
+    byId('sop-cancel').addEventListener('click', () => { pendingSubmission = null; byId('sop-dialog').close(); });
+    byId('sop-file').addEventListener('change', () => { byId('sop-name').textContent = byId('sop-file').files[0]?.name || ''; });
+    byId('sop-save').addEventListener('click', async () => {
+      try {
+        const sop = await readFile(byId('sop-file').files[0], ['application/pdf','application/vnd.openxmlformats-officedocument.wordprocessingml.document','text/plain'], 2097152, 'an SOP');
+        persistSubmission(sop);
+      } catch (error) { byId('sop-name').textContent = error.message; }
+    });
+
+    byId('entry-sno').value = nextSerial();
+    renderSteps();
+    showSubmissions();
+  </script>
 </body>
 </html>

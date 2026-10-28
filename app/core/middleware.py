@@ -26,7 +26,9 @@ def get_last_sync_timestamp():
 class FreshnessHeadersMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request, call_next):
         protected = ("/api/v1/cmdb", "/api/v1/solarwinds", "/api/v1/intune")
-        if request.method in ("POST", "PUT", "PATCH", "DELETE") and request.url.path.startswith(protected):
+        inventory_admin_route = request.url.path.startswith("/api/v1/cmdb-inventory/")
+        if (request.method in ("POST", "PUT", "PATCH", "DELETE")
+            and request.url.path.startswith(protected) and not inventory_admin_route):
             response = JSONResponse(status_code=405, content={"error": "Telemetry routes are read-only"},
                                     headers={"Allow": "GET, HEAD, OPTIONS"})
         else:

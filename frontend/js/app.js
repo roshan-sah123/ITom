@@ -7,7 +7,7 @@ import { initDrawer } from './components/drawer.js';
 import { renderHome } from './components/home.js?v=6';
 import { renderInfrastructureWorkspace } from './components/infraWorkspace.js?v=11';
 import { renderEndpoints } from './components/endpoints.js?v=10';
-import { renderCmdb } from './components/cmdb.js?v=10';
+import { renderCmdb } from './components/cmdb.js?v=13';
 import { renderSyncLedger } from './components/syncLedger.js?v=3';
 import { renderSyncSchedule } from './components/syncSchedule.js?v=1';
 

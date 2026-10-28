@@ -40,6 +40,8 @@ Apply the schema and run one live sync to validate the VM's credentials and sour
 
 The live sync writes the returned inventory into the configured CMDB database. If source access fails, inspect the per-source result before treating the VM as synchronized. Once the initial sync succeeds, the app's APScheduler runs every 600 seconds while the app process is running.
 
+Spreadsheet CMDB inventory is stored separately from telemetry-owned configuration items. Before using Inventory Admin, set a private `CMDB_INVENTORY_ADMIN_TOKEN` in `.env` and restart the service. The token is a shared local admin credential; validated-by records use `CMDB_INVENTORY_ADMIN_NAME`, so use company SSO instead when individual administrator identity is required. Import Server, Network, and Telecom separately. Server import uses the two active `Working` sheets and excludes decommissioned and legacy summary sheets; replacing a workbook affects only that inventory category. For production, apply the Alembic migration before startup.
+
 ### 2.2 Quick Interactive Launch
 For ad-hoc or development use, start the foreground supervisor:
 ```cmd

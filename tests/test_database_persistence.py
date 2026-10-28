@@ -662,3 +662,69 @@ class TestBulkSeedingInvariants(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def test_create_tables_repairs_legacy_sqlite_sync_columns(tmp_path):
+    from sqlalchemy.ext.asyncio import create_async_engine
+    from app.core.database import create_db_and_tables
+
+    async def run():
+        database = tmp_path / "legacy.db"
+        engine = create_async_engine(f"sqlite+aiosqlite:///{database.as_posix()}")
+        async with engine.begin() as connection:
+            await connection.exec_driver_sql(
+                "CREATE TABLE sync_runs (id VARCHAR(36) PRIMARY KEY, source_system VARCHAR(32), "
+                "status VARCHAR(32), records_processed INTEGER DEFAULT 0, records_updated INTEGER DEFAULT 0, "
+                "records_unchanged INTEGER DEFAULT 0, items_extracted INTEGER DEFAULT 0, "
+                "items_persisted INTEGER DEFAULT 0, duration_ms INTEGER DEFAULT 0, "
+                "started_at DATETIME, completed_at DATETIME)"
+            )
+        await create_db_and_tables(engine)
+        async with engine.connect() as connection:
+            rows = (await connection.exec_driver_sql("PRAGMA table_info(sync_runs)")).fetchall()
+            names = {row[1] for row in rows}
+            assert {"records_retired", "records_failed", "items_normalized", "items_rejected"} <= names
+        await engine.dispose()
+
+    asyncio.run(run())
+
+
+def test_create_tables_repairs_legacy_cmdb_inventory_columns(tmp_path):
+    from sqlalchemy.ext.asyncio import create_async_engine
+    from app.core.database import create_db_and_tables
+
+    async def run():
+        database = tmp_path / "legacy-inventory.db"
+        engine = create_async_engine(f"sqlite+aiosqlite:///{database.as_posix()}")
+        async with engine.begin() as connection:
+            await connection.exec_driver_sql(
+                "CREATE TABLE cmdb_inventory_records (id VARCHAR(36) PRIMARY KEY, "
+                "inventory_type VARCHAR(16), source_key VARCHAR(255), name VARCHAR(512), "
+                "source_file VARCHAR(255), source_sheet VARCHAR(255), source_row INTEGER, "
+                "data JSON, is_validated BOOLEAN DEFAULT 0, validated_at DATETIME, "
+                "validated_by VARCHAR(255), created_at DATETIME, updated_at DATETIME)"
+            )
+            await connection.exec_driver_sql(
+                "INSERT INTO cmdb_inventory_records "
+                "(id, inventory_type, source_key, name, source_file, source_sheet, source_row, data) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                ("row-1", "network", "Sheet:2", "EDGE-01", "old.xlsx", "Sheet", 2,
+                 json.dumps({"HostName": "EDGE-01", "IP Address": "10.0.0.1"})),
+            )
+        await create_db_and_tables(engine)
+        async with engine.connect() as connection:
+            rows = (await connection.exec_driver_sql("PRAGMA table_info(cmdb_inventory_records)")).fetchall()
+            names = {row[1] for row in rows}
+            assert {"source_order", "field_reviews"} <= names
+            repaired = (await connection.exec_driver_sql(
+                "SELECT source_order, data, field_reviews FROM cmdb_inventory_records WHERE id='row-1'"
+            )).fetchone()
+            assert repaired[0] == 0
+            assert json.loads(repaired[1]) == [
+                {"index": 0, "header": "HostName", "value": "EDGE-01"},
+                {"index": 1, "header": "IP Address", "value": "10.0.0.1"},
+            ]
+            assert json.loads(repaired[2]) == {}
+        await engine.dispose()
+
+    asyncio.run(run())

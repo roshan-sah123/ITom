@@ -67,7 +67,8 @@ flowchart LR
 - Freshness is a response body state (`FRESH`, `STALE`, or `UNKNOWN`). Check it separately from process health before presenting metrics.
 - Location analytics are limited by source coverage. Intune does not provide the site attribute used for SolarWinds location reporting; inspect the API's location coverage fields.
 - Assets absent from a validated complete source snapshot can be marked inactive and retained for audit. Failed or partial extraction must not be treated as authority to retire assets.
-- Inventory APIs are read-only. Sync operations are separate endpoints and can trigger external source calls; protect them appropriately when exposing the service.
+- Telemetry CMDB, Intune, and SolarWinds APIs are read-only. Spreadsheet-owned Server, Network, and Telecom records use a separate review store and authenticated admin routes; they do not overwrite telemetry records.
+- Configure `CMDB_INVENTORY_ADMIN_TOKEN` in `.env` to enable workbook import, edit, validation, and delete actions. Generate a private token with `python -c "import secrets; print(secrets.token_urlsafe(32))"`; the UI keeps it in memory only. Apply `alembic upgrade head` before production startup.
 
 ## Common commands
 

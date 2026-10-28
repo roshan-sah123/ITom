@@ -1,4 +1,4 @@
-/* ==========================================================================
+﻿/* ==========================================================================
    COFORGE ITOM PORTAL - MASTER OBSIDIAN DESIGN SYSTEM (8-POINT SPATIAL GRID)
    Aligned with anthropics/skills/frontend-design & ITOM Telemetry Standards
    ========================================================================== */
@@ -313,6 +313,93 @@ h1, h2, h3, h4, h5, h6 {
 
 .view-section.active {
   display: block;
+}
+
+/* 4A. Inventory Tiles Grid (Distinctive Design) */
+.inventory-tiles-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-4);
+  margin-bottom: var(--space-6);
+}
+
+.inventory-tile {
+  background: linear-gradient(135deg, #FFFFFF 0%, #F9FAFB 100%);
+  border: 1.5px solid #E5E7EB;
+  border-radius: 12px;
+  padding: var(--space-5);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+  overflow: hidden;
+  min-height: 140px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.inventory-tile::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  right: -50%;
+  width: 200px;
+  height: 200px;
+  background: radial-gradient(circle, currentColor 0%, transparent 70%);
+  opacity: 0.03;
+  transition: all 0.6s ease;
+}
+
+.inventory-tile:hover {
+  transform: translateY(-6px);
+  border-color: #3B82F6;
+  background: linear-gradient(135deg, #F0F7FF 0%, #F9FAFB 100%);
+  box-shadow: 0 12px 32px rgba(59, 130, 246, 0.15);
+}
+
+.inventory-tile:hover::before {
+  top: -20%;
+  right: -20%;
+  opacity: 0.08;
+}
+
+.tile-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: var(--space-3);
+}
+
+.tile-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #6B7280;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.tile-icon {
+  font-size: 24px;
+  opacity: 0.8;
+}
+
+.tile-value {
+  font-family: var(--font-mono);
+  font-size: 32px;
+  font-weight: 800;
+  color: #1F2937;
+  line-height: 1;
+  margin-bottom: var(--space-2);
+}
+
+.tile-subtitle {
+  font-size: 12px;
+  color: #9CA3AF;
+  font-weight: 500;
+}
+
+.inventory-tile:hover .tile-subtitle {
+  color: #6B7280;
 }
 
 /* 4. Executive KPI Grid (108px cards) */
@@ -1450,3 +1537,60 @@ html,body { background:var(--bg-canvas); color:var(--text-primary); }
 /* Keep the live CMDB provenance view visible while hiding the stale static engine card. */
 #view-cmdb > .charts-grid-2 { display: grid; grid-template-columns: 1fr; }
 #view-cmdb > .charts-grid-2 > .chart-card:nth-child(2) { display: none; }
+#view-cmdb > .charts-grid-2 > .chart-card:first-child { min-height: 0; }
+
+.inventory-tile[role="button"]:focus-visible { outline: 3px solid #2563EB; outline-offset: 3px; }
+.inventory-tiles-head { display:flex; justify-content:flex-end; margin-bottom:var(--space-2); }
+.cmdb-inventory-dialog button { min-height:34px; padding:7px 11px; border:1px solid #CBD5E1; border-radius:6px; background:#fff; color:#334155; font:600 12px var(--font-sans); cursor:pointer; }
+.cmdb-inventory-dialog button:hover { border-color:#2563EB; color:#1D4ED8; }
+.cmdb-inventory-dialog { width:min(1100px,calc(100% - 28px)); max-width:1100px; max-height:88vh; padding:22px; border:1px solid #DCE3EB; border-radius:9px; background:#fff; color:#15202B; box-shadow:0 18px 55px rgba(15,23,42,.22); }
+.cmdb-inventory-dialog::backdrop { background:rgba(15,23,42,.45); }
+.cmdb-inventory-dialog h2 { margin:0; font-size:19px; }
+.cmdb-inventory-dialog-head { display:flex; justify-content:space-between; align-items:flex-start; gap:14px; margin-bottom:14px; }
+.cmdb-inventory-muted { margin:5px 0 0; color:#64748B; font-size:12px; }
+.cmdb-inventory-toolbar { display:flex; align-items:center; gap:10px; margin:12px 0; }
+.cmdb-inventory-toolbar input,.cmdb-inventory-toolbar select,.cmdb-inventory-import-form input,.cmdb-inventory-import-form select,.cmdb-inventory-edit-form input,.cmdb-inventory-edit-form textarea,.cmdb-admin-token-dialog input { min-width:0; padding:8px 10px; border:1px solid #CBD5E1; border-radius:6px; background:#fff; color:#15202B; font:13px var(--font-sans); }
+.cmdb-inventory-toolbar input { flex:1; }
+.cmdb-inventory-status { min-height:18px; margin:8px 0; color:#526170; font-size:12px; }
+.cmdb-inventory-status[data-error="true"] { color:#B42318; }
+.cmdb-inventory-table-wrap { max-height:58vh; overflow:auto; border:1px solid #DCE3EB; border-radius:6px; }
+.cmdb-inventory-table { width:max-content; min-width:100%; border-collapse:collapse; font-size:12px; }
+.cmdb-inventory-table th,.cmdb-inventory-table td { min-width:110px; max-width:360px; padding:9px 11px; border-bottom:1px solid #E5EAF0; text-align:left; vertical-align:top; overflow-wrap:anywhere; }
+.cmdb-inventory-table th { position:sticky; top:0; z-index:1; background:#F1F5F9; color:#526170; font-size:10px; text-transform:uppercase; white-space:nowrap; }
+.cmdb-inventory-table tr:last-child td { border-bottom:0; }
+.cmdb-inventory-footer,.cmdb-inventory-footer > div,.cmdb-inventory-actions,.cmdb-inventory-row-actions { display:flex; align-items:center; gap:8px; }
+.cmdb-inventory-footer { justify-content:space-between; margin-top:12px; color:#64748B; font-size:12px; }
+.cmdb-inventory-footer button:disabled { opacity:.45; cursor:not-allowed; }
+.cmdb-admin-dialog { width:min(1280px,calc(100% - 28px)); max-width:1280px; }
+.cmdb-inventory-import-form { display:grid; grid-template-columns:150px minmax(180px,1fr) auto; align-items:center; gap:8px 12px; padding:14px; border:1px solid #DCE3EB; border-radius:7px; background:#F8FAFC; }
+.cmdb-inventory-import-form label { color:#526170; font-size:12px; font-weight:600; }
+.cmdb-inventory-import-form label:nth-of-type(2) { grid-column:1; }
+.cmdb-inventory-import-form input[type="file"] { grid-column:2; }
+.cmdb-inventory-import-form button { grid-column:3; grid-row:1 / span 2; }
+.cmdb-inventory-dialog button.primary { border-color:#2563EB; background:#2563EB; color:#fff; }
+.cmdb-inventory-dialog button.danger { color:#B42318; }
+.cmdb-admin-toolbar { margin-top:18px; }
+.cmdb-admin-table { width:max-content; min-width:100%; }
+.cmdb-inventory-fields { display:grid; grid-template-columns:minmax(120px,.4fr) minmax(180px,1fr); gap:4px 12px; margin:10px 0 0; }
+.cmdb-inventory-fields dt { color:#64748B; font-weight:600; }
+.cmdb-inventory-fields dd { margin:0; white-space:pre-wrap; }
+.cmdb-inventory-state { display:inline-block; padding:3px 7px; border-radius:4px; background:#FFF3D6; color:#805600; font-weight:650; }
+.cmdb-inventory-state.validated { background:#E5F5ED; color:#166534; }
+.cmdb-inventory-row-actions { flex-wrap:wrap; }
+.cmdb-inventory-row-actions button { min-height:30px; padding:5px 8px; }
+.cmdb-inventory-field-review,.cmdb-inventory-field-pending { display:block; margin:5px 0; font-size:10px; line-height:1.4; white-space:normal; }
+.cmdb-inventory-field-review { color:#166534; }
+.cmdb-inventory-field-pending { color:#805600; }
+.cmdb-admin-token-dialog { max-width:420px; }
+.cmdb-admin-token-dialog form,.cmdb-inventory-edit-form { display:grid; gap:10px; }
+.cmdb-admin-token-dialog label,.cmdb-inventory-edit-form label { margin:4px 0 0; color:#526170; font-size:12px; font-weight:650; }
+.cmdb-inventory-edit-form textarea { min-height:52px; resize:vertical; }
+.cmdb-inventory-actions { justify-content:flex-end; }
+@media(max-width:700px) {
+  .cmdb-inventory-dialog { padding:16px; }
+  .cmdb-inventory-import-form { grid-template-columns:1fr; }
+  .cmdb-inventory-import-form label:nth-of-type(2),.cmdb-inventory-import-form input[type="file"],.cmdb-inventory-import-form button { grid-column:1; grid-row:auto; }
+  .cmdb-admin-toolbar { align-items:stretch; flex-direction:column; }
+  .cmdb-admin-toolbar input { width:100%; }
+  .cmdb-inventory-table-wrap { max-height:55vh; }
+}

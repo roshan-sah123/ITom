@@ -27,6 +27,8 @@ class Settings(BaseSettings):
     HOST: str = "0.0.0.0"
     PORT: int = 8080
     SECRET_KEY: Optional[str] = None
+    CMDB_INVENTORY_ADMIN_TOKEN: Optional[str] = None
+    CMDB_INVENTORY_ADMIN_NAME: str = "CMDB Inventory Admin"
 
     # Database Persistence
     DATABASE_URL: str = "sqlite+aiosqlite:///./data/itom.db"

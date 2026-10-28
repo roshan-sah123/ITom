@@ -16,7 +16,7 @@
   
   <!-- Master Obsidian Design System & Favicon -->
   <link rel="icon" type="image/png" href="logo.png?v=2">
-  <link rel="stylesheet" href="css/style.css?v=11">
+  <link rel="stylesheet" href="css/style.css?v=12">
 <link rel="stylesheet" href="vendor_management_nav.css">
 </head>
 <body>
@@ -48,7 +48,7 @@
       <button class="nav-tab" type="button" data-view="cmdb">CMDB</button>
       <button class="nav-tab" type="button" data-view="knowledge">Knowledge Centre</button>
       <button class="nav-tab" type="button" data-view="automations">Automations</button>
-<a id="vendor-management-nav-link" class="vendor-management-nav-link" href="http://127.0.0.1:8081/vendor_management.html" target="_blank" rel="noopener" title="Local Vendor Management companion (opens in a new tab)"><span aria-hidden="true">&#9635;</span><span>Vendor Management</span></a>
+<a id="vendor-management-nav-link" class="vendor-management-nav-link" href="http://127.0.0.1:8081/vendor_management.html" rel="noopener" title="Local Vendor Management companion (opens in a new tab)"><span aria-hidden="true">&#9635;</span><span>Vendor Management</span></a>
     </nav>
 
     <!-- 3. Main Workspace Viewport -->
@@ -92,73 +92,11 @@
               <span class="module-code">LEARN</span>
               <strong>Knowledge Centre</strong>
               <span>Onboarding, ITOM guides, and recorded training.</span>
-              <em>Explore learning</em>
-            </button>
-            <button class="module-card-v2" data-target-view="automations" data-search="automations workflows operations">
-              <span class="module-code">AUTO</span>
-              <strong>Automations</strong>
-              <span>Future operational workflows for the ITOM team.</span>
-              <em>View roadmap</em>
-            </button>
-          </div>
-          <div class="portal-operations" aria-label="Data freshness status">
-            <div class="freshness-widget" id="headerSyncPill" role="status" aria-live="polite">
-              <strong>Data Freshness</strong>
-              <span id="freshnessSolarWinds">SolarWinds: checking</span>
-              <span id="freshnessIntune">Intune: checking</span>
-              <span id="headerSyncText">Status: checking</span>
-            </div>
-          </div>
-        </div>
-        
-        <!-- Multi-Domain Executive Pulse Banner -->
-        <div class="home-banner">
-          <div class="home-banner-left">
-            <h2>Enterprise Command & Infrastructure Core</h2>
-            <p>Telemetry from Microsoft Intune Graph, SolarWinds Orion SWIS, and the configured SQLite CMDB.</p>
-          </div>
-          <div class="home-banner-stats">
-            <div class="banner-stat-item">
-              <div class="banner-stat-val" id="homeStatEndpoints" style="color: var(--accent-intune);">Unavailable</div>
-              <div class="banner-stat-label">Workplace Devices</div>
-            </div>
-            <div class="banner-stat-item">
-              <div class="banner-stat-val" id="homeStatServers" style="color: var(--accent-ops);">1,572</div>
-              <div class="banner-stat-label">Server Nodes</div>
-            </div>
-            <div class="banner-stat-item">
-              <div class="banner-stat-val" id="homeStatSites" style="color: var(--status-healthy);">71</div>
-              <div class="banner-stat-label">Campus Sites</div>
-            </div>
-            <div class="banner-stat-item">
-              <div class="banner-stat-val" id="homeStatCis" style="color: var(--accent-cmdb);">28,984</div>
-              <div class="banner-stat-label">Reconciled CIs</div>
-            </div>
-          </div>
-        </div>
-
-        <!-- 6 Enterprise Module Cards Grid -->
-        <div class="home-module-grid">
-          
-          <!-- Module 1: Infrastructure Analytics -->
-          <div class="home-module-card">
-            <div>
-              <div class="card-top-meta">
-                <div class="module-icon-wrap" style="color: var(--accent-ops);">🖥️</div>
-                <span class="module-pill pill-active">Live Telemetry</span>
-              </div>
-              <div class="card-body-content">
-                <h3>Infrastructure Analytics</h3>
-                <p>Comprehensive observability across 1,572 server nodes, 488 network appliances, and 71 global campus locations from SolarWinds Orion SWIS.</p>
-              </div>
-            </div>
-            <div>
-              <div class="card-telemetry-row" id="homeCardInfraStat">
                 <span style="color: var(--text-muted);">Fleet SLA: <strong style="color: var(--status-healthy);">88.8%</strong></span>
                 <span style="color: var(--text-muted);">Alerts: <strong style="color: var(--status-warning);">176</strong></span>
               </div>
               <button class="btn-card-launch" data-target-view="infrastructure">
-                Launch Workspace →
+                Launch Workspace â†’
               </button>
             </div>
           </div>
@@ -167,7 +105,7 @@
           <div class="home-module-card">
             <div>
               <div class="card-top-meta">
-                <div class="module-icon-wrap" style="color: var(--accent-intune);">💻</div>
+                <div class="module-icon-wrap" style="color: var(--accent-intune);"></div>
                 <span class="module-pill pill-active">Live Mirror</span>
               </div>
               <div class="card-body-content">
@@ -181,7 +119,7 @@
                 <span style="color: var(--text-muted);">Enforced: <strong style="color: var(--accent-intune);">94.2% TPM</strong></span>
               </div>
               <button class="btn-card-launch" data-target-view="endpoints">
-                Launch Workspace →
+                Launch Workspace â†’
               </button>
             </div>
           </div>
@@ -190,7 +128,7 @@
           <div class="home-module-card">
             <div>
               <div class="card-top-meta">
-                <div class="module-icon-wrap" style="color: var(--accent-cmdb);">🗄️</div>
+                <div class="module-icon-wrap" style="color: var(--accent-cmdb);"></div>
                 <span class="module-pill pill-active">Authoritative Core</span>
               </div>
               <div class="card-body-content">
@@ -204,7 +142,7 @@
                 <span style="color: var(--text-muted);">Provenance: <strong style="color: var(--accent-cmdb);">Multi-Domain</strong></span>
               </div>
               <button class="btn-card-launch" data-target-view="cmdb">
-                Launch Explorer →
+                Launch Explorer â†’
               </button>
             </div>
           </div>
@@ -213,7 +151,7 @@
           <div class="home-module-card pipeline-card">
             <div>
               <div class="card-top-meta">
-                <div class="module-icon-wrap" style="color: #EC4899;">🤖</div>
+                <div class="module-icon-wrap" style="color: #EC4899;"></div>
                 <span class="module-pill pill-pipeline">Phase 2 Pipeline</span>
               </div>
               <div class="card-body-content">
@@ -235,7 +173,7 @@
           <div class="home-module-card pipeline-card">
             <div>
               <div class="card-top-meta">
-                <div class="module-icon-wrap" style="color: #F59E0B;">📚</div>
+                <div class="module-icon-wrap" style="color: #F59E0B;"></div>
                 <span class="module-pill pill-pipeline">Phase 2 Pipeline</span>
               </div>
               <div class="card-body-content">
@@ -262,7 +200,7 @@
            VIEW 1: INFRASTRUCTURE ANALYTICS WORKSPACE
            ========================================================================= -->
       <section id="view-infrastructure" class="view-section">
-        <button class="module-back-button" type="button" data-back-home>← Back to portal home</button>
+        <button class="module-back-button" type="button" data-back-home>â† Back to portal home</button>
         
         <!-- 4 Primary Category Cards (Top Sub-Tabs) -->
         <div class="infra-category-grid">
@@ -270,34 +208,34 @@
           <div class="category-card-tab active" data-subtab="servers">
             <div class="cat-header">
               <span>CLASSIFIED SERVERS</span>
-              <span>🖥️</span>
+              <span></span>
             </div>
-            <div class="cat-value" id="catServersVal">—</div>
+            <div class="cat-value" id="catServersVal">”</div>
             <div class="cat-sub" id="catServersSub">Loading SolarWinds data</div>
           </div>
 
           <div class="category-card-tab" data-subtab="networks">
             <div class="cat-header">
               <span>NETWORK INFRASTRUCTURE</span>
-              <span>🌐</span>
+              <span></span>
             </div>
-            <div class="cat-value" id="catNetworksVal">—</div>
+            <div class="cat-value" id="catNetworksVal">”</div>
             <div class="cat-sub" id="catNetworksSub">Loading SolarWinds inventory</div>
           </div>
 
           <div class="category-card-tab" data-subtab="sites">
             <div class="cat-header">
               <span>LOCATION HEALTH</span>
-              <span>🏢</span>
+              <span></span>
             </div>
-            <div class="cat-value" id="catSitesVal">—</div>
+            <div class="cat-value" id="catSitesVal">”</div>
             <div class="cat-sub" id="catSitesSub">Find locations that need attention</div>
           </div>
 
           <div class="category-card-tab" data-subtab="baseline">
             <div class="cat-header">
               <span>CAPACITY & ALERT ANALYTICS</span>
-              <span>🛡️</span>
+              <span></span>
             </div>
             <div class="cat-value" id="catBaselineVal">Coming soon</div>
             <div class="cat-sub" id="catBaselineSub">Volume and alert APIs required</div>
@@ -315,36 +253,36 @@
             <div class="kpi-card">
               <div class="kpi-header">
                 <span>TOTAL SOLARWINDS NODES</span>
-                <div class="kpi-icon">🖥️</div>
+                
               </div>
-              <div class="kpi-value" id="swTotalNodesVal">—</div>
+              <div class="kpi-value" id="swTotalNodesVal">”</div>
               <div class="kpi-footer" id="swTotalNodesSub">Loading live data</div>
             </div>
 
             <div class="kpi-card">
               <div class="kpi-header">
                 <span>FLEET HIGH HEALTH</span>
-                <div class="kpi-icon">☑️</div>
+                
               </div>
-              <div class="kpi-value text-healthy" id="swSlaVal">—</div>
-              <div class="kpi-footer" id="swSlaFooter">High Health Tier • Snapshot Avail: <span id="swAvailSub">—</span></div>
+              <div class="kpi-value text-healthy" id="swSlaVal">”</div>
+              <div class="kpi-footer" id="swSlaFooter">High Health Tier ¢ Snapshot Avail: <span id="swAvailSub">”</span></div>
             </div>
 
             <div class="kpi-card">
               <div class="kpi-header">
                 <span>ACTIVE ANOMALY ALERTS</span>
-                <div class="kpi-icon">⚠️</div>
+                
               </div>
-              <div class="kpi-value text-warning" id="swAlertsVal">—</div>
+              <div class="kpi-value text-warning" id="swAlertsVal">”</div>
               <div class="kpi-footer">Derived from current node status</div>
             </div>
 
             <div class="kpi-card">
               <div class="kpi-header">
                 <span>VENDOR FOOTPRINT</span>
-                <div class="kpi-icon">🕹️</div>
+                
               </div>
-              <div class="kpi-value" style="font-size: 16px; margin-top: 6px;" id="swOsVal">—</div>
+              <div class="kpi-value" style="font-size: 16px; margin-top: 6px;" id="swOsVal">”</div>
               <div class="kpi-footer">Enterprise DC Infrastructure</div>
             </div>
           </div>
@@ -397,7 +335,7 @@
           <!-- Active Filter Banner for Servers -->
           <div class="active-filter-banner" id="swActiveFilterBanner" style="display: none;">
             <span>Active Filter: <strong id="swActiveFilterLabel"></strong></span>
-            <button class="btn-clear-active-filter" id="swClearActiveFilterBtn">✕ Clear Filter</button>
+            <button class="btn-clear-active-filter" id="swClearActiveFilterBtn">âœ• Clear Filter</button>
           </div>
 
           <!-- 3-Zone Server Data Grid -->
@@ -407,7 +345,7 @@
             <div class="grid-toolbar">
               <div class="toolbar-left">
                 <div class="search-input-wrap">
-                  <span class="search-icon">🔍</span>
+                  
                   <input type="text" class="search-input" id="swSearchInput" placeholder="Search node name, IP, serial, vendor...">
                 </div>
                 <select class="filter-select" id="swFilterHealth">
@@ -431,7 +369,7 @@
               </div>
               <div class="toolbar-right">
                 <button class="btn-export-csv" id="swExportCsv">
-                  <span>📊</span> Export Filtered Results (CSV)
+                  <span></span> Export Filtered Results (CSV)
                 </button>
               </div>
             </div>
@@ -489,7 +427,7 @@
             <div class="grid-toolbar">
               <div class="toolbar-left">
                 <div class="search-input-wrap">
-                  <span class="search-icon">🔍</span>
+                  
                   <input type="text" class="search-input" id="netSearchInput" placeholder="Search appliance, IP, switch name...">
                 </div>
                 <select class="filter-select" id="netFilterType">
@@ -504,7 +442,7 @@
                 </select>
               </div>
               <div class="toolbar-right">
-                <button class="btn-export-csv" id="netExportCsv"><span>📊</span> Export Filtered Results (CSV)</button>
+                <button class="btn-export-csv" id="netExportCsv"><span></span> Export Filtered Results (CSV)</button>
               </div>
             </div>
 
@@ -528,7 +466,7 @@
             </div>
 
             <div class="grid-footer">
-              <div class="footer-count" id="netRecordCount">Loading network devices…</div>
+              <div class="footer-count" id="netRecordCount">Loading network devices¦</div>
               <div class="footer-page-size">
                 <label for="netPageSizeSelect">Rows per page:</label>
                 <select class="select-page-size" id="netPageSizeSelect">
@@ -566,7 +504,7 @@
                 <button class="btn-filter-reset" id="locationHealthReset" type="button">Reset</button>
               </div>
             </div>
-            <p class="location-health-note" id="locationHealthSummary" role="status">Loading location health…</p>
+            <p class="location-health-note" id="locationHealthSummary" role="status">Loading location health¦</p>
             <div class="grid-scroll">
               <table class="itom-table">
                 <caption class="sr-only">Location inventory by operational status, ordered by critical and down devices</caption>
@@ -633,14 +571,14 @@
            VIEW 2: DIGITAL WORKPLACE EXPERIENCE (DEX / ENDPOINTS)
            ========================================================================= -->
       <section id="view-endpoints" class="view-section">
-        <button class="module-back-button" type="button" data-back-home>← Back to portal home</button>
+        <button class="module-back-button" type="button" data-back-home>â† Back to portal home</button>
         
         <!-- 4 Executive KPI Cards Row -->
         <div class="kpi-grid">
           <div class="kpi-card">
             <div class="kpi-header">
               <span>TOTAL MANAGED ENDPOINTS</span>
-              <div class="kpi-icon">💻</div>
+              
             </div>
             <div class="kpi-value" id="epTotalVal">Unavailable</div>
             <div class="kpi-footer" id="epTotalSub">Waiting for Intune data</div>
@@ -649,7 +587,7 @@
           <div class="kpi-card">
             <div class="kpi-header">
               <span>COMPLIANCE POSTURE RATE</span>
-              <div class="kpi-icon">🛡️</div>
+              
             </div>
             <div class="kpi-value text-healthy" id="epCompRateVal">Unavailable</div>
             <div class="kpi-footer" id="epCompRateSub">Waiting for Intune data</div>
@@ -658,7 +596,7 @@
           <div class="kpi-card">
             <div class="kpi-header">
               <span>OS DISTRIBUTION</span>
-              <div class="kpi-icon">🖥️</div>
+              
             </div>
             <div class="kpi-value" style="font-size: 16px; margin-top: 6px;" id="epOsDiversityVal">Unavailable</div>
             <div class="kpi-footer" id="epOsDiversitySub">Waiting for Intune data</div>
@@ -667,7 +605,7 @@
           <div class="kpi-card">
             <div class="kpi-header">
               <span>ZERO-TRUST ENCRYPTION</span>
-              <div class="kpi-icon">🔒</div>
+              
             </div>
             <div class="kpi-value" style="color: #3B82F6;" id="epZeroTrustVal">Coming soon</div>
             <div class="kpi-footer">Additional Intune security fields required</div>
@@ -712,7 +650,7 @@
               <span class="storage-data-badge" id="epStorageBadge" data-mode="loading">Loading</span>
             </div>
             <div class="storage-panel-content" id="epStorageContent" aria-live="polite">
-              <p class="storage-message">Checking Intune storage metrics…</p>
+              <p class="storage-message">Checking Intune storage metrics¦</p>
             </div>
           </section>
 
@@ -724,14 +662,14 @@
             <span class="storage-data-badge" id="epForecastBadge" data-mode="loading">Loading</span>
           </div>
           <div class="forecast-content" id="epForecastContent" aria-live="polite">
-            <p class="storage-note">Checking recent successful Intune sync history…</p>
+            <p class="storage-note">Checking recent successful Intune sync history¦</p>
           </div>
         </section>
 
         <!-- Active Filter Banner for Endpoints -->
         <div class="active-filter-banner" id="epActiveFilterBanner" style="display: none;">
           <span>Active Filter: <strong id="epActiveFilterLabel"></strong></span>
-          <button class="btn-clear-active-filter" id="epClearActiveFilterBtn">✕ Clear Filter</button>
+          <button class="btn-clear-active-filter" id="epClearActiveFilterBtn">âœ• Clear Filter</button>
         </div>
 
         <!-- 3-Zone Endpoints Data Grid -->
@@ -741,7 +679,7 @@
           <div class="grid-toolbar">
             <div class="toolbar-left">
               <div class="search-input-wrap">
-                <span class="search-icon">🔍</span>
+                
                 <input type="text" class="search-input" id="epSearchInput" placeholder="Search device name, user, serial...">
               </div>
               <select class="filter-select" id="epFilterStatus">
@@ -754,7 +692,7 @@
             </div>
             <div class="toolbar-right">
               <button class="btn-export-csv" id="epExportCsv">
-                <span>📊</span> Export Filtered Results (CSV)
+                <span></span> Export Filtered Results (CSV)
               </button>
             </div>
           </div>
@@ -804,23 +742,63 @@
            VIEW 3: ENTERPRISE CMDB REPOSITORY (PURE CI ACCOUNTING)
            ========================================================================= -->
       <section id="view-cmdb" class="view-section">
-        <button class="module-back-button" type="button" data-back-home>← Back to portal home</button>
-        
+        <!-- 4 Inventory Tiles Row -->
+        <div class="inventory-tiles-head">
+          <button class="btn-export-csv" id="cmdbInventoryImportOpen" type="button">Import / change inventory file</button>
+        </div>
+        <div class="inventory-tiles-grid">
+          <div class="inventory-tile" id="tile-total" data-inventory-type="all" role="button" tabindex="0" aria-label="Open all inventory records">
+            <div class="tile-header">
+              <span class="tile-label">TOTAL RECORDS</span>
+              
+            </div>
+            <div class="tile-value" id="inv-total-count">0</div>
+            
+          </div>
+
+          <div class="inventory-tile" id="tile-servers" data-inventory-type="server" role="button" tabindex="0" aria-label="Open server inventory records">
+            <div class="tile-header">
+              <span class="tile-label">SERVERS</span>
+              
+            </div>
+            <div class="tile-value" id="inv-server-count">0</div>
+            
+          </div>
+
+          <div class="inventory-tile" id="tile-network" data-inventory-type="network" role="button" tabindex="0" aria-label="Open network inventory records">
+            <div class="tile-header">
+              <span class="tile-label">NETWORK DEVICES</span>
+              
+            </div>
+            <div class="tile-value" id="inv-network-count">0</div>
+            
+          </div>
+
+          <div class="inventory-tile" id="tile-telecom" data-inventory-type="telecom" role="button" tabindex="0" aria-label="Open telecom inventory records">
+            <div class="tile-header">
+              <span class="tile-label">TELECOM</span>
+              
+            </div>
+            <div class="tile-value" id="inv-telecom-count">0</div>
+            
+          </div>
+        </div>
+
         <!-- 4 KPI Cards Row -->
         <div class="kpi-grid">
           <div class="kpi-card">
             <div class="kpi-header">
               <span>TOTAL RECONCILED CIS</span>
-              <div class="kpi-icon">🗄️</div>
+              
             </div>
-            <div class="kpi-value" id="cmdbTotalCisVal">—</div>
+            <div class="kpi-value" id="cmdbTotalCisVal">”</div>
             <div class="kpi-footer">SolarWinds inventory and custom properties</div>
           </div>
 
           <div class="kpi-card">
             <div class="kpi-header">
               <span>CMDB DATA SOURCE</span>
-              <div class="kpi-icon">💻</div>
+              
             </div>
             <div class="kpi-value" style="color: #3B82F6;" id="cmdbIntuneProvVal">SolarWinds</div>
             <div class="kpi-footer">Inventory plus custom properties</div>
@@ -829,18 +807,18 @@
           <div class="kpi-card">
             <div class="kpi-header">
               <span>SOLARWINDS PROVENANCE</span>
-              <div class="kpi-icon">🖥️</div>
+              
             </div>
-            <div class="kpi-value text-warning" id="cmdbSwProvVal">—</div>
+            <div class="kpi-value text-warning" id="cmdbSwProvVal">”</div>
             <div class="kpi-footer">SolarWinds Orion SWIS Extractions</div>
           </div>
 
           <div class="kpi-card">
             <div class="kpi-header">
               <span>HEALTH COMPLIANCE BASELINE</span>
-              <div class="kpi-icon">🛡️</div>
+              
             </div>
-            <div class="kpi-value text-healthy" id="cmdbHealthCompVal">—</div>
+            <div class="kpi-value text-healthy" id="cmdbHealthCompVal">”</div>
             <div class="kpi-footer">Calculated from current inventory</div>
           </div>
         </div>
@@ -859,10 +837,10 @@
                 <div class="bar-solarwinds" id="cmdbProvenanceSolarWindsBar" style="width: 0%;"></div>
               </div>
               <div class="provenance-legend">
-                <span><span class="legend-dot" style="background: #3B82F6;"></span> <span id="cmdbProvenanceIntuneLabel">Loading Intune source data…</span></span>
-                <span><span class="legend-dot" style="background: #F59E0B;"></span> <span id="cmdbProvenanceSolarWindsLabel">Loading SolarWinds source data…</span></span>
+                <span><span class="legend-dot" style="background: #3B82F6;"></span> <span id="cmdbProvenanceIntuneLabel">Loading Intune source data</span></span>
+                <span><span class="legend-dot" style="background: #F59E0B;"></span> <span id="cmdbProvenanceSolarWindsLabel">Loading SolarWinds source data</span></span>
               </div>
-              <p class="provenance-status" id="cmdbProvenanceStatus" role="status" aria-live="polite">Loading source distribution…</p>
+              <p class="provenance-status" id="cmdbProvenanceStatus" role="status" aria-live="polite">Loading source distribution</p>
             </div>
             <div style="margin-top: 16px; font-size: 11px; color: var(--text-muted);">
               Inventory reporting is derived from the currently available SolarWinds source data.
@@ -899,7 +877,7 @@
         <!-- Active Filter Banner for CMDB -->
         <div class="active-filter-banner" id="cmdbActiveFilterBanner" style="display: none;">
           <span>Active Filter: <strong id="cmdbActiveFilterLabel"></strong></span>
-          <button class="btn-clear-active-filter" id="cmdbClearActiveFilterBtn">✕ Clear Filter</button>
+          <button class="btn-clear-active-filter" id="cmdbClearActiveFilterBtn">Clear Filter</button>
         </div>
 
         <!-- 3-Zone CMDB Data Grid -->
@@ -908,7 +886,7 @@
           <div class="grid-toolbar">
             <div class="toolbar-left">
               <div class="search-input-wrap">
-                <span class="search-icon">🔍</span>
+                
                 <input type="text" class="search-input" id="cmdbSearchInput" placeholder="Search CI name, serial number, IP address...">
               </div>
               <select class="filter-select" id="cmdbFilterSource">
@@ -928,8 +906,9 @@
               <button class="btn-filter-reset" id="cmdbResetFilters">Reset</button>
             </div>
             <div class="toolbar-right">
+              <button class="btn-export-csv" id="cmdbInventoryAdminOpen" type="button">Inventory Admin</button>
               <button class="btn-export-csv" id="cmdbExportCsv">
-                <span>📊</span> Export Filtered Results (CSV)
+                <span></span> Export Filtered Results (CSV)
               </button>
             </div>
           </div>
@@ -954,7 +933,7 @@
           </div>
 
           <div class="grid-footer">
-            <div class="footer-count" id="cmdbRecordCount">Showing 1–25 of 28,984 Configuration Items</div>
+            <div class="footer-count" id="cmdbRecordCount">Showing 1“25 of 28,984 Configuration Items</div>
             <div class="footer-page-size">
               <label for="cmdbPageSizeSelect">Rows per page:</label>
               <select class="select-page-size" id="cmdbPageSizeSelect">
@@ -973,7 +952,7 @@
 
 
       <section id="view-knowledge" class="view-section">
-        <button class="module-back-button" type="button" data-back-home>← Back to portal home</button>
+        <button class="module-back-button" type="button" data-back-home>â† Back to portal home</button>
         <section class="coming-soon-panel" aria-labelledby="knowledgeTitle">
           <p class="eyebrow">Learning and onboarding</p>
           <h1 id="knowledgeTitle">Knowledge Centre</h1>
@@ -984,7 +963,7 @@
       </section>
 
       <section id="view-automations" class="view-section">
-        <button class="module-back-button" type="button" data-back-home>← Back to portal home</button>
+        <button class="module-back-button" type="button" data-back-home>â† Back to portal home</button>
         <section class="coming-soon-panel" aria-labelledby="automationsTitle">
           <p class="eyebrow">Operations tool</p>
           <h1 id="automationsTitle">Automations</h1>
@@ -992,7 +971,7 @@
             <span class="module-code">TOOL</span>
             <strong>TechAdmin</strong>
             <span>Open the TechAdmin portal.</span>
-            <em>Open TechAdmin ↗</em>
+            <em>Open TechAdmin â†—</em>
           </a>
         </section>
       </section>
@@ -1001,21 +980,21 @@
            VIEW: BACKGROUND TELEMETRY INGESTION & SYNC SCHEDULE
            ========================================================================= -->
       <section id="view-sync-schedule" class="view-section">
-        <button class="module-back-button" type="button" data-back-home>← Back to portal home</button>
+        <button class="module-back-button" type="button" data-back-home>â† Back to portal home</button>
         <div class="sync-workspace" id="syncScheduleWorkspace" aria-live="polite">
           <header class="sync-workspace-heading">
             <div><p class="section-kicker">Source operations</p><h1>Sync &amp; schedule</h1><p>Live scheduler and source state from the local API and sync ledger.</p></div>
             <button class="primary-action" id="runSyncNow" type="button">Run sync now</button>
           </header>
           <p class="sync-action-message" id="syncActionMessage" role="status"></p>
-          <div class="sync-facts" id="syncScheduleFacts"><p>Loading scheduler and source status…</p></div>
+          <div class="sync-facts" id="syncScheduleFacts"><p>Loading scheduler and source status¦</p></div>
           <div class="sync-source-grid" id="syncScheduleSources"></div>
           <p class="sync-schedule-note">A sync runs only while this computer and the local service are running. If a source is unreachable, the attempt is recorded as failed and the next scheduled attempt will retry.</p>
         </div>
       </section>
 
       <section id="view-sync" class="view-section">
-        <button class="module-back-button" type="button" data-back-home>← Back to portal home</button>
+        <button class="module-back-button" type="button" data-back-home>â† Back to portal home</button>
         
         <div class="sync-status-strip" id="syncStatusStrip">
           <div>
@@ -1079,7 +1058,7 @@
     <!-- 6. Global Footer (56px) -->
     <footer class="global-footer">
       <div class="footer-left">
-        <strong>Coforge IT Operations Intelligence</strong> © 2026
+        <strong>Coforge IT Operations Intelligence</strong> Â© 2026
       </div>
       <div class="footer-right">
         <nav class="footer-operations" aria-label="Operations">
@@ -1105,7 +1084,7 @@
           <h3 class="modal-title" id="modalCampusTitle">Campus Facility Trend</h3>
           <p class="modal-subtitle" id="modalCampusSubtitle">24-Hour Continuous SLA & Latency Performance</p>
         </div>
-        <button class="modal-close-btn" id="modalCloseBtn">✕ Close</button>
+        <button class="modal-close-btn" id="modalCloseBtn">âœ• Close</button>
       </div>
       <div class="modal-body">
         <div class="modal-chart-wrap">
@@ -1125,7 +1104,7 @@
         <h3 class="drawer-title" id="drawerCiTitle">Configuration Item</h3>
         <span class="drawer-badge" id="drawerCiSource">SOLARWINDS</span>
       </div>
-      <button class="drawer-close-btn" id="drawerCloseBtn">✕ Close</button>
+      <button class="drawer-close-btn" id="drawerCloseBtn">âœ• Close</button>
     </div>
     <div class="drawer-content" id="drawerContent">
       <!-- Populated dynamically -->
@@ -1133,7 +1112,10 @@
   </aside>
 
   <!-- Master ES6 Application Bootstrap -->
-    <script type="module" src="js/app.js?v=17"></script>
+    <script type="module" src="js/app.js?v=20"></script>
 <script src="vendor_management_nav.js" defer></script>
+
 </body>
 </html>
+
+
