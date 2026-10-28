@@ -291,8 +291,13 @@ class CIRepository(BaseRepository[ConfigurationItem]):
             # Total counts
             total = await self.count()
             if total == 0:
+                from app.repositories.freshness_repository import FreshnessRepository
+                freshness = await FreshnessRepository(self.session).get_freshness()
+                available = all(freshness["sources"][source].get("last_synchronized_at")
+                                for source in ("INTUNE", "SOLARWINDS"))
                 return {
-                    "data_available": False,
+                    "data_available": available,
+                    "source_breakdown": {"INTUNE": 0, "SOLARWINDS": 0} if available else {},
                     "total_cis": 0,
                     "high_health_count": 0,
                     "medium_health_count": 0,

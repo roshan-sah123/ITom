@@ -411,7 +411,8 @@ class LocationService:
         return dict(items=items, named_intune_locations=len(items), matched_locations=matched,
                     unmatched_locations=len(items)-matched, unassigned_intune_endpoints=unassigned,
                     conflicting_solarwinds_nodes=conflicts, solarwinds_total_nodes=len(nodes),
-                    data_available=bool(nodes), freshness=freshness, as_of=datetime.now(timezone.utc).isoformat(),
+                    data_available=(bool(nodes) or bool(freshness["sources"]["SOLARWINDS"].get("last_synchronized_at")))
+                    and (bool(locations) or bool(unassigned) or bool(freshness["sources"]["INTUNE"].get("last_synchronized_at"))), freshness=freshness, as_of=datetime.now(timezone.utc).isoformat(),
                     match_policy='geographic-v1',
                     scope='Geographic reporting only; office assignments and approvals are unchanged. Nodes may support multiple reporting locations.')
 

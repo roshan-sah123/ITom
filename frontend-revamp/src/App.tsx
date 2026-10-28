@@ -5,6 +5,7 @@ import {
   downloadCsv,
   number,
   ageLabel,
+  time,
   donutSlice,
 } from "./data";
 import type { IconName, WorkspaceConfig, Drilldown, Snapshot } from "./data";
@@ -131,6 +132,7 @@ function WorkspacePage({
   locations,
   loading,
   sourceGroups,
+  groupsLoading,
   groupsAvailable,
   onClearSearch,
 }: {
@@ -147,6 +149,7 @@ function WorkspacePage({
   locations: Array<{ id: string; name: string; endpoints: number }>;
   loading: boolean;
   sourceGroups: ReturnType<typeof buildPortalModel>["locations"];
+  groupsLoading: boolean;
   groupsAvailable: boolean;
   onClearSearch: () => void;
 }) {
@@ -204,17 +207,7 @@ function WorkspacePage({
           <h2>Data service unavailable</h2>
           <p>{config.description}</p>
           {config.title === "Automations" ? (
-            <>
-              <a
-                className="text-button"
-                href="https://techadmin.coforge.com/"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Open TechAdmin ↗
-              </a>
-              <SyncHistory revision={revision} />
-            </>
+            <SyncHistory revision={revision} />
           ) : (
             <p>
               Knowledge guides, onboarding and recorded learning are coming
@@ -374,7 +367,7 @@ function WorkspacePage({
               <GroupSelector
                 groups={sourceGroups}
                 available={groupsAvailable}
-                loading={loading}
+                loading={groupsLoading}
                 onSelect={(id, name) =>
                   choose({ label: name, groupId: id, filters: {} })
                 }
@@ -454,7 +447,7 @@ function LocationMatches({ report, loading }: { report?: Snapshot["locationMatch
             </tr>
           ))}</tbody>
         </table>
-        {(!available || rows.length === 0) && <div className="empty-state">{loading ? "Loading location matches" : !available ? "SolarWinds location evidence unavailable." : "No locations match these filters."}</div>}
+        {(!available || rows.length === 0) && <div className="empty-state">{loading ? "Loading location matches" : !available ? "Source location evidence unavailable." : "No locations match these filters."}</div>}
       </div>
       <div className="table-footer">
         <span>{available ? `${report.matched_locations} matched / ${report.named_intune_locations} named Intune locations` : "Matching data unavailable"}</span>
@@ -481,7 +474,19 @@ function App() {
       window.clearInterval(timer);
     };
   }, []);
-  const { snapshot, loading, errors } = usePortalSnapshot(revision);
+  const { snapshot, pending, errors } = usePortalSnapshot(revision);
+  const loading = pending.includes("freshness");
+  const sourceLoading = (key: string) => pending.includes(key);
+  const sourceDescription = (source: "INTUNE" | "SOLARWINDS") => {
+    if (sourceLoading("freshness")) return "Checking source freshness…";
+    if (errors.includes("freshness")) return "Source freshness unavailable";
+    const state = snapshot.freshness?.sources?.[source];
+    if (!state) return "Source freshness unavailable";
+    const freshness = state.last_synchronized_at ? (state.status ?? "UNKNOWN") : "NEVER SYNCED";
+    const attempt = state.last_attempt_status && state.last_attempt_status !== "SUCCESS"
+      ? ` · Latest attempt: ${state.last_attempt_status}${state.last_attempt_at ? ` (${time(state.last_attempt_at)})` : ""}` : "";
+    return `${freshness} · Last successful ingestion: ${time(state.last_synchronized_at ?? undefined)}${attempt}`;
+  };
   const {
     locations,
     siteRows,
@@ -535,20 +540,8 @@ function App() {
       : activeNav === "Digital Workspace"
         ? "INTUNE"
         : undefined;
-  const sourceState = workspaceSource
-    ? snapshot.freshness?.sources?.[workspaceSource]
-    : undefined;
-  const sourceAvailable =
-    workspaceSource === "SOLARWINDS"
-      ? !!snapshot.solarwinds?.metrics
-      : workspaceSource === "INTUNE"
-        ? !!snapshot.intune?.metrics
-        : !!snapshot.cmdb && snapshot.cmdb.data_available !== false;
-  const workspaceLastRefresh = loading
-    ? "Loading snapshot…"
-    : workspaceSource
-      ? `${sourceAvailable ? (sourceState?.status ?? "UNKNOWN") : "UNAVAILABLE"} · ${ageLabel(sourceState?.age_seconds)}`
-      : lastRefresh;
+  const workspaceLastRefresh = workspaceSource ? sourceDescription(workspaceSource) : lastRefresh;
+  const workspaceLoading = sourceLoading(activeNav === "Operations Analytics" ? "solarwinds" : activeNav === "Digital Workspace" ? "intune" : "cmdb");
   const sm = snapshot.solarwinds?.metrics,
     im = snapshot.intune?.metrics;
   const attention = [
@@ -797,7 +790,7 @@ function App() {
                   key={kpi.label}
                   type="button"
                   aria-label={`View ${kpi.label}`}
-                  disabled={loading || kpi.value === "—"}
+                  disabled={sourceLoading(["intune", "solarwinds", "cmdb", "groups"][index]) || kpi.value === "—"}
                   onClick={() => openHomeMetric(index)}
                 >
                   <div className={`icon-box icon-box--${kpi.tone}`}>
@@ -809,7 +802,8 @@ function App() {
                       <strong>{kpi.value}</strong>
                       <span>{kpi.trend}</span>
                     </div>
-                    <small>{kpi.meta}</small>
+                    <small>{sourceLoading(["intune", "solarwinds", "cmdb", "groups"][index]) ? "Loading…" : kpi.value === "—" ? "Unavailable" : kpi.meta}</small>
+                    {index < 2 && <small>{sourceDescription(index === 0 ? "INTUNE" : "SOLARWINDS")}</small>}
                   </div>
                 </button>
               ))}
@@ -820,7 +814,7 @@ function App() {
                 <div className="panel__header">
                   <div>
                     <p className="eyebrow">SOLARWINDS LOCATION HEALTH</p>
-                    <h2>Site performance</h2>
+                    <h2>SolarWinds group status</h2>
                   </div>
                   <div className="location-picker-wrap">
                     <button
@@ -886,7 +880,7 @@ function App() {
                       </div>
                     </div>
                     <div>
-                      <p>Site Score</p>
+                      <p>Node status score</p>
                       <StatusBadge status={selectedLocation.scoreStatus} />
                       <small>{selectedLocation.scoreReason}</small>
                     </div>
@@ -896,7 +890,7 @@ function App() {
                       <Icon name="server" size={18} />
                     </span>
                     <div>
-                      <small>Total servers</small>
+                      <small>Classified servers</small>
                       <strong>{number(selectedLocation.servers)}</strong>
                       <p>at {selectedLocation.name}</p>
                     </div>
@@ -987,7 +981,7 @@ function App() {
               </aside>
             </section>
 
-            <LocationMatches report={snapshot.locationMatches} loading={loading} />
+            <LocationMatches report={snapshot.locationMatches} loading={sourceLoading("locationMatches")} />
 
             <section
               ref={homeTableRef}
@@ -1133,7 +1127,7 @@ function App() {
                 </table>
                 {visibleRows.length === 0 && (
                   <div className="empty-state">
-                    {loading
+                    {sourceLoading("groups")
                       ? "Loading source locations…"
                       : !groupsAvailable
                         ? "Location snapshot unavailable."
@@ -1166,10 +1160,11 @@ function App() {
               locations.find((location) => location.id === groupId)?.name
             }
             locations={snapshot.locations?.items ?? []}
-            loading={loading}
+            loading={workspaceLoading}
             lastRefresh={workspaceLastRefresh}
             onRefresh={refreshSnapshot}
             sourceGroups={locations}
+            groupsLoading={sourceLoading("groups")}
             groupsAvailable={groupsAvailable}
             onClearSearch={() => setGlobalQuery("")}
           />

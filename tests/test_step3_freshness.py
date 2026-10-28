@@ -207,3 +207,15 @@ async def test_newest_success_wins_when_several_exist(session: AsyncSession):
 
     assert report["sources"]["INTUNE"]["status"] == STATUS_FRESH
     assert report["sources"]["INTUNE"]["age_seconds"] < 600
+
+@pytest.mark.asyncio
+async def test_latest_attempt_is_reported_without_advancing_last_success(session):
+    session.add_all([_run('INTUNE', 'SUCCESS', 180), _run('INTUNE', 'FAILED', 1),
+                     _run('SOLARWINDS', 'PARTIAL', 2)])
+    await session.flush()
+    report = await FreshnessRepository(session, WINDOW).get_freshness()
+    assert report['sources']['INTUNE']['status'] == 'STALE'
+    assert report['sources']['INTUNE']['last_attempt_status'] == 'FAILED'
+    assert report['sources']['INTUNE']['last_attempt_at']
+    assert report['sources']['SOLARWINDS']['last_attempt_status'] == 'PARTIAL'
+    assert report['sources']['SOLARWINDS']['last_synchronized_at'] is None

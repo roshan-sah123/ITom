@@ -423,3 +423,17 @@ async def test_continuous_changes_fail_closed_with_503(api_client, session, db_s
     response = await api_client.get(path)
     assert response.status_code == 503 and attempts == 3
     assert response.json()['detail'].startswith('Location data unavailable')
+
+@pytest.mark.asyncio
+async def test_successful_empty_sources_are_zero_not_unavailable(api_client, session):
+    session.add_all([make_run('INTUNE'), make_run('SOLARWINDS')])
+    await session.commit()
+    intune = await api_client.get('/api/v1/intune/summary')
+    solar = await api_client.get('/api/v1/solarwinds/summary')
+    cmdb = await api_client.get('/api/v1/cmdb/summary')
+    matches = await api_client.get('/api/v1/locations/matches')
+    assert intune.status_code == 200 and intune.json()['metrics']['total_managed_devices'] == 0
+    assert solar.status_code == 200 and solar.json()['metrics']['total_nodes'] == 0
+    assert intune.json()['decision_metrics']['confirmed_compliance']['value'] is None
+    assert cmdb.json()['data_available'] is True and cmdb.json()['total_cis'] == 0
+    assert matches.json()['data']['data_available'] is True

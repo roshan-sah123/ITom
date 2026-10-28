@@ -154,6 +154,19 @@ class FreshnessRepository:
                 freshness_window_seconds=self.freshness_window_seconds,
             )
 
+        if self.session is not None:
+            attempts = (await self.session.execute(
+                select(SyncRun.source_system, SyncRun.status, SyncRun.started_at)
+                .where(SyncRun.source_system.in_(TRACKED_SOURCES))
+                .order_by(SyncRun.started_at.desc(), SyncRun.id.desc())
+            )).all()
+            seen = set()
+            for source, status, started_at in attempts:
+                if source in sources and source not in seen:
+                    seen.add(source)
+                    sources[source]["last_attempt_status"] = status
+                    sources[source]["last_attempt_at"] = _as_utc(started_at).isoformat() if started_at else None
+
         statuses = {entry["status"] for entry in sources.values()}
         if STATUS_UNKNOWN in statuses:
             overall = STATUS_UNKNOWN

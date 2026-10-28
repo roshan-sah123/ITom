@@ -198,3 +198,20 @@ test("source counts and health distributions never invent fixed values", () => {
   );
   assert.deepEqual(config.bars, []);
 });
+
+test("snapshot requests publish results independently and isolate failures", async () => {
+  const { loadSnapshotRoutes } = await import("../src/snapshot.ts");
+  let resolveSlow: (value: unknown) => void = () => {};
+  const slow = new Promise((resolve) => { resolveSlow = resolve; });
+  const events: string[] = [];
+  const done = loadSnapshotRoutes({ fast: "/fast", slow: "/slow", failed: "/failed" },
+    (route) => route === "/fast" ? Promise.resolve({ value: 7 }) : route === "/slow" ? slow : Promise.reject(new Error("offline")),
+    (key, value, error) => events.push(`${key}:${error ? "error" : JSON.stringify(value)}`));
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.ok(events.includes('fast:{"value":7}'));
+  assert.ok(events.includes('failed:error'));
+  assert.equal(events.some((event) => event.startsWith('slow:')), false);
+  resolveSlow({ value: 0 });
+  await done;
+  assert.ok(events.includes('slow:{"value":0}'));
+});

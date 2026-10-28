@@ -671,7 +671,10 @@ class SummaryRepository:
         status_breakdown = await self._group_count(ConfigurationItem.status, src)
         total = sum(status_breakdown.values())
         if total == 0:
-            raise EmptyDatasetError(src)
+            success = await self.session.scalar(select(func.max(SyncRun.completed_at)).where(
+                SyncRun.source_system == src, SyncRun.status == "SUCCESS"))
+            if success is None:
+                raise EmptyDatasetError(src)
 
         health_breakdown = await self._group_count(ConfigurationItem.health_tier, src)
         type_distribution = await self._group_count(ConfigurationItem.ci_type, src)
@@ -710,9 +713,9 @@ class SummaryRepository:
                 "high_health_count": high,
                 "medium_health_count": medium,
                 "low_health_count": low,
-                "high_health_pct": _pct(high, total),
-                "medium_health_pct": _pct(medium, total),
-                "low_health_pct": _pct(low, total),
+                "high_health_pct": _pct(high, total) if total else None,
+                "medium_health_pct": _pct(medium, total) if total else None,
+                "low_health_pct": _pct(low, total) if total else None,
             },
             "status_breakdown": status_breakdown,
             "health_breakdown": health_breakdown,
@@ -745,7 +748,7 @@ class SummaryRepository:
                 # Legacy alias - same computed value, older key name.
                 "non_compliant_devices": noncompliant,
                 "other_compliance": other,
-                "compliance_rate_pct": _pct(compliant, total),
+                "compliance_rate_pct": _pct(compliant, total) if total else None,
             }
         )
         payload["metrics"].update(await self._storage_metrics("INTUNE"))
@@ -887,9 +890,9 @@ class SummaryRepository:
                 "available_nodes": available,
                 "unavailable_nodes": total - available,
                 "unmonitored_nodes": _sum_matching(status_breakdown, UNMONITORED_STATUSES),
-                "availability_pct": _pct(available, monitored),
-                "monitored_availability_pct": _pct(available, monitored),
-                "total_fleet_availability_pct": _pct(available, total),
+                "availability_pct": _pct(available, monitored) if monitored else None,
+                "monitored_availability_pct": _pct(available, monitored) if monitored else None,
+                "total_fleet_availability_pct": _pct(available, total) if total else None,
                 "active_monitored_nodes": monitored,
                 # Legacy aliases - same computed values, older key names.
                 # High + Medium + Low always equals total_server_nodes.

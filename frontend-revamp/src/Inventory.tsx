@@ -306,7 +306,10 @@ export function InventoryPanel({
           <thead>
             <tr>
               {config.columns.map((column, i) => (
-                <th key={column}>
+                <th
+                  key={column}
+                  aria-sort={i === 0 && !groupId ? (sort === "name:asc" ? "ascending" : "descending") : undefined}
+                >
                   {i === 0 && !groupId ? (
                     <button
                       className="sort-button"

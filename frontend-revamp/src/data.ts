@@ -52,7 +52,7 @@ export type Freshness = {
   oldest_age_seconds?: number;
   sources?: Record<
     string,
-    { status?: string; last_synchronized_at?: string; age_seconds?: number }
+    { status?: string; last_synchronized_at?: string | null; age_seconds?: number; last_attempt_status?: string; last_attempt_at?: string | null }
   >;
 };
 export type Snapshot = {
@@ -140,7 +140,7 @@ export const percent = (value?: number | null): string =>
   Number.isFinite(value)
     ? `${value!.toLocaleString("en-US", { maximumFractionDigits: 2 })}%`
     : "—";
-export function time(value?: string): string {
+export function time(value?: string | null): string {
   if (!value) return "No successful sync";
   const normalized = /T\d{2}:\d{2}:\d{2}(\.\d+)?$/.test(value)
     ? `${value}Z`
@@ -316,7 +316,7 @@ export function buildPortalModel(snapshot: Snapshot) {
     },
     {
       ...metric(
-        "Configuration items",
+        "CMDB source records",
         cmdb?.total_cis,
         "Persisted source records",
         "database",
@@ -488,7 +488,7 @@ export function buildPortalModel(snapshot: Snapshot) {
         ),
         metric(
           "Intune records",
-          sourceCounts ? (sourceCounts.INTUNE ?? 0) : undefined,
+          sourceCounts?.INTUNE ?? (snapshot.freshness?.sources?.INTUNE?.last_synchronized_at ? 0 : undefined),
           "Managed endpoint records",
           "monitor",
           "blue",
@@ -496,7 +496,7 @@ export function buildPortalModel(snapshot: Snapshot) {
         ),
         metric(
           "SolarWinds records",
-          sourceCounts ? (sourceCounts.SOLARWINDS ?? 0) : undefined,
+          sourceCounts?.SOLARWINDS ?? (snapshot.freshness?.sources?.SOLARWINDS?.last_synchronized_at ? 0 : undefined),
           "Infrastructure node records",
           "server",
           "green",

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type { Snapshot } from "./data";
+import { loadSnapshotRoutes } from "./snapshot";
 
 declare global {
   interface Window {
@@ -27,42 +28,33 @@ export async function getJson<T>(
 
 export function usePortalSnapshot(revision: number) {
   const [snapshot, setSnapshot] = useState<Snapshot>({});
-  const [loading, setLoading] = useState(true);
+  const [pending, setPending] = useState<string[]>([]);
   const [errors, setErrors] = useState<string[]>([]);
   useEffect(() => {
     const controller = new AbortController();
-    setLoading(true);
     const routes = {
-      intune: "/intune/summary",
-      solarwinds: "/solarwinds/summary",
-      cmdb: "/cmdb/summary",
-      groups: "/solarwinds/groups/overview",
-      freshness: "/system/freshness",
-      locations: "/locations",
+      intune: "/intune/summary", solarwinds: "/solarwinds/summary",
+      cmdb: "/cmdb/summary", groups: "/solarwinds/groups/overview",
+      freshness: "/system/freshness", locations: "/locations",
       locationMatches: "/locations/matches",
     };
-    void Promise.allSettled(
-      Object.values(routes).map((route) => getJson(route, controller.signal)),
-    ).then((results) => {
+    setPending(Object.keys(routes));
+    setErrors([]);
+    setSnapshot({});
+    void loadSnapshotRoutes(routes, (route) => getJson(route, controller.signal), (key, value, failed) => {
       if (controller.signal.aborted) return;
-      const next: Record<string, unknown> = {},
-        failures: string[] = [];
-      results.forEach((result, i) => {
-        const key = Object.keys(routes)[i];
-        if (result.status === "fulfilled") {
-          const value = result.value as { data?: unknown };
-          next[key] = ["groups", "locations", "locationMatches"].includes(key)
-            ? value.data
-            : value;
-        } else failures.push(key);
-      });
-      setSnapshot(next as Snapshot);
-      setErrors(failures);
-      setLoading(false);
+      if (failed) setErrors((previous) => [...previous, key]);
+      else {
+        const payload = value as { data?: unknown };
+        const data = ["groups", "locations", "locationMatches"].includes(key) ? payload.data : value;
+        setSnapshot((previous) => ({ ...previous, [key]: data }));
+      }
+      setPending((previous) => previous.filter((item) => item !== key));
     });
     return () => controller.abort();
   }, [revision]);
-  return { snapshot, loading, errors };
+  return { snapshot, pending, errors };
+
 }
 
 export type CI = {

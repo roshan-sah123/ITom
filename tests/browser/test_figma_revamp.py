@@ -246,7 +246,8 @@ def test_errors_empty_recovery_and_unsupported_workspaces(revamp_portal_url, bro
     expect(page.get_by_role('heading', name='Data service unavailable')).to_be_visible()
     expect(page.locator('main')).not_to_contain_text('248')
     page.get_by_role('button', name='Automations', exact=True).click()
-    expect(page.get_by_role('link', name='Open TechAdmin')).to_have_attribute('href', 'https://techadmin.coforge.com/')
+    expect(page.locator('main')).not_to_contain_text('TechAdmin')
+    expect(page.locator('a[href*="techadmin"]')).to_have_count(0)
     expect(page.get_by_role('heading', name='Source synchronization history')).to_be_visible()
     expect(page.locator('tbody tr')).to_have_count(2)
     page.close()
@@ -365,4 +366,34 @@ def test_layout_and_navigation_at_supported_widths(revamp_portal_url, browser_co
                     .map(el => ({tag: el.tagName, class: el.className, width: el.getBoundingClientRect().width, right: el.getBoundingClientRect().right, position: getComputedStyle(el).position}))})''')
     page.get_by_role('button', name='Knowledge Center', exact=True).click()
     expect(page.get_by_role('heading', name='Knowledge Center', exact=True)).to_be_visible()
+    page.close()
+
+
+def test_dashboard_renders_ready_sources_while_optional_report_is_pending(revamp_portal_url, browser_context):
+    page = browser_context.new_page()
+    page.add_init_script('''
+      const realFetch = window.fetch.bind(window);
+      window.fetch = (url, options) => String(url).includes('/locations/matches')
+        ? new Promise(() => {}) : realFetch(url, options);
+    ''')
+    page.goto(revamp_portal_url)
+    endpoint_card = page.get_by_role('button', name='View Managed endpoints')
+    expect(endpoint_card).to_be_enabled(timeout=15000)
+    expect(endpoint_card).to_contain_text('3')
+    expect(page.locator('.location-matches')).to_contain_text('Loading matches')
+    expect(endpoint_card).to_contain_text('Last successful ingestion:')
+    page.close()
+
+
+def test_source_failure_does_not_hide_other_source(revamp_portal_url, browser_context):
+    page = browser_context.new_page()
+    page.route('**/api/v1/solarwinds/summary', lambda route: route.abort())
+    page.goto(revamp_portal_url)
+    endpoint_card = page.get_by_role('button', name='View Managed endpoints')
+    solar_card = page.get_by_role('button', name='View SolarWinds nodes')
+    expect(endpoint_card).to_be_enabled(timeout=15000)
+    expect(endpoint_card).to_contain_text('3')
+    expect(solar_card).to_be_disabled()
+    expect(solar_card).to_contain_text('Unavailable')
+    expect(page.get_by_role('alert')).to_contain_text('solarwinds')
     page.close()
