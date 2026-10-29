@@ -100,6 +100,20 @@ def location_geography(value):
     return None
 
 
+def node_geography(location, city, itsm_location):
+    labels = {str(value).strip() for value in (location, city, itsm_location) if value and str(value).strip()}
+    geographies = [geo for label in labels if (geo := location_geography(label))]
+    countries = {geo.get('country') for geo in geographies if geo.get('country')}
+    cities = {geo.get('city') for geo in geographies if geo.get('city')}
+    if any(geo.get('conflict') for geo in geographies) or len(countries) > 1 or len(cities) > 1:
+        return dict(conflict=True)
+    if not countries:
+        return None
+    country = next(iter(countries))
+    return dict(country=country, city=next(iter(cities), None),
+                region='Europe' if country in EUROPEAN_COUNTRIES else None, conflict=False)
+
+
 def stable_id(kind, value):
     return kind + '_' + hashlib.sha256(value.encode()).hexdigest()[:24]
 
@@ -381,19 +395,13 @@ class LocationService:
         conflicts = 0
         for node in nodes:
             attrs = node.attributes or {}
-            labels = {str(value).strip() for value in [node.location, attrs.get('city'), attrs.get('itsm_location')]
-                      if value and str(value).strip()}
-            geographies = [geo for label in labels if (geo := location_geography(label))]
-            countries = {geo.get('country') for geo in geographies if geo.get('country')}
-            cities = {geo.get('city') for geo in geographies if geo.get('city')}
-            if any(geo.get('conflict') for geo in geographies) or len(countries) > 1 or len(cities) > 1:
+            geo = node_geography(node.location, attrs.get('city'), attrs.get('itsm_location'))
+            if geo and geo['conflict']:
                 conflicts += 1
                 continue
-            if not countries:
+            if not geo:
                 continue
-            country = next(iter(countries))
-            evidence.append(dict(country=country, city=next(iter(cities), None),
-                                 region='Europe' if country in EUROPEAN_COUNTRIES else None,
+            evidence.append(dict(country=geo['country'], city=geo['city'], region=geo['region'],
                                  source_label=node.location or attrs.get('city') or attrs.get('itsm_location')))
         items = []
         for location in locations:
@@ -415,6 +423,54 @@ class LocationService:
                     and (bool(locations) or bool(unassigned) or bool(freshness["sources"]["INTUNE"].get("last_synchronized_at"))), freshness=freshness, as_of=datetime.now(timezone.utc).isoformat(),
                     match_policy='geographic-v1',
                     scope='Geographic reporting only; office assignments and approvals are unchanged. Nodes may support multiple reporting locations.')
+
+    async def geographic_scores(self):
+        """Score Intune locations against geographic SolarWinds evidence without changing assignments."""
+        for _ in range(3):
+            before = await self.observation_token()
+            now = datetime.now(timezone.utc)
+            locations = (await self.session.execute(select(Location.id, Location.name, Location.level).order_by(Location.name))).all()
+            records = await self.score_records()
+            ci = ConfigurationItem
+            node_rows = (await self.session.execute(select(ci.status, ci.location,
+                ci.attributes['city'].as_string().label('city'),
+                ci.attributes['itsm_location'].as_string().label('itsm_location'))
+                .where(ci.source_system == 'SOLARWINDS', ci.is_active.is_(True)))).all()
+            fresh = await self.freshness()
+            if before == await self.observation_token():
+                break
+        else:
+            raise RuntimeError('Location inventory changed during assessment; retry the request')
+        endpoints = defaultdict(list)
+        for record in records:
+            if record.source_system == 'INTUNE' and record.location_id:
+                endpoints[record.location_id].append(record)
+        nodes = defaultdict(list)
+        for row in node_rows:
+            geo = node_geography(row.location, row.city, row.itsm_location)
+            if not geo or geo['conflict']:
+                continue
+            node = SimpleNamespace(source_system='SOLARWINDS', status=row.status,
+                location_resolution='mapped', location_revision=None, attributes={})
+            for level in ('city', 'country', 'region'):
+                if geo.get(level):
+                    nodes[(level, geo[level])].append(node)
+        items = []
+        for location in locations:
+            if not endpoints[location.id]:
+                continue
+            target = location_geography(location.name)
+            if not target or target.get('conflict'):
+                continue
+            level = next((key for key in ('city', 'country', 'region') if target.get(key)), None)
+            matching = nodes.get((level, target.get(level)), []) if level else []
+            if not matching:
+                continue
+            row = self.score(location, endpoints[location.id] + matching, fresh, now)
+            row['match_level'] = level
+            items.append(row)
+        return dict(items=items, freshness=fresh, as_of=now.isoformat(),
+                    scope='Geographic evidence can overlap; it does not verify an office assignment.')
 
     async def catalogue(self):
         now,locations,cis,fresh=await self.score_inputs()

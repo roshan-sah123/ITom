@@ -21,11 +21,36 @@ async def drilldown_url(revamp_portal_url, session):
     return revamp_portal_url
 
 
+@pytest.fixture
+async def operations_card_url(revamp_portal_url, session):
+    session.add(make_ci('SOLARWINDS', 'TELECOM-DEVICE', 'Warning', 'Medium', attributes={'node_category': 'Telecom'}))
+    await session.commit()
+    return revamp_portal_url
+
+
+def test_operations_cards_switch_chart_populations(operations_card_url, browser_context):
+    page = browser_context.new_page()
+    page.goto(operations_card_url)
+    page.get_by_role('button', name='Operations Analytics', exact=True).click()
+    cards = page.locator('.workspace-kpis .kpi-card')
+    expect(cards).to_have_count(5)
+    for index, name in enumerate(['Location', 'Total Nodes', 'Network', 'Servers', 'Telecom']):
+        expect(cards.nth(index)).to_have_attribute('aria-label', f'View {name}')
+    page.get_by_role('button', name='View Telecom', exact=True).click()
+    expect(page.locator('.analytics-donut strong')).to_have_text('1')
+    expect(page.get_by_role('button', name='Filter Health classification: Medium')).to_contain_text('1')
+    expect(page.get_by_role('button', name='Filter Operational status: Warning')).to_contain_text('1')
+    expect(page.get_by_label('Source category')).to_have_value('Telecom')
+    page.get_by_role('button', name='View Total Nodes', exact=True).click()
+    expect(page.locator('.analytics-donut strong')).not_to_have_text('1')
+    page.close()
+
+
 def test_summary_and_chart_clicks_filter_reset_paginate_and_export(drilldown_url, browser_context):
     page=browser_context.new_page()
     page.goto(drilldown_url)
     page.get_by_role('button',name='Operations Analytics',exact=True).click()
-    page.get_by_role('button',name='View Classified servers',exact=True).click()
+    page.get_by_role('button',name='View Servers',exact=True).click()
     expect(page.get_by_label('Source category')).to_have_value('Server')
     expect(page.locator('.inventory-panel .table-footer')).to_contain_text('of 14 records')
     page.get_by_label('Rows per page').select_option('10')
@@ -34,8 +59,9 @@ def test_summary_and_chart_clicks_filter_reset_paginate_and_export(drilldown_url
     expect(page.locator('tbody tr')).to_have_count(4)
     page.get_by_role('button',name='Filter Health classification: Low',exact=True).click()
     expect(page.get_by_label('Health tier')).to_have_value('Low')
-    expect(page.get_by_label('Source category')).to_have_value('')
-    expect(page.locator('tbody tr')).to_have_count(3)
+    expect(page.get_by_label('Source category')).to_have_value('Server')
+    expect(page.locator('tbody tr')).to_have_count(2)
+    page.get_by_role('button',name='View Total Nodes',exact=True).click()
     page.get_by_role('button',name='Filter Operational status: Down',exact=True).click()
     expect(page.get_by_label('Filter status')).to_have_value('Down')
     expect(page.get_by_label('Health tier')).to_have_value('')
@@ -43,7 +69,7 @@ def test_summary_and_chart_clicks_filter_reset_paginate_and_export(drilldown_url
     expect(page.locator('tbody')).to_contain_text('DOWN-SWITCH')
     page.get_by_role('searchbox',name='Search SolarWinds node inventory').fill('no-such-node')
     expect(page.locator('.empty-state')).to_contain_text('No records match')
-    page.get_by_role('button',name='View Network infrastructure',exact=True).click()
+    page.get_by_role('button',name='View Network',exact=True).click()
     expect(page.get_by_label('Source category')).to_have_value('Network')
     expect(page.get_by_role('searchbox',name='Search SolarWinds node inventory')).to_have_value('')
     expect(page.locator('tbody tr')).to_have_count(1)
@@ -58,14 +84,33 @@ def test_summary_and_chart_clicks_filter_reset_paginate_and_export(drilldown_url
 
 def test_group_card_and_endpoint_asset_charts_open_matching_data(revamp_groups_url,browser_context):
     page=browser_context.new_page()
+    location_fixture = {'data': {'items': [{
+        'id': 'test-site', 'name': 'Test Site', 'level': 'city', 'match_level': 'city', 'endpoints': 2, 'nodes': 3,
+        'scores': {'combined': {'value': 80, 'status': 'critical', 'reason': 'A component is below 75%'},
+                   'infrastructure': {'value': 100, 'status': 'healthy'}, 'endpoints': {'value': 70, 'status': 'critical'}},
+        'components': {'node_status': {'value': 100, 'numerator': 3, 'denominator': 3, 'usable': True}, 'compliance': {'value': 70, 'usable': True}, 'recent_checkins': {'value': 70, 'usable': True}}
+    }]}}
+    page.route('**/api/v1/locations', lambda route: route.fulfill(json=location_fixture))
+    page.route('**/api/v1/locations/geographic-scores', lambda route: route.fulfill(json=location_fixture))
     page.goto(revamp_groups_url)
     page.get_by_role('button',name='Operations Analytics',exact=True).click()
-    page.get_by_role('button',name='View Location health',exact=True).click()
-    expect(page.get_by_role('heading',name='SolarWinds location groups',exact=True)).to_be_visible()
-    page.get_by_role('button',name='View group BOCBA(Bolivia,Cochabamba-Encora)',exact=True).click()
-    expect(page.locator('.inventory-panel .table-footer')).to_contain_text('of 2 records')
-    page.get_by_role('button',name='Clear filters',exact=True).click()
-    expect(page.locator('.inventory-panel .table-footer')).to_contain_text('of 5 records')
+    page.get_by_role('button',name='View Location',exact=True).click()
+    expect(page.get_by_role('heading',name='Location site scores',exact=True)).to_be_visible()
+    expect(page.locator('.inventory-panel')).to_contain_text('Test Site')
+    expect(page.locator('.inventory-panel')).to_contain_text('Suggested P1')
+    expect(page.locator('.inventory-panel')).to_contain_text('100% (3 / 3)')
+    expect(page.locator('.inventory-panel')).to_contain_text('Geographic city')
+    page.get_by_label('Mapping scope').select_option('assigned')
+    expect(page.locator('.inventory-panel')).to_contain_text('Assigned')
+    page.get_by_label('Mapping scope').select_option('geographic')
+    with page.expect_download() as download:
+        page.get_by_role('button', name='Export filtered CSV').click()
+    assert download.value.suggested_filename == 'location-site-scores.csv'
+    page.get_by_label('Score type').select_option('infrastructure')
+    expect(page.locator('.inventory-panel tbody')).to_contain_text('healthy')
+    page.get_by_label('Score type').select_option('endpoints')
+    expect(page.locator('.inventory-panel tbody')).to_contain_text('70')
+    page.get_by_label('Score type').select_option('combined')
     page.get_by_role('button',name='Digital Workspace',exact=True).click()
     page.get_by_role('button',name='Filter Operating system fleet: Windows',exact=True).click()
     expect(page.locator('.inventory-panel .table-footer')).to_contain_text('of 3 records')
@@ -122,10 +167,12 @@ def test_snapshot_refreshes_only_once_every_ten_minutes(revamp_portal_url, brows
     }''')
     page.clock.run_for(100)
     assert len(requests) == 1
-    page.clock.fast_forward(598_900)
+    # Allow time spent loading the app before this assertion; the installed
+    # clock advances during page startup as well as explicit fast-forwards.
+    page.clock.fast_forward(590_000)
     assert len(requests) == 1
     with page.expect_request('**/api/v1/solarwinds/summary'):
-        page.clock.fast_forward(1_000)
+        page.clock.fast_forward(10_000)
     expect(page.locator('.freshness').first).not_to_contain_text('Loading snapshot')
     assert len(requests) == 2
     with page.expect_request('**/api/v1/solarwinds/summary'):
@@ -140,7 +187,7 @@ def test_selected_card_refreshes_current_rows_without_losing_filter(drilldown_ur
     page.clock.install()
     page.goto(drilldown_url)
     page.get_by_role('button', name='Operations Analytics', exact=True).click()
-    page.get_by_role('button', name='View Classified servers', exact=True).press('Enter')
+    page.get_by_role('button', name='View Servers', exact=True).press('Enter')
     expect(page.locator('.inventory-panel .table-footer')).to_contain_text('of 14 records')
 
     def updated_inventory(route):
@@ -156,6 +203,7 @@ def test_selected_card_refreshes_current_rows_without_losing_filter(drilldown_ur
         data = response.json()
         data['metrics']['server_nodes_count'] += 1
         data['metrics']['total_nodes'] += 1
+        next(row for row in data['source_categories'] if row['value'] == 'Server')['count'] += 1
         route.fulfill(response=response, json=data)
 
     page.route('**/api/v1/solarwinds/nodes?*category=Server*', updated_inventory)
@@ -164,7 +212,7 @@ def test_selected_card_refreshes_current_rows_without_losing_filter(drilldown_ur
     expect(page.get_by_label('Source category')).to_have_value('Server')
     expect(page.locator('.inventory-panel .table-footer')).to_contain_text('of 15 records')
     expect(page.locator('tbody')).to_contain_text('UPDATED-SERVER')
-    expect(page.get_by_role('button', name='View Classified servers', exact=True)).to_contain_text('15')
+    expect(page.get_by_role('button', name='View Servers', exact=True)).to_contain_text('15')
     page.get_by_role('button', name='Reload snapshot', exact=True).click()
     expect(page.get_by_label('Source category')).to_have_value('Server')
     expect(page.locator('.inventory-panel .table-footer')).to_contain_text('of 15 records')

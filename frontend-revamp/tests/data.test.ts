@@ -5,7 +5,39 @@ import {
   donutGradient,
   donutSlice,
   csvText,
+  buildOperationsCharts,
 } from "../src/data.ts";
+
+test("operations charts use the selected source category and keep its inventory filters", () => {
+  const snapshot = { solarwinds: { metrics: { total_nodes: 5 }, health_breakdown: { High: 3, Low: 2 }, status_breakdown: { Up: 3, Down: 2 },
+    source_categories: [{ value: "Telecom", count: 2, health_counts: { High: 1, Low: 1 }, status_counts: { Up: 1, Down: 1 } }] } };
+  const result = buildOperationsCharts(snapshot, "Telecom");
+  assert.equal(result.chartCenter, "2");
+  assert.equal(result.chartLegend.find((row) => row.label === "Low")?.value, "1");
+  assert.deepEqual(result.bars.find((row) => row.label === "Down")?.action?.filters, { category: "Telecom", status: "Down" });
+  const missing = buildOperationsCharts(snapshot, "Network");
+  assert.equal(missing.chartCenter, "0");
+  assert.deepEqual(missing.chartLegend, []);
+  const total = buildOperationsCharts(snapshot, "Total Nodes");
+  assert.equal(total.chartCenter, "5");
+  const location = buildOperationsCharts({ geographicScores: { items: [
+    { id: "a", name: "A", endpoints: 2, match_level: "city", scores: { combined: { value: 80, status: "critical" } } },
+    { id: "b", name: "B", endpoints: 2, match_level: "country", scores: { combined: { value: null, status: "unavailable" } } },
+  ] } }, "Location");
+  assert.equal(location.chartCenter, "2");
+  assert.equal(location.chartLegend.find((row) => row.label === "critical")?.value, "1");
+  assert.equal(location.bars.find((row) => row.label === "country")?.display, "1");
+});
+import { scorePriority, componentEvidence } from "../src/locationScoreData.ts";
+
+test("ticket guidance follows the backend combined status and preserves component evidence", () => {
+  assert.equal(scorePriority("combined", { value: 84.3, status: "critical" }), "P1");
+  assert.equal(scorePriority("combined", { value: 91, status: "warning" }), "P2");
+  assert.equal(scorePriority("combined", { value: null, status: "critical" }), "—");
+  assert.equal(scorePriority("infrastructure", { value: 20, status: "critical" }), "—");
+  assert.equal(componentEvidence({ value: 73.54, numerator: 1009, denominator: 1372, usable: true }), "73.54% (1009 / 1372)");
+  assert.equal(componentEvidence({ value: 90, usable: false, reason: "Source data is stale or unavailable" }), "Unavailable: Source data is stale or unavailable");
+});
 
 test("unavailable sources never become zero fleets or fresh snapshots", () => {
   const model = buildPortalModel({});
@@ -106,6 +138,42 @@ test("site scores retain their policy status and monitored-node denominator", ()
   assert.equal(model.siteRows[0].availability, model.locations[0].availability);
 });
 
+test("combined location scores retain approved mapping, components and unavailable reasons", () => {
+  const group = {
+    group: { group_id: 7, name: "Site", status: "Up" }, total_devices: 2,
+    server_count: 1, network_count: 1, status_breakdown: { Up: 2 },
+    site_score: { value: null, status: "unavailable", reason: "An explicit approved Intune location link is required" },
+    mapping: { status: "UNMAPPED", location_name: null }, intune_endpoints: 0,
+    components: { node_status: { value: 100, denominator: 2, usable: true } },
+  };
+  const model = buildPortalModel({ combinedGroups: { data_available: true, items: [group] } });
+  assert.equal(model.combinedLocations[0].scoreStatus, "Unavailable");
+  assert.equal(model.combinedLocations[0].scoreReason, group.site_score.reason);
+  assert.equal(model.combinedLocations[0].mappingStatus, "UNMAPPED");
+  assert.equal(model.combinedLocations[0].availability, "100%");
+});
+
+test("Intune location scores retain endpoint scope and backend status", () => {
+  const model = buildPortalModel({ locations: { items: [
+    { id: "city", name: "City", endpoints: 4, scores: { endpoints: { value: 88, status: "warning", reason: null } } },
+    { id: "unassigned", name: "Unassigned", endpoints: 2, scores: { endpoints: { value: null, status: "unavailable", reason: "Unassigned location" } } },
+  ] } });
+  assert.equal(model.intuneLocations[0].score, 88);
+  assert.equal(model.intuneLocations[0].scoreStatus, "Warning");
+  assert.equal(model.intuneLocations[1].scoreReason, "Unassigned location");
+});
+
+test("canonical location scores preserve both sources and combined policy status", () => {
+  const model = buildPortalModel({ locations: { items: [{ id: "site", name: "Site", endpoints: 100, nodes: 10,
+    scores: { combined: { value: 84.3, status: "critical", reason: "A component is below 75%" } },
+    components: { compliance: { value: 82.43, usable: true }, node_status: { value: 94.05, usable: true }, recent_checkins: { value: 73.54, usable: true } },
+  }] } });
+  assert.equal(model.locationScores[0].scores.combined?.value, 84.3);
+  assert.equal(model.locationScores[0].scores.combined?.status, "critical");
+  assert.equal(model.locationScores[0].nodes, 10);
+  assert.equal(model.locationScores[0].components?.recent_checkins?.value, 73.54);
+});
+
 test("donut segments use actual proportions including zero and missing data", () => {
   assert.equal(donutGradient([]), "#e3e9f2");
   assert.equal(
@@ -164,10 +232,10 @@ test("summary and chart drill-downs preserve native filter values", () => {
     },
   });
   const config = model.workspaceConfigs["Operations Analytics"];
-  assert.deepEqual(config.metrics[0].action?.filters, { category: "SERVER" });
-  assert.deepEqual(config.metrics[1].action?.filters, { category: "Network" });
-  assert.equal(config.metrics[2].action?.target, "groups");
-  assert.deepEqual(config.metrics[3].action?.filters, { health_tier: "Low" });
+  assert.deepEqual(config.metrics.map((row) => row.label), ["Location", "Total Nodes", "Network", "Servers", "Telecom"]);
+  assert.equal(config.metrics[0].action?.target, "groups");
+  assert.deepEqual(config.metrics[2].action?.filters, { category: "Network" });
+  assert.deepEqual(config.metrics[3].action?.filters, { category: "SERVER" });
   assert.deepEqual(
     config.chartLegend.find((row) => row.label === "Low")?.action?.filters,
     { health_tier: "Low" },

@@ -21,6 +21,8 @@ The current React home page has a separate **Intune and SolarWinds location matc
 
 This is a read-only geographic report, not an office-link approval or a Combined health score. Office names, canonical IDs, exact assignments and review decisions remain unchanged. Greater Noida and Noida stay distinct. Cloud labels are not treated as physical sites. Contradictory source cities/countries are excluded; countries and regions are not silently promoted to office-level precision. Known city spellings and countries use explicit geography knowledge, not fuzzy similarity or an LLM decision.
 
+The Location Health score table also offers **Geographic matches** as a separate scoring scope. It applies the normal score policy to the Intune records assigned to each reporting location and SolarWinds nodes with matching city, country or region evidence. The match level is shown and exported. A geographic score does not establish an office assignment; multiple rows may share nodes, so their counts must not be summed. Freshness, field coverage and mapping-review gates still apply. The **Assigned locations** scope continues to use canonical device assignments. Geographic scoring does not modify assignments or approvals.
+
 Unassigned endpoints are reported separately and are not a named Intune location. A missing SolarWinds snapshot is unavailable, not zero coverage. Locations without unambiguous source evidence stay unmatched. The same SolarWinds node can support multiple geographic reporting rows, such as a country and a city or two offices in that city; do not sum these rows into fleet totals. The freshness metadata identifies the saved source observations, not current physical presence.
 
 ## Reading and acting on a card
@@ -82,6 +84,7 @@ Use **Infrastructure → Location Health → Review location mappings** for Pend
 
 - `GET /api/v1/locations`: all reporting locations, scores, source coverage and freshness.
 - `GET /api/v1/locations/matches`: read-only geographic matches, unmatched named Intune locations, source-label evidence, conflicting-node counts and freshness. No assignments or group approvals are written.
+- `GET /api/v1/locations/geographic-scores`: read-only geographic-match scores with match level, components, freshness and policy version; reporting scopes may overlap.
 - `GET /api/v1/locations/{id}/score`: one location's components, denominators, reasons and provenance.
 - `GET /api/v1/locations/{id}/devices`: `source`, `issue`, `search`, `page`, `page_size`.
 - `GET /api/v1/locations/{id}/export`: the same source/issue/search selection, CSV formula-safe output.

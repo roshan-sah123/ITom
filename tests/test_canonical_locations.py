@@ -202,6 +202,32 @@ async def test_geographic_matches_preserve_offices_and_exclude_missing_or_confli
 
 
 @pytest.mark.asyncio
+async def test_geographic_scores_use_current_node_evidence_without_assigning_offices(api_client, session):
+    session.add_all([Location(id='city-a', name='Hyderabad / QE', level='office'), Location(id='city-b', name='Hyderabad', level='city')])
+    await session.flush()
+    now = datetime.now(timezone.utc).isoformat()
+    for target in ['city-a', 'city-b']:
+        session.add(make_ci('INTUNE', target, 'Compliant', 'High', location_id=target, location_resolution='mapped', attributes={'last_sync_date_time': now}))
+    session.add(make_ci('SOLARWINDS', 'geo-up', 'Up', 'High', location='India - Hyderabad', attributes={'city': 'India - Hyderabad'}))
+    session.add(make_ci('SOLARWINDS', 'geo-conflict', 'Down', 'Low', location='India - Pune', attributes={'itsm_location': 'India - Hyderabad'}))
+    session.add_all([make_run('INTUNE'), make_run('SOLARWINDS')]); await session.commit()
+    response = await api_client.get('/api/v1/locations/geographic-scores')
+    assert response.status_code == 200
+    items = {row['id']: row for row in response.json()['data']['items']}
+    assert items['city-a']['scores']['combined']['value'] == 100
+    assert items['city-a']['nodes'] == 1
+    assert items['city-a']['match_level'] == 'city'
+    assert items['city-b']['nodes'] == 1  # overlapping reporting scopes, not office assignments
+    assert (await session.scalar(select(ConfigurationItem).where(ConfigurationItem.name == 'geo-up'))).location_id is None
+    from sqlalchemy import update
+    await session.execute(update(SyncRun).where(SyncRun.source_system == 'SOLARWINDS').values(completed_at=datetime.now(timezone.utc) - timedelta(days=1)))
+    await session.commit()
+    stale = (await api_client.get('/api/v1/locations/geographic-scores')).json()['data']['items']
+    assert stale[0]['scores']['combined']['value'] is None
+    assert 'stale' in stale[0]['scores']['combined']['reason'].lower()
+
+
+@pytest.mark.asyncio
 async def test_backfill_idempotent_preserves_telemetry(session):
     service = LocationService(session)
     await service.install_seed()

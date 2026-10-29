@@ -35,6 +35,16 @@ async def test_source_server_triage_never_substitutes_hardware_guesses(session, 
     assert [row['name'] for row in data['top_source_servers']]==['Device 1']
 
 
+async def test_source_category_charts_report_health_and_status_for_same_nodes(session, api_client):
+    client = native_client()
+    client.nodes[0]['Status'] = 2
+    await ingest(session, client)
+    data = (await api_client.get('/api/v1/solarwinds/summary')).json()
+    server = next(row for row in data['source_categories'] if row['value'] == 'Server')
+    assert sum(server['health_counts'].values()) == server['count'] == 1
+    assert sum(server['status_counts'].values()) == 1
+
+
 async def test_overview_reconciles_all_inventory_shared_nodes_and_unknowns(session, api_client):
     client = native_client()
     client.members += [member(13, 11, 'Orion.Groups')]

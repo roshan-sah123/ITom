@@ -812,6 +812,21 @@ button:disabled { opacity: .55; cursor: wait; }
 .health-breakdown > div { background: #e9edf3; }
 
 .status--unavailable { color: var(--muted); background: #f0f2f6; }
+.location-score-context { padding: 14px 20px; border-bottom: 1px solid var(--border, #e2e8f0); color: var(--muted); font-size: 12px; line-height: 1.5; }
+.location-score-context p { margin: 8px 0 0; }
+.location-score-summary { display: flex; flex-wrap: wrap; gap: 10px 24px; color: var(--text, #26334a); }
+.location-score-summary strong { font-size: 16px; margin-right: 3px; }
+
+/* A slightly stronger reading weight for the Operations Analytics workspace. */
+.operations-analytics .hero__subtitle,
+.operations-analytics .kpi-card small,
+.operations-analytics .chart-legend,
+.operations-analytics .bar-column small,
+.operations-analytics .chart-hint,
+.operations-analytics .table-footer,
+.operations-analytics .location-score-context,
+.operations-analytics td { font-weight: 550; }
+.operations-analytics .kpi-card p { font-weight: 650; }
 
 /* Summary controls use the same live populations as the inventory queries. */
 .kpi-card--interactive { width: 100%; text-align: left; font: inherit; }
