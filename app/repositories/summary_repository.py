@@ -814,6 +814,7 @@ class SummaryRepository:
                 ConfigurationItem.vendor,
                 ConfigurationItem.attributes,
                 ConfigurationItem.status,
+                ConfigurationItem.health_tier,
                 ConfigurationItem.last_sync_time,
             )
             .where(

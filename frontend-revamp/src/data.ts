@@ -18,7 +18,10 @@ type Metric = {
   denominator?: number;
   usable?: boolean;
   definition?: string;
+  reason?: string | null;
 };
+type LocationScore = { value: number | null; status?: string; reason?: string | null };
+type LocationRow = { id: string; name: string; endpoints: number; nodes?: number; level?: string; match_level?: string; as_of?: string; policy_version?: string; freshness?: Freshness["sources"]; scores?: Partial<Record<"endpoints" | "infrastructure" | "combined", LocationScore>>; components?: { compliance?: Metric; node_status?: Metric; recent_checkins?: Metric } };
 export type Summary = {
   metrics?: Counts;
   total_cis?: number;
@@ -31,7 +34,7 @@ export type Summary = {
   status_breakdown?: Counts;
   health_breakdown?: Counts;
   os_distribution?: Counts;
-  source_categories?: Array<{ value: string | null; count: number }>;
+  source_categories?: Array<{ value: string | null; count: number; health_counts?: Counts; status_counts?: Counts }>;
   decision_metrics?: {
     confirmed_compliance?: Metric;
     current_node_status?: Metric;
@@ -44,6 +47,8 @@ export type Group = {
   server_count: number;
   network_count: number;
   site_score: { value: number | null; status?: string; reason?: string };
+  mapping?: { status: string; location_name?: string | null };
+  intune_endpoints?: number;
   status_breakdown: Counts;
   components?: { node_status?: Metric };
 };
@@ -61,7 +66,9 @@ export type Snapshot = {
   cmdb?: Summary;
   freshness?: Freshness;
   groups?: { data_available: boolean; items: Group[]; as_of?: string };
-  locations?: { items: Array<{ id: string; name: string; endpoints: number }> };
+  combinedGroups?: { data_available: boolean; items: Group[]; as_of?: string };
+  locations?: { items: LocationRow[] };
+  geographicScores?: { items: LocationRow[] };
   locationMatches?: {
     data_available: boolean;
     matched_locations: number;
@@ -170,6 +177,10 @@ function legend(counts?: Counts, filter?: keyof InventoryFilters): Legend[] {
     NonCompliant: "red",
     InGracePeriod: "amber",
     ConfigManager: "blue",
+    healthy: "green",
+    warning: "amber",
+    critical: "red",
+    Unavailable: "slate",
   };
   return Object.entries(counts ?? {}).map(([label, value], i) => ({
     label,
@@ -188,6 +199,33 @@ function bars(counts?: Counts, filter?: keyof InventoryFilters) {
     display: item.value,
     value: total ? (counts![item.label] / total) * 100 : 0,
   }));
+}
+
+export function buildOperationsCharts(snapshot: Snapshot, scope: string) {
+  if (scope === "Location") {
+    const locations = snapshot.geographicScores?.items;
+    const statuses: Counts = {}, levels: Counts = {};
+    for (const row of locations ?? []) {
+      const status = row.scores?.combined?.value == null ? "Unavailable" : row.scores.combined.status ?? "Unknown";
+      statuses[status] = (statuses[status] ?? 0) + 1;
+      const level = row.match_level ?? "Unknown";
+      levels[level] = (levels[level] ?? 0) + 1;
+    }
+    return { chartTitle: "Combined score classification", chartCenter: locations ? number(locations.length) : "—", chartLegend: legend(statuses), barsTitle: "Geographic match level", bars: bars(levels) };
+  }
+  const categoryName = scope === "Servers" ? "Server" : scope;
+  const categoryRow = snapshot.solarwinds?.source_categories?.find((row) => row.value?.trim().toLowerCase() === categoryName.toLowerCase());
+  const isAll = scope === "Total Nodes";
+  const categoryReady = !!snapshot.solarwinds?.source_categories;
+  const categoryFilter = categoryRow?.value ? { category: categoryRow.value } : {};
+  const addScope = <T extends { action?: Drilldown }>(rows: T[]): T[] => rows.map((row) => row.action ? { ...row, action: { ...row.action, filters: { ...categoryFilter, ...row.action.filters } } } : row);
+  return {
+    chartTitle: "Health classification",
+    chartCenter: isAll ? number(snapshot.solarwinds?.metrics?.total_nodes) : categoryReady ? number(categoryRow?.count ?? 0) : "—",
+    chartLegend: addScope(legend(isAll ? snapshot.solarwinds?.health_breakdown : categoryRow?.health_counts, "health_tier")),
+    barsTitle: "Operational status",
+    bars: addScope(bars(isAll ? snapshot.solarwinds?.status_breakdown : categoryRow?.status_counts, "status")),
+  };
 }
 function metric(
   label: string,
@@ -244,7 +282,7 @@ export function buildPortalModel(snapshot: Snapshot) {
     )?.value ?? name;
   const groupsAvailable = snapshot.groups?.data_available === true;
   const groups = groupsAvailable ? snapshot.groups!.items : [];
-  const locations = groups.map((row) => ({
+  const mapGroup = (row: Group) => ({
     id: row.group.group_id,
     name: row.group.name,
     servers: row.server_count,
@@ -258,6 +296,9 @@ export function buildPortalModel(snapshot: Snapshot) {
             row.site_score.status ?? ""
           ] ?? "Unknown",
     scoreReason: row.site_score.reason ?? "Backend Site Score",
+    mappingStatus: row.mapping?.status ?? "Unknown",
+    mappingName: row.mapping?.location_name ?? null,
+    intuneEndpoints: row.intune_endpoints ?? null,
     healthy: row.status_breakdown.Up ?? 0,
     warning: row.status_breakdown.Warning ?? 0,
     critical:
@@ -270,7 +311,19 @@ export function buildPortalModel(snapshot: Snapshot) {
     availability: row.components?.node_status?.usable
       ? percent(row.components.node_status.value)
       : "—",
+  });
+  const locations = groups.map(mapGroup);
+  const combinedLocations = snapshot.combinedGroups?.data_available === true
+    ? snapshot.combinedGroups.items.map(mapGroup) : [];
+  const intuneLocations = (snapshot.locations?.items ?? []).map((row) => ({
+    id: row.id, name: row.name, endpoints: row.endpoints,
+    score: row.scores?.endpoints?.value ?? null,
+    scoreStatus: row.scores?.endpoints?.value == null ? "Unavailable" :
+      ({ healthy: "Healthy", warning: "Warning", critical: "Critical" } as Record<string, string>)[row.scores.endpoints.status ?? ""] ?? "Unknown",
+    scoreReason: row.scores?.endpoints?.reason ?? (row.scores?.endpoints ? "" : "Score data unavailable"),
   }));
+  const locationScores = (snapshot.locations?.items ?? []).map((row) => ({ ...row, scores: row.scores ?? {} }));
+  const geographicScores = (snapshot.geographicScores?.items ?? []).map((row) => ({ ...row, scores: row.scores ?? {} }));
   const swFreshness = snapshot.freshness?.sources?.SOLARWINDS;
   const siteRows = locations.map((row) => ({
     ...row,
@@ -343,42 +396,23 @@ export function buildPortalModel(snapshot: Snapshot) {
         "Monitor node health, network capacity, and server performance across every location.",
       metrics: [
         metric(
-          "Classified servers",
-          sm?.server_nodes_count,
-          `of ${number(sm?.total_nodes)} SolarWinds nodes`,
-          "server",
-          "blue",
-          {
-            label: "Classified servers",
-            filters: { category: category("Server") },
-          },
+          "Location", snapshot.geographicScores ? snapshot.geographicScores.items.length : undefined,
+          "Geographic matches", "map", "purple", { label: "Location", target: "groups" },
         ),
         metric(
-          "Network infrastructure",
-          sm?.network_devices_count,
-          "SolarWinds node inventory",
-          "activity",
-          "green",
-          {
-            label: "Network infrastructure",
-            filters: { category: category("Network") },
-          },
+          "Total Nodes", sm?.total_nodes, "SolarWinds node inventory", "server", "blue", { label: "Total Nodes", filters: {} },
         ),
         metric(
-          "Location health",
-          groupsAvailable ? groups.length : undefined,
-          "Regular groups · mixed levels",
-          "map",
-          "purple",
-          { label: "Location health", target: "groups" },
+          "Network", snapshot.solarwinds?.source_categories ? snapshot.solarwinds.source_categories.filter((row) => row.value?.trim().toLowerCase() === "network").reduce((sum, row) => sum + row.count, 0) : undefined,
+          "Source category", "activity", "green", { label: "Network", filters: { category: category("Network") } },
         ),
         metric(
-          "Nodes needing attention",
-          sm?.low_critical_nodes,
-          "Low health classification",
-          "alert",
-          "orange",
-          { label: "Nodes needing attention", filters: { health_tier: "Low" } },
+          "Servers", snapshot.solarwinds?.source_categories ? snapshot.solarwinds.source_categories.filter((row) => row.value?.trim().toLowerCase() === "server").reduce((sum, row) => sum + row.count, 0) : undefined,
+          "Source category", "server", "blue", { label: "Servers", filters: { category: category("Server") } },
+        ),
+        metric(
+          "Telecom", snapshot.solarwinds?.source_categories ? snapshot.solarwinds.source_categories.filter((row) => row.value?.trim().toLowerCase() === "telecom").reduce((sum, row) => sum + row.count, 0) : undefined,
+          "Source category", "activity", "orange", { label: "Telecom", filters: { category: category("Telecom") } },
         ),
       ],
       chartTitle: "Health classification",
@@ -587,6 +621,10 @@ export function buildPortalModel(snapshot: Snapshot) {
   return {
     kpis,
     locations,
+    combinedLocations,
+    intuneLocations,
+    locationScores,
+    geographicScores,
     siteRows,
     workspaceConfigs,
     freshness,

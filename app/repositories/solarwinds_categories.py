@@ -23,6 +23,7 @@ def category_evidence(rows):
         buckets.items(), key=lambda item: (item[0] is None, (item[0] or "").casefold())
     ):
         statuses = Counter((getattr(row, "status", None) or "Unknown") for row in members)
+        health = Counter((getattr(row, "health_tier", None) or "Unknown") for row in members)
         cpu_count = memory_count = both_count = pressure_count = 0
         for row in members:
             cpu, memory = resources(getattr(row, "attributes", None))
@@ -35,6 +36,7 @@ def category_evidence(rows):
             "name": value if value is not None else "Unclassified",
             "count": len(members),
             "status_counts": dict(sorted(statuses.items())),
+            "health_counts": dict(sorted(health.items())),
             "cpu_count": cpu_count,
             "memory_count": memory_count,
             "both_resources_count": both_count,

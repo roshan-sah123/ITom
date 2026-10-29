@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   buildPortalModel,
+  buildOperationsCharts,
   donutGradient,
   downloadCsv,
   number,
@@ -11,7 +12,7 @@ import {
 import type { IconName, WorkspaceConfig, Drilldown, Snapshot } from "./data";
 import { usePortalSnapshot } from "./api";
 import { InventoryPanel, SyncHistory } from "./Inventory";
-import { GroupSelector } from "./Groups";
+import { LocationScores } from "./LocationScores";
 
 const iconPaths: Record<IconName, React.ReactNode> = {
   search: (
@@ -132,8 +133,13 @@ function WorkspacePage({
   locations,
   loading,
   sourceGroups,
-  groupsLoading,
-  groupsAvailable,
+  locationScores,
+  geographicScores,
+  geographicScoresAvailable,
+  geographicScoresLoading,
+  locationScoresAvailable,
+  locationScoresLoading,
+  snapshot,
   onClearSearch,
 }: {
   config: WorkspaceConfig;
@@ -149,8 +155,13 @@ function WorkspacePage({
   locations: Array<{ id: string; name: string; endpoints: number }>;
   loading: boolean;
   sourceGroups: ReturnType<typeof buildPortalModel>["locations"];
-  groupsLoading: boolean;
-  groupsAvailable: boolean;
+  locationScores: ReturnType<typeof buildPortalModel>["locationScores"];
+  geographicScores: ReturnType<typeof buildPortalModel>["geographicScores"];
+  geographicScoresAvailable: boolean;
+  geographicScoresLoading: boolean;
+  locationScoresAvailable: boolean;
+  locationScoresLoading: boolean;
+  snapshot: Snapshot;
   onClearSearch: () => void;
 }) {
   const [selection, setSelection] = useState<Drilldown>({
@@ -163,9 +174,14 @@ function WorkspacePage({
     },
   });
   const [selectionId, setSelectionId] = useState(0);
+  const [operationsScope, setOperationsScope] = useState("Total Nodes");
+  const isOperations = config.title === "Infrastructure intelligence";
+  const charts = isOperations ? buildOperationsCharts(snapshot, operationsScope) : config;
   const detailRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<HTMLDivElement>(null);
-  function choose(action: Drilldown) {
+  const focusChart = useRef(false);
+  function choose(action: Drilldown, showCharts = false) {
+    focusChart.current = showCharts;
     setSelection(action);
     setSelectionId((value) => value + 1);
     onClearSearch();
@@ -174,7 +190,7 @@ function WorkspacePage({
   useEffect(() => {
     if (!selectionId) return;
     const target =
-      selection.target === "chart" ? chartRef.current : detailRef.current;
+      focusChart.current || selection.target === "chart" ? chartRef.current : detailRef.current;
     target?.focus({ preventScroll: true });
     target?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [selectionId, selection.target]);
@@ -227,9 +243,9 @@ function WorkspacePage({
                 key={metric.label}
                 type="button"
                 aria-label={`View ${metric.label}`}
-                aria-pressed={selection.label === metric.action?.label}
+                aria-pressed={isOperations ? operationsScope === metric.label : selection.label === metric.action?.label}
                 disabled={loading || metric.value === "—" || !metric.action}
-                onClick={() => metric.action && choose(metric.action)}
+                onClick={() => { if (isOperations) setOperationsScope(metric.label); if (metric.action) choose(metric.action, isOperations); }}
               >
                 <div className={`icon-box icon-box--${metric.tone}`}>
                   <Icon name={metric.icon} size={18} />
@@ -256,17 +272,18 @@ function WorkspacePage({
                 <div className="compact-panel-header">
                   <div>
                     <p className="eyebrow">DISTRIBUTION</p>
-                    <h2>{config.chartTitle}</h2>
+                    <h2>{charts.chartTitle}</h2>
+                    {isOperations && <small>{operationsScope}</small>}
                   </div>
                 </div>
                 <div className="donut-layout">
                   <button
                     type="button"
                     className="analytics-donut"
-                    disabled={loading || !config.chartLegend.length}
-                    aria-label={`View all ${config.chartTitle} records`}
+                    disabled={loading || !charts.chartLegend.length || (isOperations && operationsScope === "Location")}
+                    aria-label={`View all ${charts.chartTitle} records`}
                     title={
-                      config.chartLegend
+                      charts.chartLegend
                         .map((item) => `${item.label}: ${item.value}`)
                         .join(", ") || "Distribution unavailable"
                     }
@@ -278,31 +295,31 @@ function WorkspacePage({
                         event.detail > 0 && Math.hypot(x, y) > box.width * 0.31;
                       const slice = onRing
                         ? donutSlice(
-                            config.chartLegend,
+                            charts.chartLegend,
                             (Math.atan2(y, x) + Math.PI / 2) / (2 * Math.PI),
                           )
                         : undefined;
                       choose(
                         slice?.action ?? {
-                          label: "All current inventory",
-                          filters: {},
+                          label: isOperations ? operationsScope : "All current inventory",
+                          filters: isOperations && !["Total Nodes", "Location"].includes(operationsScope) ? { category: snapshot.solarwinds?.source_categories?.find((row) => row.value?.toLowerCase() === (operationsScope === "Servers" ? "server" : operationsScope.toLowerCase()))?.value ?? operationsScope } : {},
                         },
                       );
                     }}
-                    style={{ background: donutGradient(config.chartLegend) }}
+                    style={{ background: donutGradient(charts.chartLegend) }}
                   >
                     <div>
-                      <strong>{config.chartCenter}</strong>
-                      <span>Total records</span>
+                      <strong>{charts.chartCenter}</strong>
+                      <span>{isOperations && operationsScope === "Location" ? "Locations" : "Total records"}</span>
                     </div>
                   </button>
                   <ul className="chart-legend">
-                    {config.chartLegend.map((item) => (
+                    {charts.chartLegend.map((item) => (
                       <li key={item.label}>
                         <button
                           className="chart-filter"
                           type="button"
-                          aria-label={`Filter ${config.chartTitle}: ${item.label}`}
+                          aria-label={`Filter ${charts.chartTitle}: ${item.label}`}
                           aria-pressed={selection.label === item.action?.label}
                           disabled={loading || !item.action}
                           onClick={() => item.action && choose(item.action)}
@@ -317,23 +334,25 @@ function WorkspacePage({
                     ))}
                   </ul>
                 </div>
+                {isOperations && charts.chartLegend.length === 0 && <p className="chart-hint" role="status">{charts.chartCenter === "0" ? `No ${operationsScope} records in this snapshot.` : `Classification data unavailable for ${operationsScope}.`}</p>}
               </article>
 
               <article className="panel chart-panel">
                 <div className="compact-panel-header">
                   <div>
                     <p className="eyebrow">CURRENT SNAPSHOT</p>
-                    <h2>{config.barsTitle}</h2>
+                    <h2>{charts.barsTitle}</h2>
+                    {isOperations && <small>{operationsScope}</small>}
                   </div>
                   <span className="count-badge">Snapshot</span>
                 </div>
                 <div className="bar-chart">
-                  {config.bars.map((bar) => (
+                  {charts.bars.map((bar) => (
                     <button
                       className="bar-column bar-column--interactive"
                       key={bar.label}
                       type="button"
-                      aria-label={`Filter ${config.barsTitle}: ${bar.label}`}
+                      aria-label={`Filter ${charts.barsTitle}: ${bar.label}`}
                       aria-pressed={selection.label === bar.action?.label}
                       disabled={loading || !bar.action}
                       onClick={() => bar.action && choose(bar.action)}
@@ -349,6 +368,7 @@ function WorkspacePage({
                     </button>
                   ))}
                 </div>
+                {isOperations && charts.bars.length === 0 && <p className="chart-hint" role="status">{charts.chartCenter === "0" ? `No ${operationsScope} records in this snapshot.` : `Status data unavailable for ${operationsScope}.`}</p>}
               </article>
             </section>
             <p className="chart-hint">
@@ -364,14 +384,7 @@ function WorkspacePage({
             aria-label="Filtered data"
           >
             {selection.target === "groups" ? (
-              <GroupSelector
-                groups={sourceGroups}
-                available={groupsAvailable}
-                loading={groupsLoading}
-                onSelect={(id, name) =>
-                  choose({ label: name, groupId: id, filters: {} })
-                }
-              />
+              <LocationScores locations={locationScores} geographicLocations={geographicScores} available={locationScoresAvailable} loading={locationScoresLoading} geographicAvailable={geographicScoresAvailable} geographicLoading={geographicScoresLoading} />
             ) : (
               <InventoryPanel
                 key={`${config.endpoint}-${selectionId}`}
@@ -489,6 +502,8 @@ function App() {
   };
   const {
     locations,
+    locationScores,
+    geographicScores,
     siteRows,
     kpis,
     workspaceConfigs,
@@ -723,7 +738,7 @@ function App() {
         </button>
       </nav>
 
-      <main aria-busy={loading}>
+      <main aria-busy={loading} className={activeNav === "Operations Analytics" && !showSync ? "operations-analytics" : undefined}>
         {errors.length > 0 && (
           <div className="data-notice" role="alert">
             Some data reads are unavailable: {errors.join(", ")}.{" "}
@@ -1150,6 +1165,7 @@ function App() {
           <WorkspacePage
             key={activeNav}
             config={workspaceConfigs[activeNav]}
+            snapshot={snapshot}
             revision={revision}
             globalSearch={globalQuery}
             groupId={groupId}
@@ -1164,8 +1180,12 @@ function App() {
             lastRefresh={workspaceLastRefresh}
             onRefresh={refreshSnapshot}
             sourceGroups={locations}
-            groupsLoading={sourceLoading("groups")}
-            groupsAvailable={groupsAvailable}
+            locationScores={locationScores}
+            geographicScores={geographicScores}
+            geographicScoresAvailable={!!snapshot.geographicScores}
+            geographicScoresLoading={sourceLoading("geographicScores")}
+            locationScoresAvailable={!!snapshot.locations}
+            locationScoresLoading={sourceLoading("locations")}
             onClearSearch={() => setGlobalQuery("")}
           />
         )}

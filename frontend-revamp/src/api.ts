@@ -36,6 +36,7 @@ export function usePortalSnapshot(revision: number) {
       intune: "/intune/summary", solarwinds: "/solarwinds/summary",
       cmdb: "/cmdb/summary", groups: "/solarwinds/groups/overview",
       freshness: "/system/freshness", locations: "/locations",
+      geographicScores: "/locations/geographic-scores",
       locationMatches: "/locations/matches",
     };
     setPending(Object.keys(routes));
@@ -46,7 +47,7 @@ export function usePortalSnapshot(revision: number) {
       if (failed) setErrors((previous) => [...previous, key]);
       else {
         const payload = value as { data?: unknown };
-        const data = ["groups", "locations", "locationMatches"].includes(key) ? payload.data : value;
+        const data = ["groups", "combinedGroups", "locations", "geographicScores", "locationMatches"].includes(key) ? payload.data : value;
         setSnapshot((previous) => ({ ...previous, [key]: data }));
       }
       setPending((previous) => previous.filter((item) => item !== key));
