@@ -228,6 +228,34 @@ async def test_geographic_scores_use_current_node_evidence_without_assigning_off
 
 
 @pytest.mark.asyncio
+async def test_geographic_reporting_snapshot_matches_dashboard_and_membership(session):
+    from app.models.location import GeographicScoreSnapshot, GeographicScoreInventory
+    session.add(Location(id='hyderabad', name='Hyderabad', level='city'))
+    await session.flush()
+    now = datetime.now(timezone.utc).isoformat()
+    session.add(make_ci('INTUNE', 'device', 'Compliant', 'High', location_id='hyderabad', location_resolution='mapped', attributes={'last_sync_date_time': now}))
+    session.add(make_ci('SOLARWINDS', 'node', 'Up', 'High', location='India - Hyderabad'))
+    session.add(make_ci('SOLARWINDS', 'conflicting', 'Down', 'Low', location='India - Pune', attributes={'city': 'Hyderabad'}))
+    runs = [make_run('INTUNE'), make_run('SOLARWINDS')]
+    session.add_all(runs)
+    await session.flush()
+    service = LocationService(session)
+    expected = (await service.geographic_scores())['items'][0]
+    await service.capture_geographic(runs[1].id)
+    await session.flush()
+    snapshot = (await session.scalars(select(GeographicScoreSnapshot))).one()
+    inventory = (await session.scalars(select(GeographicScoreInventory))).all()
+    assert snapshot.data['scores']['combined'] == expected['scores']['combined']
+    assert snapshot.match_level == 'city'
+    assert {item.name for item in inventory} == {'device', 'node'}
+    assert len(inventory) == expected['endpoints'] + expected['nodes']
+    device = await session.scalar(select(ConfigurationItem).where(ConfigurationItem.name == 'device'))
+    device.status = 'NonCompliant'
+    await session.flush()
+    assert next(item.status for item in inventory if item.name == 'device') == 'Compliant'
+
+
+@pytest.mark.asyncio
 async def test_backfill_idempotent_preserves_telemetry(session):
     service = LocationService(session)
     await service.install_seed()
@@ -369,6 +397,21 @@ async def test_history_failure_rolls_back_updates_retirement_and_observations(se
     assert (await session.scalar(select(func.count()).select_from(LocationScoreSnapshot))) == 0
     run = (await session.scalars(select(SyncRun))).one()
     assert run.status == 'FAILED' and run.records_retired == 0 and run.records_updated == 0
+
+
+async def test_geographic_reporting_failure_rolls_back_sync(session, monkeypatch):
+    from app.models.location import GeographicScoreSnapshot
+    async def fail(self, run_id):
+        raise RuntimeError('reporting failure')
+    monkeypatch.setattr(LocationService, 'capture_geographic', fail)
+    source = SimpleNamespace(name='INTUNE', snapshot_complete=True)
+    monkeypatch.setattr('app.services.sync_service.build_sources', lambda *args, **kwargs: [source])
+    sync = SyncService(session)
+    monkeypatch.setattr(sync, '_fetch_source', AsyncMock(return_value=[dict(external_id='test', name='test', status='Compliant', health_tier='High', ci_type='Windows')]))
+    result = await sync.execute_sync_with_lock(source_system='INTUNE')
+    assert result['status'] == 'FAILED'
+    assert await session.scalar(select(func.count()).select_from(ConfigurationItem)) == 0
+    assert await session.scalar(select(func.count()).select_from(GeographicScoreSnapshot)) == 0
 
 
 @pytest.mark.parametrize('method',['catalogue','one_score'])

@@ -429,6 +429,7 @@ class SyncService:
 
                 # Observations begin here; change-only CI history is not a site trend.
                 await LocationService(self.session).capture(sync_run.id)
+                await LocationService(self.session).capture_geographic(sync_run.id)
 
             logger.info(
                 "%s sync SUCCESS: %d extracted, %d new, %d updated, %d unchanged (%d ms).",

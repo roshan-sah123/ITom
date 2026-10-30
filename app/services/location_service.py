@@ -5,16 +5,17 @@ The JSON catalogue is bootstrap knowledge only. Excel is never read at runtime.
 import hashlib
 import json
 import re
+import uuid
 from collections import Counter, defaultdict
 from datetime import datetime, timezone, timedelta
 from fractions import Fraction
 from pathlib import Path
 from types import SimpleNamespace
 
-from sqlalchemy import select, func, and_
+from sqlalchemy import select, func, and_, insert
 from app.core.config import settings
 from app.models.ci import ConfigurationItem
-from app.models.location import Location, LocationMappingRule, LocationScoreSnapshot
+from app.models.location import Location, LocationMappingRule, LocationScoreSnapshot, GeographicScoreSnapshot, GeographicScoreInventory
 from app.models.sync import SyncRun
 from app.repositories.freshness_repository import FreshnessRepository
 from app.services.telemetry_sources import ORION_STATUS_MAP
@@ -330,12 +331,12 @@ class LocationService:
         # Extract the JSON timestamp in SQL instead of loading all personal and
         # hardware attributes for tens of thousands of ORM objects.
         ci=ConfigurationItem
-        query=select(ci.source_system,ci.status,ci.location_id,ci.location_resolution,ci.location_revision,
+        query=select(ci.id,ci.source_id,ci.name,ci.ci_type,ci.location,ci.last_sync_time,ci.source_system,ci.status,ci.location_id,ci.location_resolution,ci.location_revision,
                      ci.attributes['last_sync_date_time'].as_string().label('checkin')).where(ci.is_active.is_(True))
         if location_id is not None:
             query=query.where(ci.location_id.is_(None) if location_id=='unassigned' else ci.location_id==location_id)
         rows=(await self.session.execute(query)).all()
-        return [SimpleNamespace(source_system=r.source_system,status=r.status,location_id=r.location_id,
+        return [SimpleNamespace(id=r.id,source_id=r.source_id,name=r.name,ci_type=r.ci_type,location=r.location,last_sync_time=r.last_sync_time,source_system=r.source_system,status=r.status,location_id=r.location_id,
                                 location_resolution=r.location_resolution,location_revision=r.location_revision,
                                 attributes={'last_sync_date_time':r.checkin}) for r in rows]
 
@@ -424,7 +425,7 @@ class LocationService:
                     match_policy='geographic-v1',
                     scope='Geographic reporting only; office assignments and approvals are unchanged. Nodes may support multiple reporting locations.')
 
-    async def geographic_scores(self):
+    async def geographic_scores(self, include_inventory=False):
         """Score Intune locations against geographic SolarWinds evidence without changing assignments."""
         for _ in range(3):
             before = await self.observation_token()
@@ -432,7 +433,7 @@ class LocationService:
             locations = (await self.session.execute(select(Location.id, Location.name, Location.level).order_by(Location.name))).all()
             records = await self.score_records()
             ci = ConfigurationItem
-            node_rows = (await self.session.execute(select(ci.status, ci.location,
+            node_rows = (await self.session.execute(select(ci.id,ci.source_id,ci.name,ci.ci_type,ci.last_sync_time,ci.status, ci.location,
                 ci.attributes['city'].as_string().label('city'),
                 ci.attributes['itsm_location'].as_string().label('itsm_location'))
                 .where(ci.source_system == 'SOLARWINDS', ci.is_active.is_(True)))).all()
@@ -451,6 +452,7 @@ class LocationService:
             if not geo or geo['conflict']:
                 continue
             node = SimpleNamespace(source_system='SOLARWINDS', status=row.status,
+                id=row.id,source_id=row.source_id,name=row.name,ci_type=row.ci_type,location=row.location,last_sync_time=row.last_sync_time,
                 location_resolution='mapped', location_revision=None, attributes={})
             for level in ('city', 'country', 'region'):
                 if geo.get(level):
@@ -468,6 +470,8 @@ class LocationService:
                 continue
             row = self.score(location, endpoints[location.id] + matching, fresh, now)
             row['match_level'] = level
+            if include_inventory:
+                row['_inventory'] = endpoints[location.id] + matching
             items.append(row)
         return dict(items=items, freshness=fresh, as_of=now.isoformat(),
                     scope='Geographic evidence can overlap; it does not verify an office assignment.')
@@ -558,3 +562,20 @@ class LocationService:
             observed={key:data[key] for key in ['scores','components','endpoints','nodes','freshness','issues']}
             self.session.add(LocationScoreSnapshot(location_id=data['id'],sync_run_id=sync_run_id,recorded_at=now,
                                                    policy_version=POLICY_VERSION,mapping_revision=data['mapping_revision'] or 'none',data=observed))
+
+    async def capture_geographic(self, sync_run_id):
+        """Persist the score and its exact contributing inventory together."""
+        report = await self.geographic_scores(include_inventory=True)
+        now = datetime.fromisoformat(report['as_of'])
+        for row in report['items']:
+            inventory = row.pop('_inventory')
+            snapshot_id = uuid.uuid4()
+            self.session.add(GeographicScoreSnapshot(id=snapshot_id, location_id=row['id'],
+                location_name=row['name'], match_level=row['match_level'], sync_run_id=sync_run_id,
+                recorded_at=now, policy_version=row['policy_version'], data=row))
+            await self.session.flush()
+            await self.session.execute(insert(GeographicScoreInventory), [dict(
+                id=uuid.uuid4(), snapshot_id=snapshot_id, ci_id=ci.id, source_system=ci.source_system,
+                source_id=ci.source_id, name=ci.name, ci_type=ci.ci_type, status=ci.status,
+                source_location=ci.location, checkin_at_source=(ci.attributes or {}).get('last_sync_date_time'),
+                last_sync_time=ci.last_sync_time) for ci in inventory])

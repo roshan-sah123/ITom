@@ -53,3 +53,32 @@ class LocationScoreSnapshot(Base, UUIDPrimaryKeyMixin):
     data: Mapped[dict] = mapped_column(JSONType, nullable=False)
     __table_args__ = (Index('ix_location_snapshot_time', 'location_id', 'recorded_at'),
                      UniqueConstraint('location_id','sync_run_id',name='uq_location_run_snapshot'))
+
+
+class GeographicScoreSnapshot(Base, UUIDPrimaryKeyMixin):
+    __tablename__ = 'geographic_score_snapshots'
+    location_id: Mapped[str] = mapped_column(ForeignKey('locations.id'), nullable=False)
+    sync_run_id: Mapped[object] = mapped_column(UUIDType, ForeignKey('sync_runs.id'), nullable=False)
+    location_name: Mapped[str] = mapped_column(String(128), nullable=False)
+    match_level: Mapped[str] = mapped_column(String(16), nullable=False)
+    recorded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    policy_version: Mapped[str] = mapped_column(String(32), nullable=False)
+    data: Mapped[dict] = mapped_column(JSONType, nullable=False)
+    __table_args__ = (UniqueConstraint('location_id', 'sync_run_id', name='uq_geographic_location_run'),
+                      Index('ix_geographic_snapshot_time', 'location_id', 'recorded_at'))
+
+
+class GeographicScoreInventory(Base, UUIDPrimaryKeyMixin):
+    __tablename__ = 'geographic_score_inventory'
+    snapshot_id: Mapped[object] = mapped_column(UUIDType, ForeignKey('geographic_score_snapshots.id', ondelete='CASCADE'), nullable=False)
+    ci_id: Mapped[object] = mapped_column(UUIDType, ForeignKey('configuration_items.id'), nullable=False)
+    source_system: Mapped[str] = mapped_column(String(32), nullable=False)
+    source_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    ci_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    status: Mapped[str] = mapped_column(String(32), nullable=False)
+    source_location: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    checkin_at_source: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    last_sync_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    __table_args__ = (UniqueConstraint('snapshot_id', 'ci_id', name='uq_geographic_snapshot_ci'),
+                      Index('ix_geographic_inventory_snapshot', 'snapshot_id'))
