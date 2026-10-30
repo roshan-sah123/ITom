@@ -345,7 +345,7 @@ export function buildPortalModel(snapshot: Snapshot) {
   const kpis = [
     {
       ...metric(
-        "Managed endpoints",
+        "Digital Workspace",
         im?.total_managed_devices,
         `${number(im?.compliant_devices)} compliant`,
         "monitor",
@@ -357,7 +357,7 @@ export function buildPortalModel(snapshot: Snapshot) {
     },
     {
       ...metric(
-        "SolarWinds nodes",
+        "Operations Analytics",
         sm?.total_nodes,
         `${number(sm?.available_nodes)} reporting up`,
         "server",
@@ -369,7 +369,7 @@ export function buildPortalModel(snapshot: Snapshot) {
     },
     {
       ...metric(
-        "CMDB source records",
+        "Assets Analytics",
         cmdb?.total_cis,
         "Persisted source records",
         "database",

@@ -85,6 +85,7 @@ h2 { margin-bottom: 0; font-size: 16px; line-height: 1.25; letter-spacing: -.2px
 .icon-box--orange { color: var(--amber); background: var(--amber-bg); }
 .kpi-card__content { min-width: 0; flex: 1; }
 .kpi-card p { margin: 0 0 4px; color: var(--muted); font-size: 10.5px; font-weight: 550; }
+.kpi-grid[aria-label="Operational summary"] .kpi-card p { color: var(--text); font-size: 13px; font-weight: 700; }
 .kpi-card__value-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .kpi-card__value-row strong { color: var(--text); font-size: 21px; letter-spacing: -.4px; line-height: 1.1; }
 .kpi-card__value-row span { padding: 3px 6px; color: var(--green); background: var(--green-bg); border-radius: 5px; font-size: 9px; font-weight: 700; }
@@ -826,7 +827,7 @@ button:disabled { opacity: .55; cursor: wait; }
 .operations-analytics .table-footer,
 .operations-analytics .location-score-context,
 .operations-analytics td { font-weight: 550; }
-.operations-analytics .kpi-card p { font-weight: 650; }
+.operations-analytics .kpi-card p { color: var(--text); font-weight: 700; }
 
 /* Summary controls use the same live populations as the inventory queries. */
 .kpi-card--interactive { width: 100%; text-align: left; font: inherit; }
@@ -844,3 +845,20 @@ button:disabled { opacity: .55; cursor: wait; }
 .inventory-selection { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 16px; background: var(--blue-bg); border-bottom: 1px solid var(--line); font-size: 12px; color: var(--brand); }
 .inventory-selection span { min-width: 0; overflow-wrap: anywhere; }
 .inventory-selection .text-button { padding: 3px 0; flex-shrink: 0; }
+
+/* Location charts are read-only summaries, not unavailable controls. */
+.location-charts .analytics-donut:disabled,
+.location-charts .chart-filter:disabled,
+.location-charts .bar-column:disabled { opacity: 1; cursor: default; }
+.location-charts .chart-filter:disabled:hover { background: transparent; color: inherit; }
+.location-charts .bar-column:disabled:hover .bar-track { outline: 0; }
+.location-charts .chart-legend li { color: #475b78; font-size: 12px; }
+.location-charts .chart-legend strong { font-size: 12px; }
+.location-charts .bar-value, .location-charts .bar-column small { color: #475b78; font-size: 11px; font-weight: 600; }
+.location-charts .analytics-donut strong { font-size: 22px; }
+.location-charts .analytics-donut span { font-size: 10px; }
+.location-scores-panel .table-wrap { overflow-x: auto; }
+.location-scores-panel th, .location-scores-panel td { padding: 13px 14px; }
+.location-scores-panel td { color: #34445e; line-height: 1.45; }
+.location-scores-panel td:first-child { min-width: 150px; }
+.location-scores-panel td:last-child { min-width: 190px; }
