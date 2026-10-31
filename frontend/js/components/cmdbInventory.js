@@ -3,19 +3,19 @@ const PAGE_SIZE = 50;
 const TYPES = ['server', 'network', 'telecom'];
 const TYPE_LABELS = {server: 'Servers', network: 'Network Devices', telecom: 'Telecom'};
 let initialized = false;
-let adminToken = '';
+let adminToken = 'local-development';
 let activeType = 'server';
 let activePage = 1;
 let activeSearch = '';
 let inventoryDialog;
 let adminDialog;
-let tokenDialog;
 let editDialog;
+let addDialog;
 let importDialog;
+let activeRecordTemplate = null;
 let legacyInventory;
 let allInventoryCache;
 let editMode = false;
-let tokenTarget = 'admin';
 
 function node(tag, text, className) {
   const element = document.createElement(tag);
@@ -85,6 +85,11 @@ function setStatus(id, message, isError = false) {
 }
 
 function buildDialogs() {
+  if (!document.getElementById('cmdbInventoryActionStyles')) {
+    const style = document.createElement('style'); style.id = 'cmdbInventoryActionStyles';
+    style.textContent = '.cmdb-validated-action{background:#107650!important;border-color:#107650!important;color:#fff!important;opacity:1!important}.cmdb-inventory-row-actions{white-space:nowrap}.cmdb-validated-time{font-size:12px;color:#526170;white-space:nowrap}';
+    document.head.append(style);
+  }
   inventoryDialog = document.createElement('dialog');
   inventoryDialog.className = 'cmdb-inventory-dialog';
   inventoryDialog.setAttribute('aria-labelledby', 'cmdbInventoryTitle');
@@ -92,6 +97,8 @@ function buildDialogs() {
     <div class="cmdb-inventory-dialog-head">
       <div><h2 id="cmdbInventoryTitle"></h2><p id="cmdbInventoryCount" class="cmdb-inventory-muted"></p></div>
       <div class="cmdb-inventory-actions">
+        <button type="button" id="cmdbInventoryAddRecord" class="primary" hidden aria-label="Add inventory record">+ Add data</button>
+        <button type="button" id="cmdbInventoryExport">Export CSV</button>
         <button type="button" id="cmdbInventoryEditToggle">Edit records</button>
         <button type="button" data-close-inventory aria-label="Close inventory">Close</button>
       </div>
@@ -101,17 +108,6 @@ function buildDialogs() {
     <div class="cmdb-inventory-table-wrap"><div id="cmdbInventoryTables" class="cmdb-inventory-sheet-list"></div></div>
     <div class="cmdb-inventory-footer"><span id="cmdbInventoryPageLabel"></span><div><button type="button" id="cmdbInventoryPrevious">Previous</button><button type="button" id="cmdbInventoryNext">Next</button></div></div>`;
 
-  tokenDialog = document.createElement('dialog');
-  tokenDialog.className = 'cmdb-inventory-dialog cmdb-admin-token-dialog';
-  tokenDialog.setAttribute('aria-labelledby', 'cmdbAdminTokenTitle');
-  tokenDialog.innerHTML = `
-    <form id="cmdbAdminTokenForm">
-      <h2 id="cmdbAdminTokenTitle">Inventory Admin</h2>
-      <label for="cmdbAdminTokenInput">Admin token</label>
-      <input id="cmdbAdminTokenInput" type="password" autocomplete="current-password" required>
-      <p id="cmdbAdminTokenStatus" class="cmdb-inventory-status" role="status" aria-live="polite"></p>
-      <div class="cmdb-inventory-actions"><button type="button" data-close-token>Cancel</button><button type="submit" class="primary">Continue</button></div>
-    </form>`;
 
   adminDialog = document.createElement('dialog');
   adminDialog.className = 'cmdb-inventory-dialog cmdb-admin-dialog';
@@ -134,6 +130,10 @@ function buildDialogs() {
   editDialog.className = 'cmdb-inventory-dialog cmdb-edit-dialog';
   editDialog.setAttribute('aria-labelledby', 'cmdbEditTitle');
 
+  addDialog = document.createElement('dialog');
+  addDialog.className = 'cmdb-inventory-dialog cmdb-edit-dialog';
+  addDialog.setAttribute('aria-labelledby', 'cmdbAddTitle');
+
   importDialog = document.createElement('dialog');
   importDialog.className = 'cmdb-inventory-dialog cmdb-import-dialog';
   importDialog.setAttribute('aria-labelledby', 'cmdbImportTitle');
@@ -151,13 +151,12 @@ function buildDialogs() {
       <p id="cmdbImportStatus" class="cmdb-inventory-status" role="status" aria-live="polite"></p>
     </form>`;
 
-  document.body.append(inventoryDialog, tokenDialog, adminDialog, editDialog, importDialog);
+  document.body.append(inventoryDialog, adminDialog, editDialog, addDialog, importDialog);
   bindDialogEvents();
 }
 
 function bindDialogEvents() {
   inventoryDialog.querySelector('[data-close-inventory]').addEventListener('click', () => inventoryDialog.close());
-  tokenDialog.querySelector('[data-close-token]').addEventListener('click', () => tokenDialog.close());
   adminDialog.querySelector('[data-close-admin]').addEventListener('click', () => adminDialog.close());
   document.getElementById('cmdbInventoryPrevious').addEventListener('click', () => loadBrowsePage(activePage - 1));
   document.getElementById('cmdbInventoryNext').addEventListener('click', () => loadBrowsePage(activePage + 1));
@@ -180,20 +179,13 @@ function bindDialogEvents() {
     activeType = event.target.value;
   });
   document.getElementById('cmdbInventoryImportForm').addEventListener('submit', importWorkbook);
-  document.getElementById('cmdbAdminTokenForm').addEventListener('submit', verifyAdminToken);
   document.getElementById('cmdbInventoryEditToggle').addEventListener('click', toggleBrowseEditing);
+  document.getElementById('cmdbInventoryAddRecord').addEventListener('click', openAddRecord);
+  document.getElementById('cmdbInventoryExport').addEventListener('click', exportActiveInventoryCsv);
   importDialog.querySelector('[data-close-import]').addEventListener('click', () => importDialog.close());
 }
 
 function openImport() {
-  tokenTarget = 'import';
-  if (!adminToken) {
-    document.getElementById('cmdbAdminTokenInput').value = '';
-    setStatus('cmdbAdminTokenStatus', '');
-    tokenDialog.showModal();
-    document.getElementById('cmdbAdminTokenInput').focus();
-    return;
-  }
   document.getElementById('cmdbImportFile').value = '';
   setStatus('cmdbImportStatus', '');
   importDialog.showModal();
@@ -205,44 +197,42 @@ function updateEditToggleLabel() {
 }
 
 async function toggleBrowseEditing() {
-  if (!editMode && !adminToken) {
-    tokenTarget = 'inventory';
-    document.getElementById('cmdbAdminTokenInput').value = '';
-    setStatus('cmdbAdminTokenStatus', '');
-    tokenDialog.showModal();
-    document.getElementById('cmdbAdminTokenInput').focus();
-    return;
-  }
   editMode = !editMode;
   updateEditToggleLabel();
+  const add = document.getElementById('cmdbInventoryAddRecord');
+  if (add) add.hidden = !editMode;
   await loadBrowsePage(activePage);
 }
 
 function isEditableRecord(record) {
-  return editMode && !!adminToken && !String(record.id).startsWith('legacy-');
+  return editMode && !String(record.id).startsWith('legacy-');
 }
 
-function reviewCell(record, cell) {
-  const fieldCell = node('td');
-  fieldCell.append(node('div', cell.value ?? ''));
-  const review = record.field_reviews?.[String(cell.index)];
-  fieldCell.append(review
-    ? node('small', `Validated · ${new Date(review.validated_at).toLocaleString()} · ${review.validated_by}`, 'cmdb-inventory-field-review')
-    : node('small', 'Pending validation', 'cmdb-inventory-field-pending'));
-  const validate = button(review ? 'Validated' : 'Validate',
-    () => validateField(record.id, cell.index), '', `Validate ${cell.header} for ${record.name}`);
-  validate.disabled = !!review;
-  fieldCell.append(validate);
-  return fieldCell;
+function reviewCell(_record, cell) {
+  return node('td', cell.value ?? '');
 }
 
 function rowActionsCell(record) {
   const actions = node('td', undefined, 'cmdb-inventory-row-actions');
+  const validate = button(record.is_validated ? 'Validated' : 'Validate',
+    () => validateRecord(record.id), '', `Validate ${record.name}`);
+  validate.disabled = !!record.is_validated;
+  if (record.is_validated) validate.classList.add('cmdb-validated-action');
   actions.append(
     button('Edit', () => editRecord(record), '', `Edit ${record.name}`),
-    button('Delete', () => deleteRecord(record), 'danger', `Delete ${record.name}`)
+    button('Delete', () => deleteRecord(record), 'danger', `Delete ${record.name}`),
+    validate
   );
   return actions;
+}
+
+function validatedByCell(record) {
+  return node('td', record.validated_by || '—');
+}
+
+function validatedOnCell(record) {
+  const value = record.validated_at ? new Date(record.validated_at).toLocaleString() : '—';
+  return node('td', value, 'cmdb-validated-time');
 }
 
 async function reloadActiveView() {
@@ -282,6 +272,9 @@ function openInventory(type) {
   activeType = TYPES.includes(type) ? type : 'all';
   activePage = 1;
   activeSearch = '';
+  editMode = false; activeRecordTemplate = null;
+  const add = document.getElementById('cmdbInventoryAddRecord'); if (add) add.hidden = true;
+  updateEditToggleLabel();
   document.getElementById('cmdbInventoryTitle').textContent = activeType === 'all' ? 'All Inventory' : TYPE_LABELS[activeType];
   document.getElementById('cmdbInventorySearch').value = '';
   updateEditToggleLabel();
@@ -374,6 +367,7 @@ function renderBrowseRows(result) {
   for (const records of groups.values()) {
     const first = records[0];
     const editable = records.some(isEditableRecord);
+    if (activeType !== 'all' && !activeRecordTemplate) activeRecordTemplate = records[0];
     const section = node('section', undefined, 'cmdb-inventory-sheet');
     section.append(node('h3', activeType === 'all'
       ? `${TYPE_LABELS[first.inventory_type]} · ${first.source_sheet}`
@@ -383,14 +377,14 @@ function renderBrowseRows(result) {
     const headingRow = node('tr');
     const headers = telecomDisplayCells(first).map(cell => cell.header);
     headers.forEach(header => headingRow.append(node('th', header)));
-    if (editable) headingRow.append(node('th', 'Admin actions'));
+    if (editable) { headingRow.append(node('th', 'Admin actions'), node('th', 'Validated by'), node('th', '◷ Validated on')); }
     head.append(headingRow);
     const body = node('tbody');
     for (const record of records) {
       const row = node('tr');
       const rowEditable = isEditableRecord(record);
       telecomDisplayCells(record).forEach(cell => row.append(rowEditable ? reviewCell(record, cell) : node('td', cell.value ?? '')));
-      if (editable) row.append(rowEditable ? rowActionsCell(record) : node('td', ''));
+      if (editable) row.append(rowEditable ? rowActionsCell(record) : node('td', ''), rowEditable ? validatedByCell(record) : node('td', ''), rowEditable ? validatedOnCell(record) : node('td', ''));
       body.append(row);
     }
     table.append(head, body);
@@ -404,46 +398,11 @@ function renderBrowseRows(result) {
 function openAdmin() {
   activePage = 1;
   activeSearch = '';
-  tokenTarget = 'admin';
   document.getElementById('cmdbAdminSearch').value = '';
-  if (adminToken) {
-    adminDialog.showModal();
-    loadAdminPage(1);
-  } else {
-    document.getElementById('cmdbAdminTokenInput').value = '';
-    setStatus('cmdbAdminTokenStatus', '');
-    tokenDialog.showModal();
-    document.getElementById('cmdbAdminTokenInput').focus();
-  }
+  adminDialog.showModal();
+  loadAdminPage(1);
 }
 
-async function verifyAdminToken(event) {
-  event.preventDefault();
-  const candidate = document.getElementById('cmdbAdminTokenInput').value;
-  setStatus('cmdbAdminTokenStatus', 'Checking access…');
-  try {
-    await request('/admin/check', {}, candidate);
-    adminToken = candidate;
-    tokenDialog.close();
-    if (tokenTarget === 'inventory') {
-      editMode = true;
-      updateEditToggleLabel();
-      await loadBrowsePage(activePage);
-      return;
-    }
-    if (tokenTarget === 'import') {
-      document.getElementById('cmdbImportFile').value = '';
-      setStatus('cmdbImportStatus', '');
-      importDialog.showModal();
-      return;
-    }
-    document.getElementById('cmdbAdminSearch').value = '';
-    adminDialog.showModal();
-    loadAdminPage(1);
-  } catch (error) {
-    setStatus('cmdbAdminTokenStatus', error.message, true);
-  }
-}
 
 async function importWorkbook(event) {
   event.preventDefault();
@@ -503,32 +462,13 @@ function renderAdminRows(result) {
       ? telecomDisplayCells(records[0]).map(cell => cell.header)
       : (headersBySheet[sheetName] || records[0].data.map(cell => cell.header));
     headers.forEach(header => heading.append(node('th', header)));
-    heading.append(node('th', 'Admin actions'));
+    heading.append(node('th', 'Admin actions'), node('th', 'Validated by'), node('th', '◷ Validated on'));
     head.append(heading);
     const body = node('tbody');
     for (const record of records) {
       const row = node('tr');
-      for (const cell of telecomDisplayCells(record)) {
-        const fieldCell = node('td');
-        fieldCell.append(node('div', cell.value ?? ''));
-        const review = record.field_reviews?.[String(cell.index)];
-        if (review) {
-          fieldCell.append(node('small', `Validated · ${new Date(review.validated_at).toLocaleString()} · ${review.validated_by}`, 'cmdb-inventory-field-review'));
-        } else {
-          fieldCell.append(node('small', 'Pending validation', 'cmdb-inventory-field-pending'));
-        }
-        const validate = button(review ? 'Validated' : 'Validate',
-          () => validateField(record.id, cell.index), '', `Validate ${cell.header} for ${record.name}`);
-        validate.disabled = !!review;
-        fieldCell.append(validate);
-        row.append(fieldCell);
-      }
-      const actions = node('td', undefined, 'cmdb-inventory-row-actions');
-      actions.append(
-        button('Edit', () => editRecord(record), '', `Edit ${record.name}`),
-        button('Delete', () => deleteRecord(record), 'danger', `Delete ${record.name}`)
-      );
-      row.append(actions);
+      for (const cell of telecomDisplayCells(record)) row.append(node('td', cell.value ?? ''));
+      row.append(rowActionsCell(record), validatedByCell(record), validatedOnCell(record));
       body.append(row);
     }
     table.append(head, body);
@@ -606,16 +546,96 @@ function editRecord(record) {
   editDialog.querySelector('textarea')?.focus();
 }
 
+function csvValue(value) {
+  const text = value === null || value === undefined ? '' : String(value);
+  return `"${text.replace(/"/g, '""')}"`;
+}
+
+async function allRecordsForType(type) {
+  const first = await request(`/records?inventory_type=${type}&page=1&page_size=100`);
+  const items = [...first.items];
+  for (let page = 2; page <= first.total_pages; page += 1) {
+    const next = await request(`/records?inventory_type=${type}&page=${page}&page_size=100`);
+    items.push(...next.items);
+  }
+  return items;
+}
+
+async function exportActiveInventoryCsv() {
+  if (!TYPES.includes(activeType)) return;
+  const control = document.getElementById('cmdbInventoryExport');
+  control.disabled = true; setStatus('cmdbInventoryStatus', 'Preparing CSV export…');
+  try {
+    const records = await allRecordsForType(activeType);
+    if (!records.length) throw new Error('No records are available to export.');
+    const projected = records.map(record => ({record, cells: telecomDisplayCells(record)}));
+    const headers = [];
+    projected.forEach(({cells}) => cells.forEach(cell => { if (!headers.includes(cell.header)) headers.push(cell.header); }));
+    const lines = [[...headers, 'Validated by', 'Validated on'].map(csvValue).join(',')];
+    projected.forEach(({record, cells}) => {
+      const values = Object.fromEntries(cells.map(cell => [cell.header, cell.value]));
+      lines.push([...headers.map(header => values[header] ?? ''), record.validated_by || '', record.validated_at || ''].map(csvValue).join(','));
+    });
+    const blob = new Blob(['\uFEFF' + lines.join('\r\n')], {type:'text/csv;charset=utf-8'});
+    const url = URL.createObjectURL(blob); const link = document.createElement('a');
+    const stamp = new Date().toISOString().slice(0,10);
+    link.href = url; link.download = `${activeType}-inventory-${stamp}.csv`; document.body.append(link); link.click(); link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    setStatus('cmdbInventoryStatus', `${records.length.toLocaleString()} records exported.`);
+  } catch (error) { setStatus('cmdbInventoryStatus', error.message, true); }
+  finally { control.disabled = false; }
+}
+
+function openAddRecord() {
+  if (!activeRecordTemplate) {
+    setStatus('cmdbInventoryStatus', 'No existing record is available to define the new row columns.', true);
+    return;
+  }
+  addDialog.replaceChildren();
+  const form = node('form'); form.className = 'cmdb-inventory-edit-form';
+  form.innerHTML = '<h2 id="cmdbAddTitle">Add inventory record</h2>';
+  const templateCells = telecomDisplayCells(activeRecordTemplate);
+  const fields = [];
+  templateCells.forEach((cell, index) => {
+    const label = node('label', cell.header); const input = node('textarea'); input.rows = 2;
+    input.id = `cmdbAddField-${index}`; label.htmlFor = input.id; fields.push({cell, input}); form.append(label, input);
+  });
+  const status = node('p', '', 'cmdb-inventory-status'); status.setAttribute('role', 'status');
+  const actions = node('div', undefined, 'cmdb-inventory-actions');
+  actions.append(button('Cancel', () => addDialog.close()), button('Add record', async () => {
+    const data = fields.map(({cell, input}, index) => ({index, header: cell.header, value: input.value || null}));
+    const nameCell = data.find(cell => NAME_HEADERS.has(cell.header.trim().toLocaleLowerCase()) && cell.value);
+    const name = nameCell ? String(nameCell.value) : `${TYPE_LABELS[activeType]} manual record`;
+    actions.querySelectorAll('button').forEach(control => { control.disabled = true; });
+    try {
+      await request('/records', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({inventory_type: activeType, source_sheet: activeRecordTemplate.source_sheet, name, data})
+      }, adminToken);
+      allInventoryCache = null; addDialog.close(); await loadBrowsePage(activePage); await refreshSummary();
+    } catch (error) { status.textContent = error.message; actions.querySelectorAll('button').forEach(control => { control.disabled = false; }); }
+  }, 'primary'));
+  form.addEventListener('submit', event => event.preventDefault()); form.append(status, actions); addDialog.append(form); addDialog.showModal();
+  addDialog.querySelector('textarea')?.focus();
+}
+
 const NAME_HEADERS = new Set(['computer name', 'host name', 'hostname', 'name', 'server name', 'serial no', 'serial number']);
 
-async function validateField(id, fieldIndex) {
+async function validateRecord(id) {
+  const statusId = adminDialog.open ? 'cmdbAdminStatus' : 'cmdbInventoryStatus';
+  setStatus(statusId, 'Validating record…');
   try {
-    await request(`/records/${id}/fields/${fieldIndex}/validate`, {method: 'POST'}, adminToken);
+    const validated = await request(`/records/${id}/validate`, {method: 'POST'}, adminToken);
+    if (!validated?.is_validated || !validated?.validated_at || !validated?.validated_by) {
+      throw new Error('The server did not confirm validation.');
+    }
     allInventoryCache = null;
-    await loadAdminPage(activePage);
+    if (adminDialog.open) await loadAdminPage(activePage);
+    if (inventoryDialog.open) await loadBrowsePage(activePage);
     await refreshSummary();
+    setStatus(statusId, `Validated by ${validated.validated_by} on ${new Date(validated.validated_at).toLocaleString()}.`);
   } catch (error) {
-    setStatus('cmdbAdminStatus', error.message, true);
+    setStatus(statusId, error.message, true);
   }
 }
 
@@ -631,10 +651,44 @@ async function deleteRecord(record) {
   }
 }
 
+function simplifyCmdbWorkspace() {
+  const tiles = Array.from(document.querySelectorAll('[data-inventory-type]'));
+  const totalTile = tiles.find(tile => tile.dataset.inventoryType === 'all' || tile.querySelector('#inv-total-count'));
+  totalTile?.remove();
+  const remaining = tiles.filter(tile => ['server', 'network', 'telecom'].includes(tile.dataset.inventoryType) && tile.isConnected);
+  const container = remaining[0]?.parentElement;
+  if (container) container.style.gridTemplateColumns = 'repeat(3, minmax(0, 1fr))';
+
+  // Hide the legacy CMDB KPI/provenance/grid section and everything that follows it.
+  const cmdbView = document.getElementById('view-cmdb');
+  const legacyMarker = document.getElementById('cmdbTotalCisVal');
+  if (cmdbView && legacyMarker) {
+    let legacySection = legacyMarker;
+    while (legacySection.parentElement && legacySection.parentElement !== cmdbView) {
+      legacySection = legacySection.parentElement;
+    }
+    if (legacySection.parentElement === cmdbView) {
+      let section = legacySection;
+      while (section) {
+        section.hidden = true;
+        section.style.setProperty('display', 'none', 'important');
+        section.setAttribute('aria-hidden', 'true');
+        section = section.nextElementSibling;
+      }
+    } else {
+      const legacyGrid = legacyMarker.closest('.kpi-grid');
+      if (legacyGrid) legacyGrid.style.setProperty('display', 'none', 'important');
+      const provenance = document.getElementById('cmdbProvenanceBar')?.closest('.charts-grid-2');
+      if (provenance) provenance.style.setProperty('display', 'none', 'important');
+    }
+  }
+}
+
 export function initializeCmdbInventory() {
   if (initialized) return;
   initialized = true;
   buildDialogs();
+  simplifyCmdbWorkspace();
   document.querySelectorAll('[data-inventory-type]').forEach(tile => {
     const open = () => openInventory(tile.dataset.inventoryType);
     tile.addEventListener('click', open);

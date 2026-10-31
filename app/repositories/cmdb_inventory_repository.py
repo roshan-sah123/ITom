@@ -122,6 +122,59 @@ class CMDBInventoryRepository:
         ))
         await self.session.flush()
 
+    async def create_record(
+        self, inventory_type: str, source_sheet: str, name: str, data: list, actor: str
+    ) -> Dict[str, Any]:
+        if inventory_type not in {"server", "network", "telecom"}:
+            raise ValueError("Inventory type must be server, network, or telecom.")
+        clean_name = name.strip()
+        clean_sheet = source_sheet.strip()
+        if not clean_name or len(clean_name) > 512 or not clean_sheet or len(clean_sheet) > 255:
+            raise ValueError("Name and source sheet are required.")
+        if not isinstance(data, list) or not data:
+            raise ValueError("At least one inventory field is required.")
+        for index, cell in enumerate(data):
+            if (not isinstance(cell, dict) or set(cell) != {"index", "header", "value"}
+                    or cell["index"] != index or not isinstance(cell["header"], str)
+                    or not cell["header"].strip()):
+                raise ValueError("Inventory fields must preserve a valid ordered header list.")
+            value = cell["value"]
+            if value is not None and not isinstance(value, (str, int, float, bool)):
+                raise ValueError("Inventory fields must be plain text, numbers, or empty.")
+        max_order = (await self.session.execute(
+            select(func.max(CMDBInventoryRecord.source_order)).where(
+                CMDBInventoryRecord.inventory_type == inventory_type
+            )
+        )).scalar_one_or_none()
+        max_row = (await self.session.execute(
+            select(func.max(CMDBInventoryRecord.source_row)).where(
+                CMDBInventoryRecord.inventory_type == inventory_type,
+                CMDBInventoryRecord.source_sheet == clean_sheet,
+            )
+        )).scalar_one_or_none()
+        identifier = uuid.uuid4()
+        record = CMDBInventoryRecord(
+            id=identifier,
+            inventory_type=inventory_type,
+            source_key=f"manual:{identifier}",
+            name=clean_name,
+            source_file="Manual entry",
+            source_sheet=clean_sheet,
+            source_row=int(max_row or 0) + 1,
+            source_order=int(-1 if max_order is None else max_order) + 1,
+            data=data,
+        )
+        self.session.add(record)
+        self.session.add(CMDBInventoryAudit(
+            inventory_type=inventory_type,
+            record_id=str(identifier),
+            action="create",
+            actor=actor,
+            details={"name": clean_name, "source_sheet": clean_sheet, "data": data},
+        ))
+        await self.session.flush()
+        return record.to_dict()
+
     async def get_record(self, record_id: str) -> Optional[Dict[str, Any]]:
         record = await self._record(record_id)
         return record.to_dict() if record else None

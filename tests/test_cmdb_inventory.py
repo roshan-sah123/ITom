@@ -83,6 +83,7 @@ def test_telecom_import_finds_header_after_title_and_disambiguates_columns():
 
 
 def test_inventory_admin_requires_configured_bearer_token(monkeypatch):
+    monkeypatch.setattr(settings, "ENVIRONMENT", "production")
     monkeypatch.setattr(settings, "CMDB_INVENTORY_ADMIN_TOKEN", "test-admin-token", raising=False)
 
     with pytest.raises(Exception) as unauthorized:
@@ -132,6 +133,7 @@ def test_inventory_repository_validation_edit_and_delete_are_audited():
 
 def test_inventory_api_import_is_admin_protected_and_does_not_enable_telemetry_writes(tmp_path, monkeypatch):
     database_path = tmp_path / "cmdb-inventory-api.db"
+    monkeypatch.setattr(settings, "ENVIRONMENT", "production")
     monkeypatch.setattr(settings, "CMDB_INVENTORY_ADMIN_TOKEN", "test-admin-token")
 
     async def override_database():
@@ -228,4 +230,35 @@ def test_empty_authoritative_database_bootstraps_bundled_inventory(tmp_path, mon
         assert list((tmp_path / "backups").glob("itom-cmdb-bootstrap-*.db"))
         await engine.dispose()
 
+    asyncio.run(run())
+
+
+def test_inventory_admin_local_development_needs_no_token(monkeypatch):
+    monkeypatch.setattr(settings, "ENVIRONMENT", "development")
+    monkeypatch.setattr(settings, "CMDB_INVENTORY_ADMIN_TOKEN", None)
+    assert asyncio.run(require_inventory_admin(None)).endswith("(Local development)")
+
+
+def test_inventory_repository_creates_manual_record_with_next_order():
+    async def run():
+        engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+        async with engine.begin() as connection:
+            await connection.run_sync(Base.metadata.create_all)
+        sessions = async_sessionmaker(engine, expire_on_commit=False)
+        content = workbook_bytes([("Network Inventory", [["HostName", "IP Address"], ["EDGE-01", "10.0.0.1"]])])
+        parsed = parse_inventory_workbook(content, "network", "network.xlsx")
+        async with sessions() as session:
+            repository = CMDBInventoryRepository(session)
+            await repository.replace_inventory(parsed, "network.xlsx", "Test Admin", "network")
+            created = await repository.create_record(
+                "network", "Network Inventory", "EDGE-02",
+                [{"index": 0, "header": "HostName", "value": "EDGE-02"},
+                 {"index": 1, "header": "IP Address", "value": "10.0.0.2"}],
+                "Test Admin",
+            )
+            assert created["name"] == "EDGE-02"
+            page = await repository.list_inventory("network", page=1, page_size=10)
+            assert page["total"] == 2
+            assert [item["name"] for item in page["items"]] == ["EDGE-01", "EDGE-02"]
+        await engine.dispose()
     asyncio.run(run())

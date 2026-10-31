@@ -32,6 +32,11 @@ class InventoryRecordUpdate(BaseModel):
     data: List[Dict[str, Any]]
 
 
+class InventoryRecordCreate(InventoryRecordUpdate):
+    inventory_type: InventoryType
+    source_sheet: str = Field(min_length=1, max_length=255)
+
+
 async def ensure_bootstrap_inventory(session: AsyncSession) -> None:
     """Seed a new authoritative database from bundled inventory workbooks once."""
     bind = session.get_bind()
@@ -66,11 +71,14 @@ async def ensure_bootstrap_inventory(session: AsyncSession) -> None:
 
 
 async def require_inventory_admin(authorization: Optional[str] = Header(default=None)) -> str:
+    # Temporary local-development access. Production stays locked until Entra role enforcement is added.
+    if settings.ENVIRONMENT.strip().lower() != "production":
+        return f"{settings.CMDB_INVENTORY_ADMIN_NAME} (Local development)"
     configured_token = settings.CMDB_INVENTORY_ADMIN_TOKEN
     if not configured_token:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="CMDB inventory administration is disabled until CMDB_INVENTORY_ADMIN_TOKEN is configured.",
+            detail="CMDB inventory administration requires SSO or an admin token in production.",
         )
     scheme, separator, token = (authorization or "").partition(" ")
     if (not separator or scheme.casefold() != "bearer"
@@ -133,6 +141,20 @@ async def replace_inventory_workbook(
     return {"inventory_type": inventory_type, "source_file": filename,
             "imported_count": len(parsed.records), "headers": parsed.headers,
             "backup_created": bool(backup_path)}
+
+
+@router.post("/records", status_code=status.HTTP_201_CREATED)
+async def create_inventory_record(
+    payload: InventoryRecordCreate,
+    actor: str = Depends(require_inventory_admin),
+    session: AsyncSession = Depends(get_db),
+) -> Dict[str, Any]:
+    try:
+        return await CMDBInventoryRepository(session).create_record(
+            payload.inventory_type, payload.source_sheet, payload.name, payload.data, actor
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
 @router.put("/records/{record_id}")

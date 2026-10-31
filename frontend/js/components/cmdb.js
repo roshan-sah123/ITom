@@ -5,7 +5,7 @@
 import { itomApi } from '../api.js?v=6';
 import { formatNumber, formatPercent, escapeHtml, calculateNewPageAnchor, debounce, exportToCsv, fetchAllFilteredRows, generatePaginationControls } from '../utils.js';
 import { openCiDrawer } from './drawer.js';
-import { initializeCmdbInventory } from './cmdbInventory.js?v=3';
+import { initializeCmdbInventory } from './cmdbInventory.js?v=6';
 
 let currentCmdbPage = 1;
 let currentCmdbPageSize = 25;

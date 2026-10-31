@@ -7,9 +7,10 @@ import { initDrawer } from './components/drawer.js';
 import { renderHome } from './components/home.js?v=6';
 import { renderInfrastructureWorkspace } from './components/infraWorkspace.js?v=11';
 import { renderEndpoints } from './components/endpoints.js?v=10';
-import { renderCmdb } from './components/cmdb.js?v=13';
+import { renderCmdb } from './components/cmdb.js?v=16';
 import { renderSyncLedger } from './components/syncLedger.js?v=3';
 import { renderSyncSchedule } from './components/syncSchedule.js?v=1';
+import { renderKnowledgeCentre } from './components/knowledgeCentre.js?v=12';
 
 let activeView = 'home';
 
@@ -26,8 +27,24 @@ const workspaceLabels = {
 
 // Expose global navigation helper for cards and buttons
 window.navigateToView = function(viewName, subtabName = '', filterParam = '') {
+  if (viewName !== 'knowledge') {
+    document.querySelectorAll('[data-knowledge-legacy-hidden="true"]').forEach(card => {
+      card.style.removeProperty('display');
+      delete card.dataset.knowledgeLegacyHidden;
+    });
+  }
   const targetSec = document.getElementById(`view-${viewName}`);
   if (!targetSec) return;
+
+  const viewport = document.querySelector('.main-viewport');
+  if (viewport) {
+    if (targetSec.parentElement !== viewport) viewport.prepend(targetSec);
+    Array.from(viewport.children).forEach(child => {
+      const selected = child === targetSec;
+      child.style.setProperty('display', selected ? 'block' : 'none', 'important');
+      child.setAttribute('aria-hidden', selected ? 'false' : 'true');
+    });
+  }
 
   const tabs = document.querySelectorAll('.nav-tab');
   const targetTab = document.querySelector(`.nav-tab[data-view="${viewName}"]`);
@@ -38,8 +55,14 @@ window.navigateToView = function(viewName, subtabName = '', filterParam = '') {
     else tab.removeAttribute('aria-current');
   });
 
-  document.querySelectorAll('.view-section').forEach(sec => sec.classList.remove('active'));
+  document.querySelectorAll('.view-section').forEach(sec => {
+    sec.classList.remove('active');
+    sec.style.setProperty('display', 'none', 'important');
+    sec.setAttribute('aria-hidden', 'true');
+  });
   targetSec.classList.add('active');
+  targetSec.style.setProperty('display', 'block', 'important');
+  targetSec.removeAttribute('aria-hidden');
 
   activeView = viewName;
   const workspaceLabel = document.getElementById('activeWorkspaceLabel');
@@ -83,7 +106,7 @@ document.addEventListener('DOMContentLoaded', () => {
   tabs.forEach(tab => {
     tab.addEventListener('click', () => {
       const targetView = tab.dataset.view;
-      if (!targetView || targetView === activeView) return;
+      if (!targetView) return;
       window.navigateToView(targetView);
     });
   });
@@ -92,8 +115,8 @@ document.addEventListener('DOMContentLoaded', () => {
     button.addEventListener('click', () => window.navigateToView(button.dataset.targetView));
   });
 
-  // Initial load: Portal Home Page
-  loadViewData('home');
+  // Initial load: enforce that only the portal home view is visible.
+  window.navigateToView('home');
 });
 
 function loadViewData(view, subtabName = '', filterParam = '') {
@@ -111,6 +134,8 @@ function loadViewData(view, subtabName = '', filterParam = '') {
       renderCmdb();
       break;
     case 'knowledge':
+      try { renderKnowledgeCentre(); } catch (error) { console.error('Knowledge Centre render failed:', error); }
+      break;
     case 'automations':
       break;
     case 'sync':
