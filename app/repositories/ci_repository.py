@@ -98,6 +98,7 @@ class CIRepository(BaseRepository[ConfigurationItem]):
         ci_type_exact: bool = False,
         sort_by: Optional[str] = "name",
         sort_order: Optional[str] = "asc",
+        category_family: Optional[str] = None,
     ) -> Tuple[List[Any], int]:
         """Execute sub-20ms paginated query with multi-column filtering and indexing."""
         if self.session is None:
@@ -123,6 +124,8 @@ class CIRepository(BaseRepository[ConfigurationItem]):
                 filters.append(ConfigurationItem.source_system == source_system.upper())
             if category is not None:
                 filters.append(ConfigurationItem.attributes['node_category'].as_string() == category)
+            if category_family is not None:
+                filters.append(func.lower(func.trim(ConfigurationItem.attributes['node_category'].as_string())) == category_family.strip().lower())
             if source_type is not None:
                 filters.append(ConfigurationItem.attributes['node_type'].as_string() == source_type)
             if category_missing:

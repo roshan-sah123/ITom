@@ -4,6 +4,28 @@ from types import SimpleNamespace
 from tests.factories import make_ci
 
 
+async def test_category_variants_reconcile_exact_and_family_inventory(session, api_client):
+    for index in range(12):
+        category = ('Server', 'server', ' Server ')[index % 3]
+        session.add(make_ci('SOLARWINDS', f'variant-{index:02}', 'Up', 'High',
+                            attributes={'node_category': category}))
+    session.add(make_ci('SOLARWINDS', 'network', 'Up', 'High', attributes={'node_category': 'Network'}))
+    session.add(make_ci('SOLARWINDS', 'retired', 'Up', 'High', is_active=False, attributes={'node_category': 'Server'}))
+    session.add(make_ci('INTUNE', 'endpoint', 'Compliant', 'High', attributes={'node_category': 'Server'}))
+    await session.commit()
+    summary = (await api_client.get('/api/v1/solarwinds/summary')).json()
+    assert summary['metrics']['server_nodes_count'] == 12
+    assert {row['value'] for row in summary['source_categories']} == {'Server', 'server', ' Server ', 'Network'}
+    for row in summary['source_categories']:
+        inventory = (await api_client.get('/api/v1/solarwinds/nodes', params={'category': row['value']})).json()
+        assert inventory['total'] == row['count']
+    params = {'category_family': 'server', 'page_size': 10, 'page': 2, 'status': 'Up'}
+    inventory = (await api_client.get('/api/v1/solarwinds/nodes', params=params)).json()
+    assert inventory['total'] == 12 and len(inventory['items']) == 2
+    cmdb = (await api_client.get('/api/v1/cmdb/cis', params={**params, 'source_system': 'SOLARWINDS'})).json()
+    assert cmdb['total'] == 12
+
+
 async def test_source_categories_override_vendor_models_and_reconcile_all_views(session, api_client):
     records = [
         make_ci('SOLARWINDS', 'server-on-cisco', 'Critical', 'Low', vendor='Cisco', ci_type='Switch',

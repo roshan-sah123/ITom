@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   buildPortalModel,
   buildOperationsCharts,
+  operationsCategoryFilters,
   donutGradient,
   downloadCsv,
   number,
@@ -292,7 +293,7 @@ function WorkspacePage({
                       choose(
                         slice?.action ?? {
                           label: isOperations ? operationsScope : "All current inventory",
-                          filters: isOperations && !["Total Nodes", "Location"].includes(operationsScope) ? { category: snapshot.solarwinds?.source_categories?.find((row) => row.value?.toLowerCase() === (operationsScope === "Servers" ? "server" : operationsScope.toLowerCase()))?.value ?? operationsScope } : {},
+                          filters: isOperations && !["Total Nodes", "Location"].includes(operationsScope) ? operationsCategoryFilters(snapshot, operationsScope) : {},
                         },
                       );
                     }}

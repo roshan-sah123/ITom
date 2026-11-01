@@ -39,6 +39,7 @@ import logging
 import os
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Protocol
+from app.repositories.decision_metrics import compliance_state, resource_value
 
 logger = logging.getLogger("itom.sources")
 
@@ -168,6 +169,7 @@ def classify_solarwinds_health(status_label: str, cpu: Optional[float], ram: Opt
     if base == "Low":
         return "Low"
 
+    cpu, ram = resource_value(cpu), resource_value(ram)
     if (cpu is not None and cpu > CPU_CRITICAL_PCT) or (ram is not None and ram > RAM_CRITICAL_PCT):
         return "Low"
     if (cpu is not None and cpu >= CPU_WARNING_PCT) or (ram is not None and ram >= RAM_WARNING_PCT):
@@ -197,7 +199,7 @@ def normalize_intune_device(dev: Dict[str, Any]) -> Optional[Dict[str, Any]]:
                  "Linux" if any(term in os_key for term in ("linux", "ubuntu", "red hat", "redhat", "centos", "debian", "suse", "rocky", "oracle")) else
                  "Unknown")
     raw_compliance = str(dev.get("complianceState") or "unknown").strip()
-    compliance_key = raw_compliance.casefold()
+    compliance_key = compliance_state(raw_compliance)
     compliance_names = {"compliant": "Compliant", "noncompliant": "NonCompliant",
                         "ingraceperiod": "InGracePeriod", "configmanager": "ConfigManager",
                         "unknown": "Unknown"}
@@ -246,8 +248,8 @@ def normalize_solarwinds_node(node: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     status_code = raw_status if isinstance(raw_status, int) and not isinstance(raw_status, bool) else 0
     status_label = ORION_STATUS_MAP.get(status_code, "Unknown")
 
-    cpu = _num(node.get("CPULoad"))
-    ram = _num(node.get("PercentMemoryUsed"))
+    cpu = resource_value(node.get("CPULoad"))
+    ram = resource_value(node.get("PercentMemoryUsed"))
     latency = _num(node.get("AvgResponseTime"))
     city = str(node.get("City") or "").strip()
     itsm_location = str(node.get("ITSM_Location") or "").strip()

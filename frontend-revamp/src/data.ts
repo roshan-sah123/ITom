@@ -92,6 +92,7 @@ export type InventoryFilters = {
   status?: string;
   health_tier?: string;
   category?: string;
+  category_family?: string;
   category_missing?: boolean;
   source_system?: string;
   ci_type?: string;
@@ -201,6 +202,18 @@ function bars(counts?: Counts, filter?: keyof InventoryFilters) {
   }));
 }
 
+function operationsCategoryRows(snapshot: Snapshot, scope: string) {
+  const name = (scope === "Servers" ? "Server" : scope).trim().toLowerCase();
+  return snapshot.solarwinds?.source_categories?.filter((row) => row.value?.trim().toLowerCase() === name) ?? [];
+}
+
+export function operationsCategoryFilters(snapshot: Snapshot, scope: string): InventoryFilters {
+  const rows = operationsCategoryRows(snapshot, scope);
+  return rows.length === 1 && rows[0].value != null
+    ? { category: rows[0].value }
+    : { category_family: (scope === "Servers" ? "Server" : scope).trim().toLowerCase() };
+}
+
 export function buildOperationsCharts(snapshot: Snapshot, scope: string) {
   if (scope === "Location") {
     const locations = snapshot.geographicScores?.items;
@@ -213,18 +226,24 @@ export function buildOperationsCharts(snapshot: Snapshot, scope: string) {
     }
     return { chartTitle: "Combined score classification", chartCenter: locations ? number(locations.length) : "—", chartLegend: legend(statuses), barsTitle: "Geographic match level", bars: bars(levels) };
   }
-  const categoryName = scope === "Servers" ? "Server" : scope;
-  const categoryRow = snapshot.solarwinds?.source_categories?.find((row) => row.value?.trim().toLowerCase() === categoryName.toLowerCase());
+  const categoryRows = operationsCategoryRows(snapshot, scope);
+  const categoryCounts = (field: "health_counts" | "status_counts") => {
+    const counts: Counts = {};
+    for (const row of categoryRows) {
+      for (const [label, count] of Object.entries(row[field] ?? {})) counts[label] = (counts[label] ?? 0) + count;
+    }
+    return counts;
+  };
   const isAll = scope === "Total Nodes";
   const categoryReady = !!snapshot.solarwinds?.source_categories;
-  const categoryFilter = categoryRow?.value ? { category: categoryRow.value } : {};
+  const categoryFilter = isAll ? {} : operationsCategoryFilters(snapshot, scope);
   const addScope = <T extends { action?: Drilldown }>(rows: T[]): T[] => rows.map((row) => row.action ? { ...row, action: { ...row.action, filters: { ...categoryFilter, ...row.action.filters } } } : row);
   return {
     chartTitle: "Health classification",
-    chartCenter: isAll ? number(snapshot.solarwinds?.metrics?.total_nodes) : categoryReady ? number(categoryRow?.count ?? 0) : "—",
-    chartLegend: addScope(legend(isAll ? snapshot.solarwinds?.health_breakdown : categoryRow?.health_counts, "health_tier")),
+    chartCenter: isAll ? number(snapshot.solarwinds?.metrics?.total_nodes) : categoryReady ? number(categoryRows.reduce((sum, row) => sum + row.count, 0)) : "—",
+    chartLegend: addScope(legend(isAll ? snapshot.solarwinds?.health_breakdown : categoryCounts("health_counts"), "health_tier")),
     barsTitle: "Operational status",
-    bars: addScope(bars(isAll ? snapshot.solarwinds?.status_breakdown : categoryRow?.status_counts, "status")),
+    bars: addScope(bars(isAll ? snapshot.solarwinds?.status_breakdown : categoryCounts("status_counts"), "status")),
   };
 }
 function metric(
@@ -277,9 +296,7 @@ export function buildPortalModel(snapshot: Snapshot) {
       },
     })) ?? [];
   const category = (name: string) =>
-    snapshot.solarwinds?.source_categories?.find(
-      (row) => row.value?.toLowerCase() === name.toLowerCase(),
-    )?.value ?? name;
+    operationsCategoryFilters(snapshot, name);
   const groupsAvailable = snapshot.groups?.data_available === true;
   const groups = groupsAvailable ? snapshot.groups!.items : [];
   const mapGroup = (row: Group) => ({
@@ -404,15 +421,15 @@ export function buildPortalModel(snapshot: Snapshot) {
         ),
         metric(
           "Network", snapshot.solarwinds?.source_categories ? snapshot.solarwinds.source_categories.filter((row) => row.value?.trim().toLowerCase() === "network").reduce((sum, row) => sum + row.count, 0) : undefined,
-          "Source category", "activity", "green", { label: "Network", filters: { category: category("Network") } },
+          "Source category", "activity", "green", { label: "Network", filters: category("Network") },
         ),
         metric(
           "Servers", snapshot.solarwinds?.source_categories ? snapshot.solarwinds.source_categories.filter((row) => row.value?.trim().toLowerCase() === "server").reduce((sum, row) => sum + row.count, 0) : undefined,
-          "Source category", "server", "blue", { label: "Servers", filters: { category: category("Server") } },
+          "Source category", "server", "blue", { label: "Servers", filters: category("Server") },
         ),
         metric(
           "Telecom", snapshot.solarwinds?.source_categories ? snapshot.solarwinds.source_categories.filter((row) => row.value?.trim().toLowerCase() === "telecom").reduce((sum, row) => sum + row.count, 0) : undefined,
-          "Source category", "activity", "orange", { label: "Telecom", filters: { category: category("Telecom") } },
+          "Source category", "activity", "orange", { label: "Telecom", filters: category("Telecom") },
         ),
       ],
       chartTitle: "Health classification",
@@ -522,7 +539,7 @@ export function buildPortalModel(snapshot: Snapshot) {
         ),
         metric(
           "Intune records",
-          sourceCounts?.INTUNE ?? (snapshot.freshness?.sources?.INTUNE?.last_synchronized_at ? 0 : undefined),
+          sourceCounts ? sourceCounts.INTUNE ?? 0 : undefined,
           "Managed endpoint records",
           "monitor",
           "blue",
@@ -530,7 +547,7 @@ export function buildPortalModel(snapshot: Snapshot) {
         ),
         metric(
           "SolarWinds records",
-          sourceCounts?.SOLARWINDS ?? (snapshot.freshness?.sources?.SOLARWINDS?.last_synchronized_at ? 0 : undefined),
+          sourceCounts ? sourceCounts.SOLARWINDS ?? 0 : undefined,
           "Infrastructure node records",
           "server",
           "green",

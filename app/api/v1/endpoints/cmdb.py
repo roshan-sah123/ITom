@@ -36,6 +36,7 @@ async def list_configuration_items(
     source_type: Optional[str] = Query(None, max_length=255),
     sort_by: Optional[str] = Query("name", description="Column to sort by"),
     sort_order: Optional[str] = Query("asc", description="asc or desc"),
+    category_family: Optional[str] = Query(None, max_length=255),
     ci_service: CIService = Depends(get_ci_service),
 ) -> Dict[str, Any]:
     """Query paginated Configuration Items with sub-20ms multi-column filtering."""
@@ -56,6 +57,7 @@ async def list_configuration_items(
         status=status_filter,
         location=location,
         category=category, category_missing=category_missing, source_type=source_type,
+        category_family=category_family,
         sort_by=sort_by,
         sort_order=sort_order,
     )

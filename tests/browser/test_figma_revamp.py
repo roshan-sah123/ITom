@@ -28,6 +28,52 @@ async def operations_card_url(revamp_portal_url, session):
     return revamp_portal_url
 
 
+@pytest.fixture
+async def category_variants_url(revamp_portal_url, session):
+    session.add_all([
+        make_ci('SOLARWINDS', 'VARIANT-UP', 'Up', 'High', attributes={'node_category': ' server '}),
+        make_ci('SOLARWINDS', 'VARIANT-DOWN', 'Down', 'Low', attributes={'node_category': 'SERVER'}),
+    ])
+    await session.commit()
+    return revamp_portal_url
+
+
+def test_category_variants_reconcile_cards_charts_inventory_and_export(category_variants_url, browser_context):
+    page = browser_context.new_page()
+    page.goto(category_variants_url)
+    page.get_by_role('button', name='Operations Analytics', exact=True).click()
+    page.get_by_role('button', name='View Servers', exact=True).click()
+    expect(page.locator('.analytics-donut strong')).to_have_text('4')
+    expect(page.get_by_label('Source category')).to_have_value('__family')
+    expect(page.locator('.inventory-panel .table-footer')).to_contain_text('of 4 records')
+    page.get_by_role('button', name='Filter Operational status: Down', exact=True).click()
+    expect(page.locator('.inventory-panel .table-footer')).to_contain_text('of 1 records')
+    expect(page.locator('tbody')).to_contain_text('VARIANT-DOWN')
+    page.get_by_role('button', name='View all Health classification records', exact=True).click()
+    expect(page.locator('.inventory-panel .table-footer')).to_contain_text('of 4 records')
+    with page.expect_download() as download:
+        page.get_by_role('button', name='Export CSV', exact=True).click()
+    rows = list(csv.DictReader(Path(download.value.path()).read_text(encoding='utf-8-sig').splitlines()))
+    assert len(rows) == 4
+    assert {'VARIANT-UP', 'VARIANT-DOWN'} <= {row['Node name'] for row in rows}
+    page.get_by_label('Source category').select_option(' server ')
+    expect(page.locator('.inventory-panel .table-footer')).to_contain_text('of 1 records')
+    expect(page.locator('tbody')).to_contain_text('VARIANT-UP')
+    page.close()
+
+
+def test_failed_cmdb_summary_does_not_turn_synced_source_counts_into_zero(revamp_portal_url, browser_context):
+    page = browser_context.new_page()
+    page.route('**/api/v1/cmdb/summary', lambda route: route.fulfill(status=503, json={'error': 'Unavailable'}))
+    with page.expect_response('**/api/v1/system/freshness') as response:
+        page.goto(revamp_portal_url)
+    assert response.value.json()['sources']['INTUNE']['last_synchronized_at']
+    page.get_by_role('button', name='Assets Analytics', exact=True).click()
+    expect(page.get_by_role('button', name='View Intune records', exact=True)).to_contain_text('—')
+    expect(page.get_by_role('button', name='View SolarWinds records', exact=True)).to_contain_text('—')
+    page.close()
+
+
 def test_operations_cards_switch_chart_populations(operations_card_url, browser_context):
     page = browser_context.new_page()
     page.goto(operations_card_url)

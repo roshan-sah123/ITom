@@ -4,6 +4,11 @@ from collections import Counter
 from datetime import datetime, timedelta, timezone
 
 
+def compliance_state(value):
+    state = (value or '').strip().casefold()
+    return {'non-compliant': 'noncompliant', 'non_compliant': 'noncompliant'}.get(state, state)
+
+
 def resource_value(value):
     if value is None or isinstance(value, bool):
         return None
@@ -54,7 +59,7 @@ def intune_evidence(rows, now=None):
     states = Counter({key:0 for key in ('compliant','noncompliant','in_grace_period','error','conflict','other_known','unknown')})
     buckets = Counter({key:0 for key in ('within_7_days','8_to_30_days','over_30_days','missing_or_invalid')})
     for row in rows:
-        states[state_map.get((row.status or '').strip().casefold(), 'unknown')] += 1
+        states[state_map.get(compliance_state(row.status), 'unknown')] += 1
         attrs = row.attributes if isinstance(row.attributes, dict) else {}
         raw = attrs.get('last_sync_date_time')
         try:

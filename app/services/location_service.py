@@ -18,6 +18,7 @@ from app.models.ci import ConfigurationItem
 from app.models.location import Location, LocationMappingRule, LocationScoreSnapshot, GeographicScoreSnapshot, GeographicScoreInventory
 from app.models.sync import SyncRun
 from app.repositories.freshness_repository import FreshnessRepository
+from app.repositories.decision_metrics import compliance_state
 from app.services.telemetry_sources import ORION_STATUS_MAP
 
 POLICY_VERSION = 'location-v2'
@@ -133,7 +134,7 @@ def checkin_age(ci, now):
 
 def matches_issue(ci, issue, now):
     """One predicate shared by headline issue counts and paginated drilldowns."""
-    status = (ci.status or '').casefold()
+    status = compliance_state(ci.status) if ci.source_system == 'INTUNE' else (ci.status or '').strip().casefold()
     if issue == 'all':
         return True
     if issue == 'conflict':
@@ -495,7 +496,7 @@ class LocationService:
         issues={issue:sum(matches_issue(c,issue,now) for c in cis) for issue in ISSUES-{'all'}}
         ages=[checkin_age(c,now) for c in endpoints]
         recent=sum(age is not None and age<=timedelta(days=7) for age in ages)
-        compliant=sum(c.status.casefold()=='compliant' for c in endpoints)
+        compliant=sum(compliance_state(c.status)=='compliant' for c in endpoints)
         monitored=[c for c in nodes if c.status.casefold()!='unmanaged']
         up=sum(c.status.casefold()=='up' for c in monitored)
         def component(n,d,src,known):
@@ -507,7 +508,7 @@ class LocationService:
                         value=round(100*n/d,2) if complete else None,usable=usable,reason=reason,source_system=src)
         compliance_states={'compliant','noncompliant','configmanager','ingraceperiod','error','conflict'}
         node_states={state.casefold() for state in ORION_STATUS_MAP.values()}-{'unknown'}
-        components=dict(compliance=component(compliant,len(endpoints),'INTUNE',sum(ci.status.casefold() in compliance_states for ci in endpoints)),
+        components=dict(compliance=component(compliant,len(endpoints),'INTUNE',sum(compliance_state(ci.status) in compliance_states for ci in endpoints)),
                         node_status=component(up,len(monitored),'SOLARWINDS',sum(ci.status.casefold() in node_states for ci in monitored)),
                         recent_checkins=component(recent,len(endpoints),'INTUNE',sum(age is not None for age in ages)))
         c,h,r=[components[k] for k in ['compliance','node_status','recent_checkins']]

@@ -30,6 +30,20 @@ test("operations charts use the selected source category and keep its inventory 
 });
 import { scorePriority, componentEvidence } from "../src/locationScoreData.ts";
 
+test("category variants share the same tile, charts and grouped drilldown", () => {
+  const snapshot = { solarwinds: { metrics: { total_nodes: 3 }, source_categories: [
+    { value: "Server", count: 2, health_counts: { High: 2 }, status_counts: { Up: 2 } },
+    { value: " server ", count: 1, health_counts: { Low: 1 }, status_counts: { Down: 1 } },
+  ] } };
+  const tile = buildPortalModel(snapshot).workspaceConfigs["Operations Analytics"].metrics.find((row) => row.label === "Servers")!;
+  const charts = buildOperationsCharts(snapshot, "Servers");
+  assert.equal(tile.value, "3");
+  assert.equal(charts.chartCenter, tile.value);
+  assert.deepEqual(tile.action?.filters, { category_family: "server" });
+  assert.equal(charts.chartLegend.find((row) => row.label === "Low")?.value, "1");
+  assert.deepEqual(charts.bars.find((row) => row.label === "Down")?.action?.filters, { category_family: "server", status: "Down" });
+});
+
 test("ticket guidance follows the backend combined status and preserves component evidence", () => {
   assert.equal(scorePriority("combined", { value: 84.3, status: "critical" }), "P1");
   assert.equal(scorePriority("combined", { value: 91, status: "warning" }), "P2");
@@ -45,6 +59,16 @@ test("unavailable sources never become zero fleets or fresh snapshots", () => {
   assert.equal(model.freshness, "UNAVAILABLE");
   assert.deepEqual(model.locations, []);
   assert.deepEqual(model.workspaceConfigs["Digital Workspace"].chartLegend, []);
+});
+
+test("sync history does not turn missing source counts into zero", () => {
+  const model = buildPortalModel({ cmdb: { data_available: false }, freshness: { sources: {
+    INTUNE: { last_synchronized_at: "2026-10-30T12:00:00Z" },
+    SOLARWINDS: { last_synchronized_at: "2026-10-30T12:00:00Z" },
+  } } });
+  assert.deepEqual(model.workspaceConfigs["Assets Analytics"].metrics.map((row) => row.value), ["—", "—", "—", "—"]);
+  const empty = buildPortalModel({ cmdb: { data_available: true, total_cis: 0, source_breakdown: {} } });
+  assert.deepEqual(empty.workspaceConfigs["Assets Analytics"].metrics.map((row) => row.value), ["0", "0", "0", "0"]);
 });
 
 test("uses API counts and preserves stale group scores and exact source names", () => {
