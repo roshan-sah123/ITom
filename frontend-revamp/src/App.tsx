@@ -17,6 +17,7 @@ import { LocationScores } from "./LocationScores";
 import { AssetsAnalytics } from "./AssetsAnalytics";
 import { VendorManagement } from "./VendorManagement";
 import { KnowledgeCentre } from "./KnowledgeCentre";
+import { ModuleAccess } from "./ModuleAccess";
 
 const iconPaths: Record<IconName, React.ReactNode> = {
   search: (
@@ -812,14 +813,14 @@ function App() {
 
           </>
         ) : activeNav === "Assets Analytics" ? (
-          <AssetsAnalytics
+          <ModuleAccess><AssetsAnalytics
             onRefresh={refreshSnapshot}
             revision={revision}
-          />
+          /></ModuleAccess>
         ) : activeNav === "Vendor Management" ? (
-          <VendorManagement />
+          <ModuleAccess><VendorManagement /></ModuleAccess>
         ) : activeNav === "Knowledge Center" ? (
-          <KnowledgeCentre />
+          <ModuleAccess><KnowledgeCentre /></ModuleAccess>
         ) : (
           <>
           <WorkspacePage

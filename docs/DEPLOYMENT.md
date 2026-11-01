@@ -4,8 +4,93 @@ The supported runtime is `app.main:app`. It serves `frontend/` and the database-
 
 ## UI revamp deployment handoff
 
+### Deploying this branch on another server
+
+Use `feature/itom-main-preview`, which contains the latest-main integration,
+separate module storage, current access policy and matching built `frontend/`.
+Keep the server's existing PostgreSQL `DATABASE_URL`, source credentials,
+proxy/TLS settings, scheduler configuration and `CMDB_INVENTORY_ADMIN_TOKEN`.
+Configure these additional values privately:
+
+```dotenv
+DATABASE_URL_2=sqlite+aiosqlite:///./data/modules.db
+MODULE_SHARED_ORIGIN=https://itom.coforge.com
+MODULE_NETWORK_ACCESS=true
+```
+
+Network mode needs no `MODULE_SHARED_ACCESS_KEY`. It allows reads, downloads and
+additions without login only on the configured portal origin; Edit, Delete and
+Validate still require the existing admin key. The corporate gateway/firewall
+must restrict portal reachability. Do not expose this mode to the public internet.
+
+In an approved deployment window, back up both databases and the running
+environment/frontend. Install `requirements.txt` in the server's own virtual
+environment, then run both migration commands from the checkout:
+
+```powershell
+.\.venv\Scripts\python.exe -m alembic upgrade head
+.\.venv\Scripts\python.exe -m alembic -c alembic-modules.ini upgrade head
+```
+
+The first uses the existing primary migration chain; the second initializes only
+the separate module database. Already-current schemas need no additional upgrade.
+Privately transfer a database-aware snapshot of `data/modules.db` to retain
+existing module content and attachments; a fresh database starts without these
+submissions. Workbooks must be supplied separately to `ASSET_INVENTORY_DIR`
+for any categories not yet initialized. Neither databases nor workbooks are in Git.
+Do not overwrite a live database or copy only a SQLite file while its WAL is active.
+
+The checked-in frontend is ready to serve; no Node build is needed unless React
+source is changed. Preserve the public Host through the HTTPS reverse proxy
+(IIS ARR: `preserveHostHeader=true`, server-level on this installation), then
+restart the API using the existing supported launcher/service. Do not run two
+schedulers against the same production database. Verify `/ready`,
+`/ready/modules`, both source summaries, module reads without a cookie and
+admin-key rejection/acceptance before completing cutover.
+
+### Local production cutover completed
+
+The integrated release is now served on loopback port 8080 from this isolated
+checkout using its dedicated `.venv`, production `.env` and `data/modules.db`.
+The former runtime was Roshan's separate desktop checkout, whose files and
+environment were left intact. Its actual production secret, PostgreSQL URL,
+source credentials, TLS/proxy policy and scheduler settings were preserved.
+
+Before applying primary revisions 0011-0013, the previous supervisor/backend
+were stopped by their verified process IDs. A fresh custom-format PostgreSQL
+archive was created and checked. Every one of the 15 pre-existing PostgreSQL
+tables had identical row counts and content fingerprints after migration.
+Only the five new historical module tables were added.
+
+Both `/ready` and `/ready/modules` and the live telemetry/module API smoke checks
+returned 200. The scheduler reports enabled/running with a 600-second interval.
+The matching built UI and centered desktop asset dialog were checked on 8080.
+Subsequent telemetry changes are expected from the normal live scheduler.
+
+The `ITOM Integrated Portal and Sync` Windows task starts this release at the
+current deployment user's login. The former `ITOM Local Portal and Sync` task
+is retained disabled, with its XML backed up. Do not enable both. This is an
+interactive-login task, not an unattended Windows service or cross-user login
+guarantee; preserve this release path and its private runtime files.
+
+Rollback materials are in the private session directory
+`production-backup-20261101-223122`: `postgresql-cutover.dump`, original task XML,
+actual production environment/frontend and database-aware module snapshots.
+For application rollback, stop the integrated supervisor, disable its task and
+restore/start the original checkout/task. Do not blindly restore PostgreSQL
+over newer live ingestion. The original code expects revision 0010; reconcile
+its readiness/schema through an approved rollback plan, rather than stamping
+or erasing newly collected telemetry.
+
+The 5173 preview remains separate from production SQLite. Once live, submit
+shared production content through 8080; later preview edits do not automatically
+replicate into production.
+
+### Earlier preview preparation (historical)
+
 The `feature/itom-ui-revamp` source contains the approved Vendor, Assets and
-Knowledge changes. The running 8080 portal was not deployed or restarted.
+Knowledge changes. At that earlier preview stage, the running 8080 portal had
+not been deployed or restarted; the completed cutover above supersedes that state.
 Preview databases, credentials, workbooks and generated preview bundles are not
 part of the source handoff.
 
@@ -46,9 +131,8 @@ This writes the deployable frontend and its matching asset references; do not us
 the earlier preview bundles. Configure `CMDB_INVENTORY_ADMIN_TOKEN` privately in
 the actual service environment, never in Git. Restart during the approved window
 and verify readiness, scheduler state, existing telemetry routes and all three
-module workflows. For shared access, integrate the authenticated gateway with
-the local-client/Host and same-origin guards; no public-origin bypass or SSO/RBAC
-implementation is included here.
+module workflows. Configure the HTTPS origin and approved access mode described
+above. SSO/RBAC is not implemented; operator names remain self-reported.
 
 ### Separate module database
 
@@ -58,6 +142,49 @@ workspaces separately in the actual API service environment:
 ```dotenv
 DATABASE_URL_2=sqlite+aiosqlite:///./data/modules.db
 ```
+
+#### Earlier prepared local release (historical)
+
+The isolated integration checkout has a dedicated, ignored `.venv` with the
+pinned runtime requirements and an ignored `.env` prepared from the original
+checkout. Production mode, loopback host, a generated runtime secret and the
+separate `data/modules.db` are configured. The primary database URL, source
+credentials, existing TLS/proxy settings, shared module key and 600-second
+scheduler settings were preserved; the original checkout's `.env` was not edited.
+The release's workbook directory points to the original private workbook folder.
+None of these runtime files are part of the Git handoff.
+
+The prepared module database is a verified database-aware copy of the integrated
+preview, including uploaded bytes, reviews, audits and deleted-record tombstones.
+It is a point-in-time copy, not ongoing replication. Before actual cutover,
+reconcile any submissions or edits made subsequently on 5173; do not overwrite
+either database without a backup and an explicit transfer.
+
+The Windows launcher was verified using `start_itom_service.bat --help`; its
+existing `.venv` preference now selects the provisioned release interpreter.
+No launcher or Roshan telemetry business logic changes were needed.
+For another checkout or server, create its own `.venv`, restore `requirements.txt`
+and securely provision that machine's runtime configuration rather than relying
+on global Python or copying executable virtual environments.
+
+Production-configured release verification on a temporary port used PostgreSQL
+connections with `default_transaction_read_only=on` and disabled synchronization.
+Intune, SolarWinds, CMDB, locations, module routes and the matching static shell
+responded successfully. The temporary verifier was stopped afterward.
+At this preparation stage, the original 8080 service and PostgreSQL migration
+state had not yet been changed.
+
+**Earlier preflight blocker, now resolved by the completed cutover:** the checked
+PostgreSQL database was at `0010_geographic_reporting`; this release expects
+`0013_knowledge_content`. Its `/ready` correctly returned 503 until the approved,
+backed-up primary upgrade was applied. Revisions 0011-0013 only add historical module tables; module runtime
+data still uses the separate SQLite database. Do not stamp head or weaken
+readiness to hide this mismatch. During an approved deployment window, confirm
+the runtime identity/configuration, back up PostgreSQL and both module snapshots,
+apply the primary migrations with the release interpreter, and perform the
+controlled 8080 cutover. Verify both readiness endpoints and the original
+source scheduler afterward. Preparation is not a deployment or authorization
+to run the release alongside production with synchronization enabled.
 
 Vendor, Knowledge (including uploaded file bytes) and workbook Assets always use
 this shared, server-side SQLite file. If unset, `DATABASE_URL_2` defaults to the
@@ -145,13 +272,14 @@ rows. There is deliberately no replace-import endpoint.
 
 Back up the intended database and run migrations only in an approved deployment
 window. Do not copy the reference branch's conflicting migration chain or database
-bootstrap changes into this branch. CMDB writes are same-origin and loopback-only.
+bootstrap changes into this branch. CMDB writes require the same portal Origin
+and local access or a configured shared module session.
 All environments require `CMDB_INVENTORY_ADMIN_TOKEN`, read only from the runtime
 environment. No development bypass is allowed: an unset token keeps sensitive
 operations locked (503); an incorrect/missing supplied key returns 401 when
 configured. The same key protects Edit, Validate and Delete across Vendor,
 Knowledge and all three CMDB categories (including cell review). CMDB Add data
-also retains its existing administration guard.
+requires local access or a shared session, but not the administration key.
 The UI holds a supplied token only for the open
 inventory dialog, never in browser storage. Configure shared operator sign-in
 at the deployment boundary before exposing local administration remotely.
@@ -186,9 +314,81 @@ Operators using the same deployed API/database see the same changes after refres
 Merely assigning `itom.coforge.com` does not deploy this code or share a browser
 library: deploy frontend/API, migrate and back up a persistent shared database,
 configure the key, and provide an authenticated gateway and approved access policy.
-Current module guards require loopback client/Host and same-origin writes;
-remote gateway/origin integration must be explicitly configured and verified,
-not bypassed. An isolated preview database is not the production database.
+Without shared access configuration, module guards remain local-only.
+An isolated preview database is not the production database.
+
+### Interim shared-domain module access (without SSO)
+
+**Current Coforge-network policy:** `MODULE_NETWORK_ACCESS=true` is explicitly
+enabled with `MODULE_SHARED_ORIGIN=https://itom.coforge.com`. Anyone who can
+reach this configured portal can read, download and add Vendor, Knowledge and
+workbook Asset content without entering a shared key. Edit, Delete and Validate
+still require the unchanged `CMDB_INVENTORY_ADMIN_TOKEN` on every API mutation.
+No access-key dialog or session-lock toolbar is displayed in network mode.
+Host and same-origin write guards remain enforced. This flag does not verify
+network membership: the IIS gateway/firewall must restrict reachability to the
+approved corporate network. Do not enable it on an externally reachable portal.
+The API remains loopback-bound; primary telemetry routes/settings are unchanged.
+Set `MODULE_NETWORK_ACCESS=false` and restart to restore the shared-session
+policy below. The default is false; enabling it requires an explicit HTTPS origin.
+
+Verified the current mode on the actual HTTPS domain without cookies: all three
+module reads return 200, Add controls are available, and the existing admin key
+is requested by Vendor, Knowledge and Assets edit dialogs in Microsoft Edge.
+Unkeyed Vendor/Knowledge Edit, Delete and Validate requests return 401; the
+unchanged key passes authorization on nonexistent-record probes (404), without
+modifying content. Assets admin checking rejects no key (401) and accepts the
+existing key (200). Network-mode isolated tests also prove additions and files
+are shared across browsers without login. Validation passed 145 backend/API
+tests, 25 frontend tests, nine module browser journeys and the React build.
+Primary/module readiness and both source summaries remain available.
+
+Set `MODULE_SHARED_ORIGIN=https://itom.coforge.com` and a high-entropy
+`MODULE_SHARED_ACCESS_KEY` in the deployed, ignored runtime environment. Keep
+the existing `CMDB_INVENTORY_ADMIN_TOKEN` unchanged and distinct. Build the
+current React frontend and restart only the deployed API; no additional database
+migration is needed for access sessions.
+
+Each remote browser enters the shared access key once to read, download and add
+content in the three modules. The server sets a Secure, HttpOnly, SameSite=Strict
+cookie that expires after eight hours. Use **Lock shared modules** to clear this
+browser's access, or **Recheck module access** after expiry. Rotate the shared
+access key and restart the API to invalidate all sessions. Edit, Delete and
+Validate still require the separate existing admin key on each mutation.
+
+The approved HTTPS gateway must preserve the public Host, Origin and cookies,
+forward `/api/v1/modules/access` and all module routes to this deployed API, and
+restrict unprotected telemetry/manual-sync routes using its existing access
+policy. Do not rewrite Host to localhost or trust arbitrary forwarded headers.
+Verify both remote session creation and subsequent cookie-bearing requests on
+the actual domain. Localhost checks alone do not prove domain deployment.
+This interim shared credential is not per-user identity, SSO or RBAC;
+operator/reviewer names remain self-reported. Neither key belongs in Git or chat.
+Roshan's `DATABASE_URL`, ingestion settings and source API authorization are
+unchanged; module records remain in `DATABASE_URL_2`.
+
+The deployed Windows IIS ARR reverse proxy rewrites requests to
+`http://127.0.0.1:8080`. ARR Host preservation is server-level on this installation;
+the site-only setting was rejected without committing changes. With operator
+approval, `system.webServer/proxy` now has `preserveHostHeader=true`. This setting
+also applies to future IIS proxy sites. The other current site is stopped.
+The previous proxy configuration and release environment/static assets are
+backed up privately alongside the release. For gateway rollback, restore the
+prior `preserveHostHeader=false` value with IIS configuration tools; this will
+again block shared module requests until the public Host is preserved.
+
+Verified on the actual HTTPS domain: session login and logout, Secure/HttpOnly
+cookie, Vendor/Knowledge/workbook reads, both readiness endpoints, Intune and
+SolarWinds summaries, rejection of the shared access key for administration,
+and acceptance of the unchanged administration key. Verification created no
+production module records and required no database migration.
+Live Microsoft Edge also passed the public key dialog, login, all three module
+views, the three Assets tiles, and session locking with TLS verification enabled.
+Regression checks passed 145 backend/API tests, 25 frontend data tests and the
+React TypeScript/build check. Isolated browser checks passed 28 journeys; one
+existing telemetry refresh assertion expects 14 fixture records but receives
+15. The same assertion fails against the unchanged pre-update static build;
+no Roshan telemetry logic was changed to accommodate it.
 
 ### Portal Vendor Management
 
@@ -201,7 +401,7 @@ Pillow), back up the intended datastore, and apply
 an approved deployment window before restarting the API. Do not migrate or
 restart a running production portal just to preview this UI.
 
-Vendor reads and writes are loopback-only until sign-in is implemented; writes
+Vendor reads and writes require local access or the shared module session; writes
 also require the same portal Origin. Reviewer names are explicitly self-reported,
 not authenticated identities. Submissions start Pending; editing resets review.
 Edit, Validate and Delete additionally require the shared CMDB admin key on the

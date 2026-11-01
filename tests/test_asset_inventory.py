@@ -68,8 +68,9 @@ def test_asset_inventory_summary_distinguishes_missing_workbooks(tmp_path):
 
 @pytest.mark.asyncio
 async def test_asset_inventory_api_serves_configured_records_and_reports_missing_files(
-    api_client, api_environment, tmp_path
+    api_environment, tmp_path
 ):
+    from httpx import ASGITransport, AsyncClient
     from app.api.v1.endpoints.assets import get_asset_inventory_service
     from app.services.asset_inventory_service import AssetInventoryService
 
@@ -81,13 +82,15 @@ async def test_asset_inventory_api_serves_configured_records_and_reports_missing
         lambda: AssetInventoryService(tmp_path)
     )
 
-    response = await api_client.get(
-        "/api/v1/assets/inventory/network?page=1&page_size=10&search=switch"
-    )
-    missing_response = await api_client.get("/api/v1/assets/inventory/server")
-    invalid_page_size = await api_client.get(
-        "/api/v1/assets/inventory/network?page_size=12"
-    )
+    async with AsyncClient(transport=ASGITransport(app=api_environment, client=("127.0.0.1", 1234)),
+                           base_url="http://127.0.0.1:8080") as api_client:
+        response = await api_client.get(
+            "/api/v1/assets/inventory/network?page=1&page_size=10&search=switch"
+        )
+        missing_response = await api_client.get("/api/v1/assets/inventory/server")
+        invalid_page_size = await api_client.get(
+            "/api/v1/assets/inventory/network?page_size=12"
+        )
 
     assert response.status_code == 200
     assert response.json()["total"] == 1

@@ -20,7 +20,11 @@ from app.services.asset_inventory_service import (
 )
 from frontend.vendor_management_server import reject_constant, unique_object
 
-router = APIRouter(prefix="/assets", tags=["Asset inventory"])
+def local_inventory(request: Request):
+    require_local_module(request, "CMDB inventory")
+
+
+router = APIRouter(prefix="/assets", tags=["Asset inventory"], dependencies=[Depends(local_inventory)])
 logger = logging.getLogger("itom.assets")
 
 
@@ -79,10 +83,6 @@ async def list_asset_inventory(
     if isinstance(result, JSONResponse):
         return result
     return {**result, "items": [{cell["header"]: cell["value"] for cell in row["data"]} for row in result["items"]]}
-
-
-def local_inventory(request: Request):
-    require_local_module(request, "CMDB inventory")
 
 
 def inventory_admin(request: Request):
@@ -161,7 +161,7 @@ async def inventory_records(category: AssetInventoryCategory, page: int = Query(
     return await operation(AssetReviewService(session, service).list(category, page, page_size, search), session)
 
 
-@router.post("/records/{category}", status_code=201, dependencies=[Depends(inventory_admin)])
+@router.post("/records/{category}", status_code=201, dependencies=[Depends(local_inventory)])
 async def create_record(category: AssetInventoryCategory, body=Depends(create_body),
     service=Depends(get_asset_inventory_service), session=Depends(get_module_db)):
     return await operation(AssetReviewService(session, service).create(category, body), session)

@@ -37,6 +37,9 @@ services:
       DATABASE_URL_2: sqlite+aiosqlite:////app/data/modules/modules.db
       ASSET_INVENTORY_DIR: /app/data/asset_inventory
       CMDB_INVENTORY_ADMIN_TOKEN: ${CMDB_INVENTORY_ADMIN_TOKEN:-}
+      MODULE_SHARED_ORIGIN: ${MODULE_SHARED_ORIGIN:-}
+      MODULE_SHARED_ACCESS_KEY: ${MODULE_SHARED_ACCESS_KEY:-}
+      MODULE_NETWORK_ACCESS: ${MODULE_NETWORK_ACCESS:-false}
       PORT: 8000
     volumes:
       - modules_data:/app/data/modules

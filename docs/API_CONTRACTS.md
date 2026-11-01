@@ -110,7 +110,7 @@ not an empty inventory. A seeded category remains available independently of
 the source file, and deleting its last row does not reseed it.
 The inventory view and API do not accept workbook uploads or replace-imports.
 
-`records` reads and all administration routes require loopback client/Host.
+All asset reads, exports and writes require local access or the shared module session below.
 Writes require same-origin requests; in every environment, administration
 also requires `Authorization: Bearer <CMDB_INVENTORY_ADMIN_TOKEN>`. An unset token
 keeps editing locked in every environment (503); an invalid/missing supplied key
@@ -128,7 +128,7 @@ cells, preserving unchanged review evidence.
 ## Shared Knowledge Centre
 
 `/api/v1/knowledge/content` uses the configured server database, independent of
-source telemetry. Reads require loopback client/Host; writes require the same
+source telemetry. Reads require local access or the shared module session; writes require the same
 portal Origin. `GET` accepts `page >= 1` and `page_size` from 1 to 100 and returns
 `items`, `total`, `page`, `page_size`, `total_pages`. Items include permanent `id`,
 consecutive display `serial`, `revision`, `name`, `description`, `category`,
@@ -163,14 +163,45 @@ No Figma sample records or figures are shipped.
 
 ## Vendor submissions
 
-`/api/v1/vendors/submissions` is local-only and separate from source telemetry.
-All routes require a loopback client and loopback Host; writes require the same
+`/api/v1/vendors/submissions` is separate from source telemetry.
+All routes require local access or the shared module session; writes require the same
 portal Origin. No frontend navigation redirects to the old companion port.
 Edit, Validate and Delete require the same runtime CMDB administration key on
 each API request in every environment (unconfigured 503, incorrect/missing 401).
-Creating submissions and ordinary reads retain their existing local/origin guards.
+Creating submissions and ordinary reads require local access or a valid shared session.
 The interim shared key is not SSO/RBAC; designated-admin role enforcement must
 be implemented server-side when authenticated identities become available.
+
+### Interim shared module access
+
+An explicit `MODULE_NETWORK_ACCESS=true` changes only ordinary module access
+on `MODULE_SHARED_ORIGIN`: reads, downloads and additions no longer require a
+session cookie or shared key. `GET /api/v1/modules/access` then returns
+`{authorized: true, local: false, network: true}` for the approved remote host.
+Edit, Delete and Validate still require `CMDB_INVENTORY_ADMIN_TOKEN`; all host
+and same-origin guards remain. Network membership must be restricted at the
+gateway/firewall, not inferred from a Host header. This mode defaults to false.
+
+Configure `MODULE_SHARED_ORIGIN` as the exact HTTPS portal origin and set a
+separate runtime `MODULE_SHARED_ACCESS_KEY`, distinct from
+`CMDB_INVENTORY_ADMIN_TOKEN`. Without this configuration the existing local-only
+policy remains. These routes and sessions cover only Vendor, Knowledge and
+workbook Assets; telemetry authentication and API contracts are unchanged.
+
+- `GET /api/v1/modules/access`: `{authorized, local}`. A loopback client/Host
+  returns authorized local access; the configured remote host reports its session.
+- `POST /api/v1/modules/access`: `{key}` authenticates remote module access;
+  incorrect keys return 401. Success sets an eight-hour, Secure, HttpOnly,
+  SameSite=Strict signed cookie scoped to `/api/v1`.
+- `DELETE /api/v1/modules/access`: clears this browser's cookie (204).
+
+Unopened or expired remote module sessions return 401. Other hosts and
+cross-origin requests return 403; writes must send the configured Origin.
+The TLS proxy must preserve the public Host and forward cookies and Origin.
+Arbitrary forwarded-host headers do not confer access. Rotating the access key
+invalidates all existing sessions. Keys are never persisted by the frontend.
+Reads, downloads and additions share the same module database; Edit, Delete and
+Validate still additionally require the existing administration Bearer key.
 
 - `GET /`: searchable vendor list with `items`, `total`, `page`, `page_size`
   and tentative `next_serial` (active count + 1). `serial` is the consecutive

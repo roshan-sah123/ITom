@@ -7,6 +7,7 @@ from pathlib import Path
 for key, value in {
     "DATABASE_URL": "sqlite+aiosqlite:///:memory:",
     "DATABASE_URL_2": "sqlite+aiosqlite:///:memory:",
+    "MODULE_SHARED_ORIGIN": "", "MODULE_SHARED_ACCESS_KEY": "", "MODULE_NETWORK_ACCESS": "false",
     "SCHEDULER_ENABLED": "false", "ENVIRONMENT": "development", "DEBUG": "false",
     "AZURE_TENANT_ID": "", "AZURE_CLIENT_ID": "", "AZURE_CLIENT_SECRET": "",
     "SOLARWINDS_HOST": "", "SOLARWINDS_USERNAME": "", "SOLARWINDS_PASSWORD": "",

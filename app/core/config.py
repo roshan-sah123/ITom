@@ -2,6 +2,7 @@
 
 import os
 from pathlib import Path
+from urllib.parse import urlsplit
 from typing import Any, List, Optional, Union
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -37,6 +38,9 @@ class Settings(BaseSettings):
     SQLITE_DB_PATH: str = "./data/itom.db"
     ASSET_INVENTORY_DIR: str = "./data/asset_inventory"
     CMDB_INVENTORY_ADMIN_TOKEN: Optional[str] = None
+    MODULE_SHARED_ORIGIN: str = ""
+    MODULE_SHARED_ACCESS_KEY: Optional[str] = None
+    MODULE_NETWORK_ACCESS: bool = False
     DB_POOL_SIZE: int = 20
     DB_MAX_OVERFLOW: int = 10
     DB_POOL_TIMEOUT: int = 30
@@ -248,6 +252,17 @@ class Settings(BaseSettings):
                     "Generate a cryptographically secure key via 'openssl rand -hex 32'."
                 )
 
+        if self.MODULE_SHARED_ORIGIN:
+            origin = urlsplit(self.MODULE_SHARED_ORIGIN)
+            if (origin.scheme != "https" or not origin.hostname or origin.path
+                    or origin.query or origin.fragment or origin.username or origin.password):
+                raise ValueError("MODULE_SHARED_ORIGIN must be an HTTPS origin without a path or credentials.")
+            if not self.MODULE_NETWORK_ACCESS and (not self.MODULE_SHARED_ACCESS_KEY or not self.SECRET_KEY):
+                raise ValueError("Shared modules require MODULE_SHARED_ACCESS_KEY and SECRET_KEY.")
+            if self.MODULE_SHARED_ACCESS_KEY and self.MODULE_SHARED_ACCESS_KEY == self.CMDB_INVENTORY_ADMIN_TOKEN:
+                raise ValueError("The shared access key must differ from the module administration key.")
+        elif self.MODULE_NETWORK_ACCESS:
+            raise ValueError("MODULE_NETWORK_ACCESS requires an explicit HTTPS MODULE_SHARED_ORIGIN.")
         secondary = self.module_database_url
         secondary_path = make_url(secondary).database
         if self.async_database_url.startswith("sqlite"):

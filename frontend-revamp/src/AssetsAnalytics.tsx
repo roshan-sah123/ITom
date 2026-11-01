@@ -210,7 +210,7 @@ function WorkbookInventoryDialog({
           <span className="asset-record-count">
             {inventory ? `${number(inventory.total)} records` : "Loading inventory"}
           </span>
-          {editMode && <button type="button" className="button button--primary" disabled={!inventory || busy} onClick={() => openEditor(null)}>+ Add data</button>}
+          <button type="button" className="button button--primary" disabled={!inventory || busy} onClick={() => openEditor(null)}>+ Add data</button>
           <button
             className="button button--secondary"
             disabled={!inventory || inventory.total === 0 || exporting}
