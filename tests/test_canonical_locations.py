@@ -15,6 +15,27 @@ from app.models.location import LocationScoreSnapshot
 from sqlalchemy import func
 
 
+@pytest.mark.parametrize('status', ['non-compliant', ' Non_Compliant ', ' compliant '])
+def test_legacy_compliance_aliases_match_summary_score_and_issue_counts(status):
+    from app.repositories.decision_metrics import intune_evidence
+    from app.services.telemetry_sources import normalize_intune_device
+    now = datetime.now(timezone.utc)
+    row = SimpleNamespace(source_system='INTUNE', status=status, last_sync_time=now,
+                          location_resolution='mapped', location_revision=None,
+                          attributes={'last_sync_date_time': now.isoformat()})
+    fresh = {'sources': {source: dict(status='FRESH', last_attempt_status='SUCCESS')
+                        for source in ['INTUNE', 'SOLARWINDS']}}
+    summary = intune_evidence([row], now)['confirmed_compliance']
+    result = LocationService.score(SimpleNamespace(id='site', name='Site', level='office'), [row], fresh, now)
+    component = result['components']['compliance']
+    assert component['known_records'] == summary['known_count'] == 1
+    assert component['numerator'] == result['issues']['compliant'] == summary['numerator']
+    assert result['issues']['noncompliant'] == 1 - summary['numerator']
+    normalized = normalize_intune_device({'id': 'device', 'complianceState': status})
+    assert normalized['status'] == ('Compliant' if summary['numerator'] else 'NonCompliant')
+    assert normalized['attributes']['raw_compliance_state'] == status
+
+
 @pytest.mark.parametrize('mode', ['endpoints', 'infrastructure', 'combined'])
 @pytest.mark.parametrize('numerator,denominator,expected_status,display', [
     (2249,2500,'warning',90.0),

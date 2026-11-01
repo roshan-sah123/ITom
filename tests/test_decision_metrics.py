@@ -7,6 +7,22 @@ from app.models.ci import ConfigurationItem
 from app.repositories.summary_repository import SummaryRepository
 
 
+@pytest.mark.parametrize('raw,expected,tier', [
+    (150, None, 'High'), (float('inf'), None, 'High'), (float('nan'), None, 'High'),
+    (True, None, 'High'), (-1, None, 'High'), ('85', 85, 'Medium'), (0, 0, 'High'),
+])
+def test_ingested_resource_percentages_follow_decision_validation(raw, expected, tier):
+    from app.services.telemetry_sources import normalize_solarwinds_node, classify_solarwinds_health
+    from app.repositories.decision_metrics import resource_value, resources
+    normalized = normalize_solarwinds_node({'NodeID': 1, 'Status': 1, 'CPULoad': raw,
+                                          'PercentMemoryUsed': raw, 'AvgResponseTime': 150})
+    assert normalized['cpu_load'] == normalized['ram_used'] == resource_value(raw) == expected
+    assert resources(normalized['attributes']) == (expected, expected)
+    assert normalized['health_tier'] == classify_solarwinds_health('Up', raw, raw) == tier
+    assert classify_solarwinds_health('Down', raw, raw) == 'Low'
+    assert normalized['latency_ms'] == 150
+
+
 async def seed(session, source, rows):
     for index, row in enumerate(rows):
         session.add(ConfigurationItem(

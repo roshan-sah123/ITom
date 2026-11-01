@@ -831,8 +831,8 @@ class SummaryRepository:
         source_categories = category_evidence(records)
         has_source_categories = any(row['value'] is not None for row in source_categories)
         if has_source_categories:
-            sw_srv = sum(row['count'] for row in source_categories if (row['value'] or '').casefold() == 'server')
-            sw_net = sum(row['count'] for row in source_categories if (row['value'] or '').casefold() == 'network')
+            sw_srv = sum(row['count'] for row in source_categories if (row['value'] or '').strip().casefold() == 'server')
+            sw_net = sum(row['count'] for row in source_categories if (row['value'] or '').strip().casefold() == 'network')
             sw_uncl = sum(row['count'] for row in source_categories if row['value'] is None)
             sw_other = total - sw_srv - sw_net - sw_uncl
         else:

@@ -95,6 +95,7 @@ async def list_solarwinds_nodes(
     source_type: Optional[str] = Query(None, max_length=255),
     sort_by: Optional[str] = Query("name"),
     sort_order: Optional[str] = Query("asc"),
+    category_family: Optional[str] = Query(None, max_length=255),
     ci_service: CIService = Depends(get_ci_service),
 ) -> Dict[str, Any]:
     """Query paginated SolarWinds Orion server nodes."""
@@ -110,6 +111,7 @@ async def list_solarwinds_nodes(
         search=search,
         source_system="SOLARWINDS",
         category=category, category_missing=category_missing, source_type=source_type,
+        category_family=category_family,
         health_tier=health_tier,
         resource_pressure=resource_pressure,
         status=status_filter,

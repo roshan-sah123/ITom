@@ -28,6 +28,52 @@ async def operations_card_url(revamp_portal_url, session):
     return revamp_portal_url
 
 
+@pytest.fixture
+async def category_variants_url(revamp_portal_url, session):
+    session.add_all([
+        make_ci('SOLARWINDS', 'VARIANT-UP', 'Up', 'High', attributes={'node_category': ' server '}),
+        make_ci('SOLARWINDS', 'VARIANT-DOWN', 'Down', 'Low', attributes={'node_category': 'SERVER'}),
+    ])
+    await session.commit()
+    return revamp_portal_url
+
+
+def test_category_variants_reconcile_cards_charts_inventory_and_export(category_variants_url, browser_context):
+    page = browser_context.new_page()
+    page.goto(category_variants_url)
+    page.get_by_role('button', name='Operations Analytics', exact=True).click()
+    page.get_by_role('button', name='View Servers', exact=True).click()
+    expect(page.locator('.analytics-donut strong')).to_have_text('4')
+    expect(page.get_by_label('Source category')).to_have_value('__family')
+    expect(page.locator('.inventory-panel .table-footer')).to_contain_text('of 4 records')
+    page.get_by_role('button', name='Filter Operational status: Down', exact=True).click()
+    expect(page.locator('.inventory-panel .table-footer')).to_contain_text('of 1 records')
+    expect(page.locator('tbody')).to_contain_text('VARIANT-DOWN')
+    page.get_by_role('button', name='View all Health classification records', exact=True).click()
+    expect(page.locator('.inventory-panel .table-footer')).to_contain_text('of 4 records')
+    with page.expect_download() as download:
+        page.get_by_role('button', name='Export CSV', exact=True).click()
+    rows = list(csv.DictReader(Path(download.value.path()).read_text(encoding='utf-8-sig').splitlines()))
+    assert len(rows) == 4
+    assert {'VARIANT-UP', 'VARIANT-DOWN'} <= {row['Node name'] for row in rows}
+    page.get_by_label('Source category').select_option(' server ')
+    expect(page.locator('.inventory-panel .table-footer')).to_contain_text('of 1 records')
+    expect(page.locator('tbody')).to_contain_text('VARIANT-UP')
+    page.close()
+
+
+def test_failed_cmdb_summary_does_not_turn_synced_source_counts_into_zero(revamp_portal_url, browser_context):
+    page = browser_context.new_page()
+    page.route('**/api/v1/cmdb/summary', lambda route: route.fulfill(status=503, json={'error': 'Unavailable'}))
+    with page.expect_response('**/api/v1/system/freshness') as response:
+        page.goto(revamp_portal_url)
+    assert response.value.json()['sources']['INTUNE']['last_synchronized_at']
+    page.get_by_role('button', name='Assets Analytics', exact=True).click()
+    expect(page.get_by_role('button', name='View Intune records', exact=True)).to_contain_text('—')
+    expect(page.get_by_role('button', name='View SolarWinds records', exact=True)).to_contain_text('—')
+    page.close()
+
+
 def test_operations_cards_switch_chart_populations(operations_card_url, browser_context):
     page = browser_context.new_page()
     page.goto(operations_card_url)
@@ -95,6 +141,9 @@ def test_group_card_and_endpoint_asset_charts_open_matching_data(revamp_groups_u
     page.goto(revamp_groups_url)
     page.get_by_role('button',name='Operations Analytics',exact=True).click()
     page.get_by_role('button',name='View Location',exact=True).click()
+    expect(page.locator('.location-charts .analytics-donut')).to_be_disabled()
+    assert page.locator('.location-charts .analytics-donut').evaluate("el => getComputedStyle(el).opacity") == '1'
+    expect(page.locator('.location-charts .chart-hint')).to_contain_text('Use the filters below')
     expect(page.get_by_role('heading',name='Location site scores',exact=True)).to_be_visible()
     expect(page.locator('.inventory-panel')).to_contain_text('Test Site')
     expect(page.locator('.inventory-panel')).to_contain_text('Suggested P1')
@@ -127,6 +176,7 @@ def test_group_card_and_endpoint_asset_charts_open_matching_data(revamp_groups_u
 def test_geographic_location_matches_show_source_evidence_and_filter(revamp_portal_url, browser_context):
     page = browser_context.new_page()
     page.goto(revamp_portal_url)
+    page.get_by_role('button', name='View Operations Analytics').click()
     page.locator('.location-matches > summary').click()
     report = page.locator('.location-matches')
     expect(report.locator('tbody tr')).to_have_count(1)
@@ -315,46 +365,6 @@ async def revamp_groups_url(revamp_portal_url, session):
     return revamp_portal_url
 
 
-def test_group_drilldown_retries_and_preserves_exact_source_scope(revamp_groups_url, browser_context):
-    page = browser_context.new_page()
-    page.route('**/api/v1/solarwinds/groups/10/devices?*', lambda route: route.fulfill(status=503, json={'error': 'Unavailable'}))
-    page.goto(revamp_groups_url)
-    page.get_by_role('button', name='BOCBA(Bolivia,Cochabamba-Encora)', exact=True).click()
-    expect(page.get_by_role('alert')).to_contain_text('Data unavailable (HTTP 503)')
-    page.unroute('**/api/v1/solarwinds/groups/10/devices?*')
-    page.get_by_role('button', name='Retry', exact=True).click()
-    expect(page.locator('tbody tr')).to_have_count(2)
-    expect(page.locator('.inventory-panel')).to_contain_text('BOCBA(Bolivia,Cochabamba-Encora)')
-    expect(page.locator('.table-footer')).to_contain_text('of 2 records')
-    page.get_by_role('searchbox', name='Search SolarWinds node inventory').fill('Device 2')
-    expect(page.locator('tbody tr')).to_have_count(1)
-    expect(page.locator('tbody')).to_contain_text('Device 2')
-    page.close()
-
-
-def test_site_score_status_and_monitored_percentage_remain_distinct(revamp_groups_url, browser_context):
-    page = browser_context.new_page()
-
-    def group_with_unmanaged_node(route):
-        response = route.fetch()
-        payload = response.json()
-        group = payload['data']['items'][0]
-        group['total_devices'] = 3
-        group['status_breakdown'] = {'Up': 2, 'Unmanaged': 1}
-        group['components']['node_status'].update(
-            numerator=2, denominator=2, value=100, usable=True)
-        route.fulfill(response=response, json=payload)
-
-    page.route('**/api/v1/solarwinds/groups/overview', group_with_unmanaged_node)
-    page.goto(revamp_groups_url)
-    expect(page.locator('.score-card .status')).to_have_text('Healthy')
-    expect(page.locator('.location-panel')).to_contain_text('100% of 2 monitored nodes')
-    assert page.locator('.health-bar').evaluate('element => element.style.width') == '100%'
-    expect(page.locator('.overview-panel tbody tr').first).to_contain_text('100%')
-    expect(page.locator('.overview-panel tbody tr').first).to_contain_text('Critical')
-    page.close()
-
-
 def test_summary_failures_are_unavailable_and_global_search_reads_assets(revamp_portal_url, browser_context):
     page = browser_context.new_page()
     page.route('**/api/v1/intune/summary', lambda route: route.fulfill(status=503, json={'error': 'Unavailable'}))
@@ -425,11 +435,11 @@ def test_dashboard_renders_ready_sources_while_optional_report_is_pending(revamp
         ? new Promise(() => {}) : realFetch(url, options);
     ''')
     page.goto(revamp_portal_url)
-    endpoint_card = page.get_by_role('button', name='View Managed endpoints')
+    endpoint_card = page.get_by_role('button', name='View Digital Workspace')
     expect(endpoint_card).to_be_enabled(timeout=15000)
     expect(endpoint_card).to_contain_text('3')
-    expect(page.locator('.location-matches')).to_contain_text('Loading matches')
-    expect(endpoint_card).to_contain_text('Last successful ingestion:')
+    expect(page.locator('.location-matches')).to_have_count(0)
+    expect(endpoint_card).not_to_contain_text('Last successful ingestion:')
     page.close()
 
 
@@ -437,11 +447,24 @@ def test_source_failure_does_not_hide_other_source(revamp_portal_url, browser_co
     page = browser_context.new_page()
     page.route('**/api/v1/solarwinds/summary', lambda route: route.abort())
     page.goto(revamp_portal_url)
-    endpoint_card = page.get_by_role('button', name='View Managed endpoints')
-    solar_card = page.get_by_role('button', name='View SolarWinds nodes')
+    endpoint_card = page.get_by_role('button', name='View Digital Workspace')
+    solar_card = page.get_by_role('button', name='View Operations Analytics')
     expect(endpoint_card).to_be_enabled(timeout=15000)
     expect(endpoint_card).to_contain_text('3')
-    expect(solar_card).to_be_disabled()
+    expect(solar_card).to_be_enabled()
     expect(solar_card).to_contain_text('Unavailable')
     expect(page.get_by_role('alert')).to_contain_text('solarwinds')
+    page.close()
+
+
+def test_home_workspace_tiles_and_attention(revamp_portal_url, browser_context):
+    page = browser_context.new_page()
+    page.goto(revamp_portal_url)
+    for label in ['Digital Workspace', 'Operations Analytics', 'Assets Analytics', 'Knowledge Center']:
+        expect(page.get_by_role('button', name=f'View {label}')).to_be_visible()
+    expect(page.get_by_role('heading', name='Needs attention')).to_be_visible()
+    expect(page.get_by_role('heading', name='SolarWinds group status')).to_have_count(0)
+    expect(page.get_by_role('heading', name='Location and network health')).to_have_count(0)
+    page.get_by_role('button', name='View Knowledge Center').click()
+    expect(page.get_by_role('heading', name='Knowledge Center', exact=True)).to_be_visible()
     page.close()

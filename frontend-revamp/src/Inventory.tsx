@@ -36,7 +36,7 @@ export function InventoryPanel({
   const [category, setCategory] = useState(
     initialFilters.category_missing
       ? "__missing"
-      : (initialFilters.category ?? ""),
+      : initialFilters.category_family ? "__family" : (initialFilters.category ?? ""),
   );
   const [health, setHealth] = useState(
     initialFilters.health_tier ?? initialHealth,
@@ -74,7 +74,9 @@ export function InventoryPanel({
       ...(source ? { source_system: source } : {}),
       ...(category === "__missing"
         ? { category_missing: "true" }
-        : category
+        : category === "__family" && initialFilters.category_family
+          ? { category_family: initialFilters.category_family }
+          : category
           ? { category }
           : {}),
       ...(health ? { health_tier: health } : {}),
@@ -153,7 +155,7 @@ export function InventoryPanel({
   const filterLabels = [
     groupName ? `Group: ${groupName}` : "",
     category
-      ? `Category: ${category === "__missing" ? "Unclassified" : category}`
+      ? `Category: ${category === "__missing" ? "Unclassified" : category === "__family" && initialFilters.category_family ? `${initialFilters.category_family} (all variants)` : category}`
       : "",
     status ? `Status: ${status}` : "",
     health ? `Health tier: ${health}` : "",
@@ -236,6 +238,7 @@ export function InventoryPanel({
               onChange={(e) => change(setCategory, e.target.value)}
             >
               <option value="">All categories</option>
+              {initialFilters.category_family && <option value="__family">{initialFilters.category_family} (all variants)</option>}
               {config.categories?.map((category) => (
                 <option
                   key={category.value ?? "__missing"}

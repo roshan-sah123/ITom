@@ -9,7 +9,7 @@ def _category(row):
     if value is None:
         attributes = getattr(row, "attributes", None)
         value = attributes.get("node_category") if isinstance(attributes, dict) else None
-    return value.strip() if isinstance(value, str) and value.strip() else None
+    return value if isinstance(value, str) and value.strip() else None
 
 
 def category_evidence(rows):
@@ -48,8 +48,8 @@ def category_evidence(rows):
 def category_counts(rows):
     """Return the compact category contract used by group scorecards."""
     categories = category_evidence(rows)
-    server = sum(row["count"] for row in categories if (row["value"] or "").casefold() == "server")
-    network = sum(row["count"] for row in categories if (row["value"] or "").casefold() == "network")
+    server = sum(row["count"] for row in categories if (row["value"] or "").strip().casefold() == "server")
+    network = sum(row["count"] for row in categories if (row["value"] or "").strip().casefold() == "network")
     unclassified = sum(row["count"] for row in categories if row["value"] is None)
     total = sum(row["count"] for row in categories)
     return {

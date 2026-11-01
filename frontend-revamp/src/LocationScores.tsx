@@ -30,7 +30,7 @@ export function LocationScores({ locations: assignedLocations, geographicLocatio
     const score = row.scores[mode];
     return [row.id, row.name, row.level ?? "", scope, row.match_level ?? "", mode, score?.value == null ? "" : String(score.value), score?.value == null ? "unavailable" : score.status ?? "unknown", scorePriority(mode, score), score?.reason ?? "", String(row.endpoints), row.nodes == null ? "" : String(row.nodes), componentEvidence(row.components?.compliance), componentEvidence(row.components?.node_status), componentEvidence(row.components?.recent_checkins), row.freshness?.INTUNE?.status ?? "", row.freshness?.INTUNE?.last_synchronized_at ?? "", row.freshness?.SOLARWINDS?.status ?? "", row.freshness?.SOLARWINDS?.last_synchronized_at ?? "", row.as_of ?? "", row.policy_version ?? ""];
   }));
-  return <section className="panel inventory-panel" aria-busy={loading}>
+  return <section className="panel inventory-panel location-scores-panel" aria-busy={loading}>
     <div className="panel__header overview-header"><div><p className="eyebrow">LOCATION HEALTH</p><h2>Location site scores</h2>
       <small>Combined critical: suggested P1, warning: suggested P2. Review evidence and business impact before raising a ticket.</small></div>
       <div className="table-tools">

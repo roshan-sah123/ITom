@@ -64,6 +64,7 @@ class CIService:
         ci_type_exact: bool = False,
         sort_by: Optional[str] = "name",
         sort_order: Optional[str] = "asc",
+        category_family: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Fetch paginated CIs wrapped in the standard response envelope.
 
@@ -81,6 +82,7 @@ class CIService:
             location=location,
             location_id=location_id,
             category=category,
+            category_family=category_family,
             category_missing=category_missing,
             source_type=source_type,
             resource_pressure=resource_pressure,

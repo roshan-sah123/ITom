@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   buildPortalModel,
   buildOperationsCharts,
+  operationsCategoryFilters,
   donutGradient,
   downloadCsv,
   number,
@@ -113,16 +114,6 @@ const navigationIcons: Record<string, IconName> = {
   Automations: "refresh",
   "Vendor Management": "external",
 };
-
-function StatusBadge({ status }: { status: string }) {
-  const statusClass = status.toLowerCase();
-  return (
-    <span className={`status status--${statusClass}`}>
-      <span className="status__dot" />
-      {status}
-    </span>
-  );
-}
 
 function WorkspacePage({
   config,
@@ -269,8 +260,8 @@ function WorkspacePage({
           <div
             ref={chartRef}
             tabIndex={-1}
-            className="drilldown-target"
-            aria-label="Interactive chart filters"
+            className={`drilldown-target${isOperations && operationsScope === "Location" ? " location-charts" : ""}`}
+            aria-label={isOperations && operationsScope === "Location" ? "Location score charts" : "Interactive chart filters"}
           >
             <section className="analytics-grid">
               <article className="panel chart-panel">
@@ -307,7 +298,7 @@ function WorkspacePage({
                       choose(
                         slice?.action ?? {
                           label: isOperations ? operationsScope : "All current inventory",
-                          filters: isOperations && !["Total Nodes", "Location"].includes(operationsScope) ? { category: snapshot.solarwinds?.source_categories?.find((row) => row.value?.toLowerCase() === (operationsScope === "Servers" ? "server" : operationsScope.toLowerCase()))?.value ?? operationsScope } : {},
+                          filters: isOperations && !["Total Nodes", "Location"].includes(operationsScope) ? operationsCategoryFilters(snapshot, operationsScope) : {},
                         },
                       );
                     }}
@@ -377,8 +368,9 @@ function WorkspacePage({
               </article>
             </section>
             <p className="chart-hint">
-              Select a card, classification or status to view matching current
-              records.
+              {isOperations && operationsScope === "Location"
+                ? "These charts summarize geographic matches. Use the filters below to explore site scores."
+                : "Select a card, classification or status to view matching current records."}
             </p>
           </div>
 
@@ -422,17 +414,18 @@ function WorkspacePage({
 function LocationMatches({ report, loading }: { report?: Snapshot["locationMatches"]; loading: boolean }) {
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("");
+  const [open, setOpen] = useState(false);
   const available = !!report?.data_available;
   const rows = (report?.items ?? []).filter((item) =>
     item.location_name.toLowerCase().includes(query.toLowerCase()) && (!status || item.status === status),
   );
   return (
-    <details className="location-matches">
+    <details className="location-matches" onToggle={(event) => setOpen(event.currentTarget.open)}>
       <summary>
         <h2>Intune and SolarWinds location matches</h2>
         <span>{available ? `${report.matched_locations} / ${report.named_intune_locations} matched` : loading ? "Loading matches" : "Unavailable"}</span>
       </summary>
-      <div className="panel__header">
+      {open && <><div className="panel__header">
         <div className="table-tools">
           <label className="table-search">
             <Icon name="search" size={15} />
@@ -470,7 +463,7 @@ function LocationMatches({ report, loading }: { report?: Snapshot["locationMatch
       <div className="table-footer">
         <span>{available ? `${report.matched_locations} matched / ${report.named_intune_locations} named Intune locations` : "Matching data unavailable"}</span>
         {available && <span>{number(report.unassigned_intune_endpoints)} unassigned endpoints | {number(report.conflicting_solarwinds_nodes)} conflicting nodes excluded | {report.freshness?.sources?.SOLARWINDS?.status ?? "UNKNOWN"}</span>}
-      </div>
+      </div></>}
     </details>
   );
 }
@@ -478,10 +471,6 @@ function LocationMatches({ report, loading }: { report?: Snapshot["locationMatch
 function App() {
   const [activeNav, setActiveNav] = useState("Home Page");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [selectedLocationId, setSelectedLocationId] = useState<number | null>(
-    null,
-  );
-  const [locationOpen, setLocationOpen] = useState(false);
   const [revision, setRevision] = useState(0);
   useEffect(() => {
     const refreshVisibleSnapshot = () => {
@@ -509,48 +498,16 @@ function App() {
     locations,
     locationScores,
     geographicScores,
-    siteRows,
     kpis,
     workspaceConfigs,
     freshness,
-    groupsAvailable,
   } = useMemo(() => buildPortalModel(snapshot), [snapshot]);
-  const selectedLocation = locations.find(
-    (item) => item.id === selectedLocationId,
-  ) ??
-    locations[0] ?? {
-      id: 0,
-      name: "No location snapshot",
-      score: null,
-      scoreStatus: "Unavailable",
-      scoreReason: "Location data unavailable",
-      servers: null,
-      total: null,
-      monitored: undefined,
-      availability: "—",
-      availabilityValue: null,
-      healthy: null,
-      warning: null,
-      critical: null,
-      status: "Unknown",
-    };
-  const [query, setQuery] = useState("");
   const [globalQuery, setGlobalQuery] = useState("");
-  const [siteStatus, setSiteStatus] = useState("");
   const [groupId, setGroupId] = useState<number | undefined>();
   const [initialStatus, setInitialStatus] = useState("");
   const [initialHealth, setInitialHealth] = useState("");
   const [initialPressure, setInitialPressure] = useState(false);
   const [showSync, setShowSync] = useState(false);
-  const homeTableRef = useRef<HTMLElement>(null);
-  const visibleRows = siteRows.filter(
-    (row) =>
-      row.site.toLowerCase().includes(query.toLowerCase()) &&
-      (!siteStatus ||
-        (siteStatus === "__attention"
-          ? ["warning", "critical", "down"].includes(row.status.toLowerCase())
-          : row.status === siteStatus)),
-  );
   const lastRefresh = loading
     ? "Loading snapshot…"
     : `${freshness} · ${ageLabel(snapshot.freshness?.oldest_age_seconds)}`;
@@ -614,23 +571,6 @@ function App() {
   }
   function refreshSnapshot() {
     setRevision((value) => value + 1);
-  }
-  function openHomeMetric(index: number) {
-    setGlobalQuery("");
-    if (index === 3) {
-      setSiteStatus("__attention");
-      homeTableRef.current?.focus({ preventScroll: true });
-      homeTableRef.current?.scrollIntoView({
-        behavior: "smooth",
-        block: "start",
-      });
-    } else
-      navigate(
-        ["Digital Workspace", "Operations Analytics", "Assets Analytics"][
-          index
-        ],
-      );
-    refreshSnapshot();
   }
 
   return (
@@ -782,10 +722,6 @@ function App() {
                     ? "Operations overview"
                     : activeNav}
                 </h1>
-                <p className="hero__subtitle">
-                  A clear view of service health, infrastructure posture, and
-                  items that need attention.
-                </p>
               </div>
               <div className="hero__actions">
                 <span className="freshness" data-status={freshness}>
@@ -804,14 +740,13 @@ function App() {
             </section>
 
             <section className="kpi-grid" aria-label="Operational summary">
-              {kpis.map((kpi, index) => (
+              {kpis.slice(0, 3).map((kpi, index) => (
                 <button
                   className="kpi-card kpi-card--interactive"
                   key={kpi.label}
                   type="button"
                   aria-label={`View ${kpi.label}`}
-                  disabled={sourceLoading(["intune", "solarwinds", "cmdb", "groups"][index]) || kpi.value === "—"}
-                  onClick={() => openHomeMetric(index)}
+                  onClick={() => { setGlobalQuery(""); navigate(["Digital Workspace", "Operations Analytics", "Assets Analytics"][index]); }}
                 >
                   <div className={`icon-box icon-box--${kpi.tone}`}>
                     <Icon name={kpi.icon} size={18} />
@@ -823,139 +758,14 @@ function App() {
                       <span>{kpi.trend}</span>
                     </div>
                     <small>{sourceLoading(["intune", "solarwinds", "cmdb", "groups"][index]) ? "Loading…" : kpi.value === "—" ? "Unavailable" : kpi.meta}</small>
-                    {index < 2 && <small>{sourceDescription(index === 0 ? "INTUNE" : "SOLARWINDS")}</small>}
                   </div>
                 </button>
               ))}
+              <button className="kpi-card kpi-card--interactive" type="button" aria-label="View Knowledge Center" onClick={() => { setGlobalQuery(""); navigate("Knowledge Center"); }}>
+                <div className="icon-box icon-box--orange"><Icon name="check" size={18} /></div>
+                <div className="kpi-card__content"><p>Knowledge Center</p><small>Help and resources</small></div>
+              </button>
             </section>
-
-            <section className="content-grid">
-              <article className="panel location-panel">
-                <div className="panel__header">
-                  <div>
-                    <p className="eyebrow">SOLARWINDS LOCATION HEALTH</p>
-                    <h2>SolarWinds group status</h2>
-                  </div>
-                  <div className="location-picker-wrap">
-                    <button
-                      aria-expanded={locationOpen}
-                      className="location-picker"
-                      onClick={() => setLocationOpen((open) => !open)}
-                      type="button"
-                    >
-                      <span className="location-picker__icon">
-                        <Icon name="map" size={17} />
-                      </span>
-                      <span>
-                        <small>Selected location</small>
-                        <strong>{selectedLocation.name}</strong>
-                      </span>
-                      <Icon name="chevron" size={17} />
-                    </button>
-                    {locationOpen && (
-                      <div className="location-menu">
-                        <p>Select a SolarWinds location</p>
-                        {locations.map((location) => (
-                          <button
-                            className={
-                              selectedLocation.name === location.name
-                                ? "location-option location-option--active"
-                                : "location-option"
-                            }
-                            key={location.name}
-                            onClick={() => {
-                              setSelectedLocationId(location.id);
-                              setLocationOpen(false);
-                            }}
-                            type="button"
-                          >
-                            <span>
-                              <strong>{location.name}</strong>
-                              <small>
-                                {location.total} nodes · {location.servers}{" "}
-                                servers
-                              </small>
-                            </span>
-                            <StatusBadge status={location.status} />
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="location-summary">
-                  <div className="score-card">
-                    <div
-                      className="score-ring"
-                      style={
-                        {
-                          "--score": selectedLocation.score ?? 0,
-                        } as React.CSSProperties
-                      }
-                    >
-                      <div>
-                        <strong>{selectedLocation.score ?? "—"}</strong>
-                        <span>/ 100</span>
-                      </div>
-                    </div>
-                    <div>
-                      <p>Node status score</p>
-                      <StatusBadge status={selectedLocation.scoreStatus} />
-                      <small>{selectedLocation.scoreReason}</small>
-                    </div>
-                  </div>
-                  <div className="location-metric">
-                    <span className="metric-icon">
-                      <Icon name="server" size={18} />
-                    </span>
-                    <div>
-                      <small>Classified servers</small>
-                      <strong>{number(selectedLocation.servers)}</strong>
-                      <p>at {selectedLocation.name}</p>
-                    </div>
-                  </div>
-                  <div className="location-metric">
-                    <span className="metric-icon metric-icon--green">
-                      <Icon name="check" size={18} />
-                    </span>
-                    <div>
-                      <small>Nodes reporting Up</small>
-                      <strong>{number(selectedLocation.healthy)}</strong>
-                      <p>
-                        {selectedLocation.availability} of{" "}
-                        {number(selectedLocation.monitored)} monitored nodes
-                      </p>
-                    </div>
-                  </div>
-                  <div className="health-breakdown">
-                    <div>
-                      <span
-                        className="health-bar health-bar--healthy"
-                        style={{
-                          width: `${selectedLocation.availabilityValue ?? 0}%`,
-                        }}
-                      />
-                    </div>
-                    <ul>
-                      <li>
-                        <span className="legend-dot legend-dot--healthy" />
-                        Up <strong>{number(selectedLocation.healthy)}</strong>
-                      </li>
-                      <li>
-                        <span className="legend-dot legend-dot--warning" />
-                        Warning{" "}
-                        <strong>{number(selectedLocation.warning)}</strong>
-                      </li>
-                      <li>
-                        <span className="legend-dot legend-dot--critical" />
-                        Critical / Down{" "}
-                        <strong>{number(selectedLocation.critical)}</strong>
-                      </li>
-                    </ul>
-                  </div>
-                </div>
-              </article>
 
               <aside className="panel attention-panel">
                 <div className="panel__header">
@@ -999,172 +809,7 @@ function App() {
                   View all inventory <span>→</span>
                 </button>
               </aside>
-            </section>
 
-            <LocationMatches report={snapshot.locationMatches} loading={sourceLoading("locationMatches")} />
-
-            <section
-              ref={homeTableRef}
-              tabIndex={-1}
-              className="panel overview-panel drilldown-target"
-            >
-              <div className="panel__header overview-header">
-                <div>
-                  <p className="eyebrow">OVERVIEW TABLE</p>
-                  <h2>Location and network health</h2>
-                </div>
-                <div className="table-tools">
-                  <label className="table-search">
-                    <Icon name="search" size={15} />
-                    <input
-                      aria-label="Filter locations"
-                      onChange={(event) => setQuery(event.target.value)}
-                      placeholder="Filter locations"
-                      type="search"
-                      value={query}
-                    />
-                  </label>
-                  <select
-                    className="button button--secondary"
-                    aria-label="Location health status"
-                    value={siteStatus}
-                    onChange={(e) => setSiteStatus(e.target.value)}
-                  >
-                    <option value="">All statuses</option>
-                    <option value="__attention">Needs attention</option>
-                    {Array.from(new Set(siteRows.map((row) => row.status))).map(
-                      (status) => (
-                        <option key={status}>{status}</option>
-                      ),
-                    )}
-                  </select>
-                  <button
-                    className="button button--secondary export-button"
-                    type="button"
-                    disabled={!groupsAvailable}
-                    onClick={() =>
-                      downloadCsv(
-                        "itom-locations.csv",
-                        [
-                          "Location",
-                          "Servers",
-                          "Network devices",
-                          "Monitored nodes Up (%)",
-                          "Site Score",
-                          "Native group status",
-                          "Last synchronized",
-                        ],
-                        visibleRows.map((row) => [
-                          row.site,
-                          String(row.servers),
-                          String(row.network),
-                          row.availability,
-                          String(row.score ?? ""),
-                          row.status,
-                          row.updated,
-                        ]),
-                      )
-                    }
-                  >
-                    <Icon name="external" size={15} /> Export
-                  </button>
-                </div>
-              </div>
-              <div className="table-wrap">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Location</th>
-                      <th>Servers</th>
-                      <th>Network devices</th>
-                      <th>Monitored nodes Up (%)</th>
-                      <th>Site score</th>
-                      <th>Native group status</th>
-                      <th>Last updated</th>
-                      <th>
-                        <span className="sr-only">Actions</span>
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {visibleRows.map((row) => (
-                      <tr
-                        key={row.id}
-                        onClick={() => setSelectedLocationId(row.id)}
-                      >
-                        <td>
-                          <div className="site-cell">
-                            <span>{row.site.slice(0, 1)}</span>
-                            <div>
-                              <button
-                                className="site-link"
-                                type="button"
-                                onClick={() => {
-                                  setSelectedLocationId(row.id);
-                                  navigate("Operations Analytics", "", row.id);
-                                }}
-                              >
-                                {row.site}
-                              </button>
-                              <small>{row.region}</small>
-                            </div>
-                          </div>
-                        </td>
-                        <td>
-                          <strong>{row.servers}</strong>
-                        </td>
-                        <td>{row.network}</td>
-                        <td>{row.availability}</td>
-                        <td>
-                          <div className="table-score">
-                            <strong title={row.scoreReason}>
-                              {row.score ?? "—"}
-                            </strong>
-                            <span>
-                              <i style={{ width: `${row.score ?? 0}%` }} />
-                            </span>
-                          </div>
-                        </td>
-                        <td>
-                          <StatusBadge status={row.status} />
-                        </td>
-                        <td>{row.updated}</td>
-                        <td>
-                          <button
-                            className="row-action"
-                            type="button"
-                            aria-label={`Open ${row.site} details`}
-                            onClick={() =>
-                              navigate("Operations Analytics", "", row.id)
-                            }
-                          >
-                            ···
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                {visibleRows.length === 0 && (
-                  <div className="empty-state">
-                    {sourceLoading("groups")
-                      ? "Loading source locations…"
-                      : !groupsAvailable
-                        ? "Location snapshot unavailable."
-                        : "No locations match these filters."}
-                  </div>
-                )}
-              </div>
-              <div className="table-footer">
-                <span>
-                  Showing {visibleRows.length} of {siteRows.length} locations
-                </span>
-                <span>
-                  SolarWinds Orion ·{" "}
-                  {snapshot.freshness?.sources?.SOLARWINDS?.status ?? "UNKNOWN"}
-                </span>
-              </div>
-            </section>
           </>
         ) : activeNav === "Assets Analytics" ? (
           <AssetsAnalytics
@@ -1176,6 +821,7 @@ function App() {
         ) : activeNav === "Knowledge Center" ? (
           <KnowledgeCentre />
         ) : (
+          <>
           <WorkspacePage
             key={activeNav}
             config={workspaceConfigs[activeNav]}
@@ -1202,6 +848,8 @@ function App() {
             locationScoresLoading={sourceLoading("locations")}
             onClearSearch={() => setGlobalQuery("")}
           />
+          {activeNav === "Operations Analytics" && <LocationMatches report={snapshot.locationMatches} loading={sourceLoading("locationMatches")} />}
+          </>
         )}
       </main>
 
