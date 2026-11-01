@@ -13,6 +13,7 @@ COPY --from=builder /root/.local /home/itom/.local
 ENV PATH=/home/itom/.local/bin:$PATH
 ENV PYTHONPATH=/app
 COPY --chown=itom:itom . /app
+RUN install -d -o itom -g itom /app/data/modules
 USER itom
 EXPOSE 8000
 HEALTHCHECK --interval=10s --timeout=5s --start-period=10s --retries=3 CMD curl -f http://localhost:8000/healthz || exit 1

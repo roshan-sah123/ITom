@@ -90,7 +90,22 @@ CMDB means Configuration Management Database. A configuration item (CI) is a tra
 | `sync_runs` | Per-source outcomes, timestamps, duration, and record counts |
 | `sync_error_logs` | Sync failure details |
 
-PostgreSQL 16 is the production database. SQLAlchemy provides asynchronous sessions and queries. Alembic migrations live in `alembic/`; production schema changes must be applied before startup. SQLite is supported for explicitly configured local and test databases; there is no automatic datastore fallback. Non-production startup can create missing tables.
+PostgreSQL 16 is the production telemetry database selected by `DATABASE_URL`.
+SQLAlchemy provides asynchronous sessions and queries. The existing migration
+chain in `alembic/` and primary sessions remain responsible for telemetry,
+locations, ingestion and history. Non-production startup can create missing
+primary telemetry tables; production schema changes require migrations.
+SQLite remains supported for explicitly configured local/test telemetry.
+
+Vendor Management, Knowledge Centre and workbook Assets always use independent
+server-side SQLite sessions selected by `DATABASE_URL_2` (default
+`sqlite+aiosqlite:///./data/modules.db`). Their five tables and separate
+`module_alembic_version` are initialized with
+`alembic -c alembic-modules.ini upgrade head`. Module migrations reuse frozen
+historical schemas but never connect to primary telemetry. There is no fallback
+or automatic copy of old data. `/ready` checks primary readiness;
+`/ready/modules` checks module schema/write readiness. See
+[deployment](DEPLOYMENT.md#separate-module-database) for persistence and cutover.
 
 History is change-oriented; it is not a complete sample of every performance measurement.
 
@@ -98,8 +113,8 @@ History is change-oriented; it is not a complete sample of every performance mea
 
 | Mode | Frontend | Backend | Persistence |
 | --- | --- | --- | --- |
-| Docker Compose | NGINX serves `frontend/`, normally exposed on port 8080 | Internal FastAPI port 8000; NGINX forwards `/api/` | PostgreSQL 16 |
-| Local supervisor | FastAPI serves `frontend/` on port 8080 | Same Uvicorn listener serves the API | SQLite supported in local mode |
+| Docker Compose | NGINX serves `frontend/`, normally exposed on port 8080 | Internal FastAPI port 8000; NGINX forwards `/api/` | PostgreSQL telemetry + persistent module SQLite volume |
+| Local supervisor | FastAPI serves `frontend/` on port 8080 | Same Uvicorn listener serves the API | Configured telemetry database + separate module SQLite file |
 
 See `docker-compose.yml`, `nginx.conf`, and `scripts/local_itom_supervisor.py` for the actual wiring. Credentials and source connectivity are required for live extraction; the diagram does not imply that a running API has successfully synchronized.
 

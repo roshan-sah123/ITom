@@ -18,7 +18,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from app.api.v1.endpoints import health
 from app.api.v1.router import api_router
 from app.core.config import settings
-from app.core.database import create_db_and_tables, engine
+from app.core.database import create_db_and_tables, engine, module_engine
 from app.core.middleware import FreshnessHeadersMiddleware
 from app.core.security import SolarWindsSecurityError
 from app.repositories.ci_repository import InventoryUnavailableError
@@ -56,14 +56,16 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     else:
         logger.info("Background scheduler disabled by SCHEDULER_ENABLED=false.")
 
-    yield
-
-    # Graceful shutdown
-    logger.info("Shutting down ITOM Portal FastAPI Backend...")
     try:
-        stop_scheduler()
-    except Exception as exc:
-        logger.warning("Scheduler shutdown notice: %s", exc)
+        yield
+    finally:
+        logger.info("Shutting down ITOM Portal FastAPI Backend...")
+        try:
+            stop_scheduler()
+        except Exception as exc:
+            logger.warning("Scheduler shutdown notice: %s", exc)
+        finally:
+            await module_engine.dispose()
 
 
 app = FastAPI(

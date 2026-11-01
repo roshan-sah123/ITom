@@ -6,6 +6,7 @@ from pathlib import Path
 # select the developer's database, credentials, or transport policy during tests.
 for key, value in {
     "DATABASE_URL": "sqlite+aiosqlite:///:memory:",
+    "DATABASE_URL_2": "sqlite+aiosqlite:///:memory:",
     "SCHEDULER_ENABLED": "false", "ENVIRONMENT": "development", "DEBUG": "false",
     "AZURE_TENANT_ID": "", "AZURE_CLIENT_ID": "", "AZURE_CLIENT_SECRET": "",
     "SOLARWINDS_HOST": "", "SOLARWINDS_USERNAME": "", "SOLARWINDS_PASSWORD": "",
@@ -27,7 +28,7 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
-from app.core.database import create_engine_for_url, get_db
+from app.core.database import create_engine_for_url, get_db, get_module_db
 from app.models.base import Base
 from app.models import ci, history, sync  # register all persistence tables
 
@@ -102,6 +103,7 @@ async def api_environment(db_engine, db_session_factory, monkeypatch):
         monkeypatch.setattr(module, "AsyncSessionLocal", db_session_factory)
     previous_overrides = dict(app.dependency_overrides)
     app.dependency_overrides[get_db] = isolated_db
+    app.dependency_overrides[get_module_db] = isolated_db
     summary_cache.invalidate()
     try:
         yield app

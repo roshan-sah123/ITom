@@ -7,6 +7,8 @@ from alembic import context
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
+from sqlalchemy.engine import make_url
+from pathlib import Path
 
 from app.core.config import settings
 from app.models.base import Base
@@ -19,10 +21,16 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 # Overwrite sqlalchemy.url with the authoritative runtime database URL
-config.set_main_option("sqlalchemy.url", settings.async_database_url)
+module_database = config.get_main_option("module_database") == "true"
+database_url = settings.module_database_url if module_database else settings.async_database_url
+config.set_main_option("sqlalchemy.url", database_url.replace("%", "%%"))
 
 # Model metadata for autogenerate support
 target_metadata = Base.metadata
+version_table = "module_alembic_version" if module_database else "alembic_version"
+if module_database:
+    from app.models.module_storage import module_metadata
+    target_metadata = module_metadata()
 
 
 def run_migrations_offline() -> None:
@@ -38,6 +46,7 @@ def run_migrations_offline() -> None:
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
         compare_type=True,
+        version_table=version_table,
     )
 
     with context.begin_transaction():
@@ -50,6 +59,7 @@ def do_run_migrations(connection: Connection) -> None:
         connection=connection,
         target_metadata=target_metadata,
         compare_type=True,
+        version_table=version_table,
     )
 
     with context.begin_transaction():
@@ -59,7 +69,11 @@ def do_run_migrations(connection: Connection) -> None:
 async def run_async_migrations() -> None:
     """Run migrations in 'online' mode using AsyncEngine."""
     configuration = config.get_section(config.config_ini_section, {})
-    configuration["sqlalchemy.url"] = settings.async_database_url
+    configuration["sqlalchemy.url"] = database_url
+    if module_database:
+        database_path = make_url(database_url).database
+        if database_path != ":memory:":
+            Path(database_path).parent.mkdir(parents=True, exist_ok=True)
 
     connectable = async_engine_from_config(
         configuration,

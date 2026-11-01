@@ -4,6 +4,8 @@ networks:
 volumes:
   postgres_data:
     driver: local
+  modules_data:
+    driver: local
 services:
   postgres:
     image: postgres:16-alpine
@@ -32,10 +34,12 @@ services:
     restart: unless-stopped
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-itom_user}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD before starting Compose}@postgres:5432/${POSTGRES_DB:-itom_db}
+      DATABASE_URL_2: sqlite+aiosqlite:////app/data/modules/modules.db
       ASSET_INVENTORY_DIR: /app/data/asset_inventory
       CMDB_INVENTORY_ADMIN_TOKEN: ${CMDB_INVENTORY_ADMIN_TOKEN:-}
       PORT: 8000
     volumes:
+      - modules_data:/app/data/modules
       - ./data/asset_inventory:/app/data/asset_inventory:ro
     depends_on:
       postgres:

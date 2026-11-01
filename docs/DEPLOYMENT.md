@@ -9,12 +9,21 @@ Knowledge changes. The running 8080 portal was not deployed or restarted.
 Preview databases, credentials, workbooks and generated preview bundles are not
 part of the source handoff.
 
+The local `feature/itom-main-preview` integration merges main's Home, location
+analytics and inventory telemetry updates while preserving the three custom
+module workspaces. Its 5173 preview uses a separately migrated module backend;
+it does not deploy the integration to 8080. Browser verification must set
+`ITOM_BROWSER_FRONTEND_DIR` to the matching build for both telemetry and module
+journeys, not test old static bundles while serving different source in Vite.
+
 Before cutover, identify the **running service's actual database and environment**,
 not merely this checkout's default `.env`. During local preflight, the running
 8080 API and the shell-configured SQLite database had different telemetry counts
 and schema state. Do not migrate or restart against that unverified default.
 Back up the actual production database and frontend, install the updated
-requirements, and apply revisions 0011–0013 using its verified migration chain.
+requirements, and apply the existing primary migration chain only against the
+verified `DATABASE_URL`. Initialize the separate module database as described
+below; the primary migration command does not initialize it.
 For a populated database without an Alembic version table, reconcile its schema
 first; do not blindly stamp head or run the full initial migration chain.
 
@@ -41,12 +50,64 @@ module workflows. For shared access, integrate the authenticated gateway with
 the local-client/Host and same-origin guards; no public-origin bypass or SSO/RBAC
 implementation is included here.
 
+### Separate module database
+
+Keep Roshan's existing PostgreSQL `DATABASE_URL` unchanged. Configure the three
+workspaces separately in the actual API service environment:
+
+```dotenv
+DATABASE_URL_2=sqlite+aiosqlite:///./data/modules.db
+```
+
+Vendor, Knowledge (including uploaded file bytes) and workbook Assets always use
+this shared, server-side SQLite file. If unset, `DATABASE_URL_2` defaults to the
+same new filename; an explicitly blank/invalid value is rejected. There is no
+single-database fallback. Relative module paths resolve from the repository root,
+independently of `SQLITE_DB_PATH`; using the primary SQLite file is rejected.
+
+Run the independent migrations before launching the updated API:
+
+```powershell
+.venv\Scripts\python.exe -m alembic -c alembic-modules.ini upgrade head
+```
+
+This creates only the five module tables and `module_alembic_version`. It does
+not connect to or migrate PostgreSQL. The separate baseline reuses the frozen
+definitions from revisions 0011–0013 without changing the existing primary
+migration chain. Historical module tables may remain in a previously migrated
+primary database; they are not read, written or dropped by these workspaces.
+Non-production primary bootstrap now creates telemetry tables only. Module
+schemas must be initialized through their migration command in all environments.
+
+Check `/ready` for primary telemetry and `/ready/modules` for module connectivity,
+schema and write access. A primary-ready response alone does not establish module
+readiness. Module requests return a safe 503 for an unavailable or mismatched
+module schema, without switching databases. The scheduler, sync, telemetry and
+location routes retain their existing primary sessions and behavior.
+
+**Existing records are not automatically copied.** Before cutover from the old
+single-database setup, back up its module data and explicitly transfer the five
+tables (including attachments, reviews, audits and tombstones) into the migrated
+secondary database, verifying contents and counts before switching. Do not copy
+the entire telemetry database, blindly stamp its schema, or reseed over existing
+edits. The running preview and production databases are not migrated by this code
+change.
+
+Every browser using this API sees the same persisted module data after refresh;
+SQLite is on the server, not each user's device. Keep the database on local
+persistent storage writable by the service account, not a network share. Use one
+API instance for this SQLite deployment; horizontal multi-host deployment needs a
+deliberately supported shared datastore rather than independent SQLite files.
+Back up both datastores independently using database-aware backups (including
+SQLite's committed WAL data), and preserve the module file across deployments.
+
 ## Windows local service
 
 Create `.venv`, install `requirements.txt`, and configure `.env` from `.env.example`. Apply schema migrations:
 
 ```powershell
 .venv\Scripts\python.exe -m alembic upgrade head
+.venv\Scripts\python.exe -m alembic -c alembic-modules.ini upgrade head
 ```
 
 Use the local supervisor:
@@ -74,8 +135,8 @@ The approved server source is `CHARGEBACK_MASTER_v3.xlsx`, copied byte-for-byte
 to the private `server.xlsx` deployment slot. Its `CHARGEBACK MASTER` sheet has
 24 columns; use the actual workbook's non-empty records, not a hard-coded count.
 Network and telecom retain their existing source workbooks.
-The inventory page has no upload control. Revision `0012_asset_inventory_reviews`
-adds independent inventory records, source batches and review audits. The first
+The inventory page has no upload control. The module migration baseline adds
+independent inventory records, source batches and review audits in `DATABASE_URL_2`. The first
 read of each category seeds its selected workbook sheet once; subsequent reads
 use the persisted local CMDB, including manual rows and reviewed edits.
 The source files and live Graph/SolarWinds CMDB remain untouched. Replacing a
@@ -97,8 +158,8 @@ at the deployment boundary before exposing local administration remotely.
 
 ### Shared Knowledge Centre
 
-Revision `0013_knowledge_content` stores metadata and uploaded documents/media
-in `knowledge_content` in the configured SQLite or PostgreSQL database.
+The module migration baseline stores metadata and uploaded documents/media
+in `knowledge_content` in the SQLite database selected by `DATABASE_URL_2`.
 Back up that database and apply migrations in the approved deployment window.
 The grid/list,
 search, validation filters, categories (including Other), add/edit/delete,
@@ -132,10 +193,11 @@ not bypassed. An isolated preview database is not the production database.
 ### Portal Vendor Management
 
 Vendor Management is an in-portal workspace: submissions, the add/edit form and
-the details dialog remain on the portal's current origin. It uses the configured
-SQLite or PostgreSQL database, with the `vendor_submissions` table introduced by
-revision `0011_vendor_submissions`. Install the updated requirements (including
-Pillow), back up the intended datastore, and apply `alembic upgrade head` during
+the details dialog remain on the portal's current origin. It uses the SQLite
+database selected by `DATABASE_URL_2`, with `vendor_submissions` initialized by
+the module migration baseline. Install the updated requirements (including
+Pillow), back up the intended datastore, and apply
+`alembic -c alembic-modules.ini upgrade head` during
 an approved deployment window before restarting the API. Do not migrate or
 restart a running production portal just to preview this UI.
 
@@ -171,7 +233,8 @@ the popup. Vendor/Knowledge detail views show content rather than repeating the
 serial, validation status, reviewer or validation date already in their libraries.
 
 For isolated Vite verification, start `app.main:app` on another loopback port
-with a fresh database, `SCHEDULER_ENABLED=false` and no source credentials.
+with isolated `DATABASE_URL` and `DATABASE_URL_2`, `SCHEDULER_ENABLED=false` and no
+source credentials. Migrate the preview module database before starting it.
 Set `ITOM_MODULE_API_PROXY` to that backend URL when starting Vite on 5173.
 Only vendor, knowledge and asset routes use this optional proxy; the existing operations
 routes continue to read from 8080. Browser navigation never leaves 5173.
@@ -187,7 +250,7 @@ then run:
 
 ## Linux service
 
-The template `systemd/itom.service` starts `.venv/bin/python -m uvicorn app.main:app` on loopback port 8080. Adapt its user, group, working directory and executable path to the installation. Create the virtual environment, install dependencies, configure `.env`, and run `alembic upgrade head` before enabling the service. The template does not perform migrations.
+The template `systemd/itom.service` starts `.venv/bin/python -m uvicorn app.main:app` on loopback port 8080. Adapt its user, group, working directory and executable path to the installation. Create the virtual environment, install dependencies, configure `.env`, and run both `alembic upgrade head` and `alembic -c alembic-modules.ini upgrade head` before enabling the service. The template does not perform migrations.
 
 Use a separately configured authenticated TLS reverse proxy for shared-network access. The app currently does not provide its own authentication; restrict inventory and manual sync access at the deployment boundary.
 
@@ -196,12 +259,21 @@ Use a separately configured authenticated TLS reverse proxy for shared-network a
 `Dockerfile` runs FastAPI on port 8000 as a non-root user. Compose adds PostgreSQL and NGINX, bound to `127.0.0.1:8080` by default. Set `POSTGRES_PASSWORD` in the Compose environment or local `.env` before starting; there is no fallback password. If it contains URL-reserved characters, encode it for the API connection URL or configure `DATABASE_URL` separately.
 
 ```bash
+docker compose build api
+docker compose up -d postgres
+docker compose run --rm api python -m alembic upgrade head
+docker compose run --rm api python -m alembic -c alembic-modules.ini upgrade head
 docker compose up --build -d
 docker compose ps
 docker compose logs api
 ```
 
 Compose forwards database configuration, the read-only asset workbook mount and `PORT` to the API. Configure explicit runtime environment/secrets for source credentials, proxy settings, `ENVIRONMENT=production` and a strong `SECRET_KEY`; `.env` is excluded from the image. Raw `data/` files are not mounted into the web root, and NGINX rejects `/data` requests.
+Compose fixes `DATABASE_URL_2` to `/app/data/modules/modules.db` inside the
+`modules_data` persistent volume, writable by the API's non-root user. Do not
+delete that volume during upgrades. Back it up independently of `postgres_data`.
+The existing Compose health check remains primary liveness; also verify
+`/ready/modules` before routing users to the module UI.
 
 Keep the loopback binding unless an authenticated gateway protects inventory, exports, and manual sync. The application has no sign-in or sync rate limit. Sync API responses hide stored messages, stack traces, and diagnostic context; administrators can investigate the run ID using restricted backend records/logs.
 

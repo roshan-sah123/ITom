@@ -1,9 +1,12 @@
 """Configuration management using Pydantic Settings and environment variables."""
 
 import os
+from pathlib import Path
 from typing import Any, List, Optional, Union
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from sqlalchemy.engine import make_url
+from sqlalchemy.exc import ArgumentError
 
 
 class Settings(BaseSettings):
@@ -30,6 +33,7 @@ class Settings(BaseSettings):
 
     # Database Persistence
     DATABASE_URL: str = "sqlite+aiosqlite:///./data/itom.db"
+    DATABASE_URL_2: str = "sqlite+aiosqlite:///./data/modules.db"
     SQLITE_DB_PATH: str = "./data/itom.db"
     ASSET_INVENTORY_DIR: str = "./data/asset_inventory"
     CMDB_INVENTORY_ADMIN_TOKEN: Optional[str] = None
@@ -244,6 +248,19 @@ class Settings(BaseSettings):
                     "Generate a cryptographically secure key via 'openssl rand -hex 32'."
                 )
 
+        secondary = self.module_database_url
+        secondary_path = make_url(secondary).database
+        if self.async_database_url.startswith("sqlite"):
+            primary = self.async_database_url
+            primary_path = make_url(primary).database
+            if "data/itom.db" in primary:
+                primary_path = self.SQLITE_DB_PATH
+            if primary_path and secondary_path and primary_path != ":memory:":
+                path = Path(primary_path).expanduser()
+                if not path.is_absolute():
+                    path = Path(__file__).resolve().parents[2] / path
+                if os.path.normcase(str(path.resolve())) == os.path.normcase(str(Path(secondary_path))):
+                    raise ValueError("DATABASE_URL_2 must use a different file from DATABASE_URL.")
         return self
 
 
@@ -262,6 +279,26 @@ class Settings(BaseSettings):
     @property
     def database_engine(self) -> str:
         return "sqlite" if self.async_database_url.startswith("sqlite") else "postgresql"
+
+    @staticmethod
+    def _resolve_module_sqlite_url(value: str) -> str:
+        try:
+            url = make_url(value)
+        except ArgumentError as error:
+            raise ValueError("DATABASE_URL_2 must be a valid SQLite URL.") from error
+        if url.drivername not in {"sqlite", "sqlite+aiosqlite"} or not url.database or url.query:
+            raise ValueError("DATABASE_URL_2 must be a SQLite file URL without query parameters.")
+        if url.database != ":memory:":
+            path = Path(url.database).expanduser()
+            if not path.is_absolute():
+                path = Path(__file__).resolve().parents[2] / path
+            url = url.set(database=path.resolve().as_posix())
+        return url.set(drivername="sqlite+aiosqlite").render_as_string(hide_password=False)
+
+    @property
+    def module_database_url(self) -> str:
+        """Resolve the independent module file without primary SQLite path aliases."""
+        return self._resolve_module_sqlite_url(self.DATABASE_URL_2)
 
 
 settings = Settings()

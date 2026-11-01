@@ -5,7 +5,11 @@ import os
 from collections.abc import AsyncGenerator
 from pathlib import Path
 from typing import Optional
-from sqlalchemy import event
+from alembic.config import Config
+from alembic.script import ScriptDirectory
+from fastapi import HTTPException
+from sqlalchemy import event, text
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, with_loader_criteria
 
 from sqlalchemy.ext.asyncio import (
@@ -124,6 +128,37 @@ def get_sessionmaker(engine_instance: Optional[AsyncEngine] = None) -> Optional[
 # Authoritative application engine and sessionmaker
 engine: Optional[AsyncEngine] = create_engine_for_url()
 AsyncSessionLocal: Optional[async_sessionmaker[AsyncSession]] = get_sessionmaker(engine)
+module_engine: AsyncEngine = _create_sqlite_engine(settings.module_database_url)
+ModuleSessionLocal = async_sessionmaker(module_engine, expire_on_commit=False, autoflush=False)
+
+
+async def verify_module_schema(session: AsyncSession) -> None:
+    root = Path(__file__).resolve().parents[2]
+    config = Config(str(root / "alembic-modules.ini"))
+    expected = set(ScriptDirectory.from_config(config).get_heads())
+    revisions = set((await session.execute(text("SELECT version_num FROM module_alembic_version"))).scalars())
+    if revisions != expected:
+        logger.error("Module database migration head does not match the application")
+        raise HTTPException(503, "Module datastore unavailable. Apply module database migrations.")
+    from app.models.module_storage import MODULE_TABLE_NAMES
+    for name in sorted(MODULE_TABLE_NAMES):
+        await session.execute(text(f'SELECT 1 FROM "{name}" LIMIT 0'))
+
+
+async def get_module_db() -> AsyncGenerator[AsyncSession, None]:
+    """Always use DATABASE_URL_2; an unavailable module database never falls back."""
+    async with ModuleSessionLocal() as session:
+        try:
+            await verify_module_schema(session)
+            yield session
+            await session.commit()
+        except SQLAlchemyError as error:
+            await session.rollback()
+            logger.exception("Module database session failed")
+            raise HTTPException(503, "Module datastore unavailable. Check its connection and migrations.") from error
+        except Exception:
+            await session.rollback()
+            raise
 
 
 async def get_db() -> AsyncGenerator[Optional[AsyncSession], None]:
@@ -150,14 +185,17 @@ async def get_db_session() -> AsyncGenerator[Optional[AsyncSession], None]:
 
 
 async def create_db_and_tables(target_engine: Optional[AsyncEngine] = None) -> None:
-    """Create all declarative tables and extensions in the target database."""
+    """Bootstrap primary telemetry tables without creating module storage."""
     eng = target_engine or engine
     if eng is None:
         return
     from app.models.base import Base
+    from app.models.module_storage import MODULE_TABLE_NAMES
 
     async with eng.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+        await conn.run_sync(lambda sync: Base.metadata.create_all(
+            sync, tables=[table for table in Base.metadata.sorted_tables if table.name not in MODULE_TABLE_NAMES],
+        ))
     logger.info("Database tables successfully created.")
 
 

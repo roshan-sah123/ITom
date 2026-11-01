@@ -9,10 +9,19 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
-from app.core.database import get_db
+from app.core.database import get_db, get_module_db
 from app.core.database import engine
 
 router = APIRouter(tags=["System Probes"])
+
+
+@router.get("/ready/modules")
+async def module_readiness_probe(session: AsyncSession = Depends(get_module_db)) -> dict:
+    """Check the independent module schema without changing primary readiness."""
+    await session.execute(text(
+        "UPDATE module_alembic_version SET version_num = version_num WHERE 1 = 0"
+    ))
+    return {"status": "ready", "database_engine": "sqlite", "migration_head": True}
 
 
 @router.get("/healthz", status_code=status.HTTP_200_OK)

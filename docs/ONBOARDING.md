@@ -13,14 +13,18 @@ pip install -r requirements.txt
 Copy-Item .env.example .env
 ```
 
-For API development, set `SCHEDULER_ENABLED=false` in `.env`. Configure `DATABASE_URL` and apply migrations before checking readiness:
+For API development, set `SCHEDULER_ENABLED=false` in `.env`. Configure telemetry
+`DATABASE_URL` and independent module `DATABASE_URL_2` (default
+`sqlite+aiosqlite:///./data/modules.db`), and apply both migration chains:
 
 ```powershell
 alembic upgrade head
+alembic -c alembic-modules.ini upgrade head
 python -m uvicorn app.main:app --host 127.0.0.1 --port 8080
 ```
 
 Open `http://localhost:8080/`. The same listener serves `frontend/` and `/api/v1`. No Node build is required. The Windows supervisor is described in [deployment](DEPLOYMENT.md).
+Check `/ready` for telemetry and `/ready/modules` for the three module workspaces.
 
 ## Where to work
 

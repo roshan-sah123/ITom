@@ -72,9 +72,16 @@ def portal_url(api_environment, operator_inventory):
 
 
 @pytest.fixture
-def revamp_portal_url(portal_url):
-    """Run the new frontend against the same isolated backend inventory."""
-    return portal_url
+def revamp_portal_url(api_environment, monkeypatch, request):
+    """Run the selected release build against the isolated backend inventory."""
+    from app import main
+    built = Path(os.environ.get("ITOM_BROWSER_FRONTEND_DIR", main.FRONTEND_DIR))
+    if not (built / "index.html").exists():
+        pytest.skip("Build the frontend and set ITOM_BROWSER_FRONTEND_DIR before this journey.")
+    monkeypatch.setattr(main, "FRONTEND_DIR", built)
+    mount = next(route for route in api_environment.routes if isinstance(route, Mount) and route.name == "portal")
+    monkeypatch.setattr(mount, "app", StaticFiles(directory=built, html=True))
+    return request.getfixturevalue("portal_url")
 
 
 @pytest.fixture

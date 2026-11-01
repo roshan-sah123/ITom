@@ -10,6 +10,13 @@ For direct development, launch `python -m uvicorn app.main:app --host 127.0.0.1 
 
 Confirm `DATABASE_URL` selects the intended database and run `alembic upgrade head` using the same environment. A development `create_all` bootstrap is not an Alembic migration. Check permissions, database reachability and the configured driver. The current index migration limitation is recorded in the [audit](CODEBASE_AUDIT_2026-10-08.md).
 
+Vendor, Assets and Knowledge use a separate server-side SQLite file selected by
+`DATABASE_URL_2`. Check `/ready/modules` and run
+`alembic -c alembic-modules.ini upgrade head` in the actual service environment.
+An empty/missing schema does not fall back to `DATABASE_URL`. Confirm file/directory
+permissions and persistent storage. Old single-database module records require an
+explicit backed-up transfer; switching URLs does not copy them automatically.
+
 ## Telemetry missing or stale
 
 Inspect `/api/v1/sync/status`, `/api/v1/sync/runs` and `/api/v1/system/freshness`. Failed extraction must not advance successful-sync timestamps. A 503 summary can mean no domain records have been ingested; do not substitute demo counts.

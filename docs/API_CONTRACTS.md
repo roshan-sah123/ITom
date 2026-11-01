@@ -7,7 +7,8 @@ The current service is `app.main:app`. Its OpenAPI document at `/openapi.json` a
 | Route | Purpose |
 |---|---|
 | `GET /healthz` or `/health` | Process liveness |
-| `GET /ready` | Database connectivity and migration readiness; 503 when unavailable or mismatched |
+| `GET /ready` | Primary database connectivity and migration readiness; 503 when unavailable or mismatched |
+| `GET /ready/modules` | Independent module SQLite schema/write readiness; 503 when unavailable or mismatched |
 | `GET /api/v1/system/freshness` | Successful-sync freshness by source |
 | `GET /api/v1/cmdb/summary` | Database-backed inventory aggregates |
 | `GET /api/v1/cmdb/cis` | Filtered, paginated active inventory |
@@ -86,6 +87,16 @@ Summaries are computed from persisted telemetry. A domain with no ingested data 
 The inventory source routes reject mutating methods. The separate sync trigger returns 202 before ingestion finishes; inspect status and run history for its outcome. Shared-network deployments must supply access controls, because authentication is not currently implemented by the application. Known error-handling and deployment limitations are documented in the [audit](CODEBASE_AUDIT_2026-10-08.md).
 
 ## Local asset workbooks
+
+Vendor, Knowledge and all workbook asset routes always use `DATABASE_URL_2`
+(default `sqlite+aiosqlite:///./data/modules.db`), not the telemetry `DATABASE_URL`.
+Initialize it with `alembic -c alembic-modules.ini upgrade head`. Connectivity,
+missing tables and migration mismatches produce a logged safe module 503; there
+is no fallback to telemetry storage. Existing API payloads, review/revision rules,
+file downloads and shared-key guards are unchanged. `/ready` still checks only
+the primary database; `/ready/modules` checks the separate module schema.
+New module data and uploaded bytes are shared across browsers through this one
+server-side database, with changes visible after refresh.
 
 The asset inventory routes read `server.xlsx`, `network.xlsx` and `telecom.xlsx`
 from `ASSET_INVENTORY_DIR` (default `./data/asset_inventory`). Workbooks stay

@@ -68,9 +68,9 @@ def test_failed_cmdb_summary_does_not_turn_synced_source_counts_into_zero(revamp
     with page.expect_response('**/api/v1/system/freshness') as response:
         page.goto(revamp_portal_url)
     assert response.value.json()['sources']['INTUNE']['last_synchronized_at']
-    page.get_by_role('button', name='Assets Analytics', exact=True).click()
-    expect(page.get_by_role('button', name='View Intune records', exact=True)).to_contain_text('—')
-    expect(page.get_by_role('button', name='View SolarWinds records', exact=True)).to_contain_text('—')
+    expect(page.get_by_role('button', name='View Digital Workspace', exact=True)).to_contain_text('3')
+    expect(page.get_by_role('button', name='View Operations Analytics', exact=True)).to_contain_text('3')
+    expect(page.get_by_role('button', name='View Assets Analytics', exact=True)).to_contain_text('—')
     page.close()
 
 
@@ -128,7 +128,7 @@ def test_summary_and_chart_clicks_filter_reset_paginate_and_export(drilldown_url
     page.close()
 
 
-def test_group_card_and_endpoint_asset_charts_open_matching_data(revamp_groups_url,browser_context):
+def test_group_card_and_endpoint_charts_open_matching_data(revamp_groups_url,browser_context):
     page=browser_context.new_page()
     location_fixture = {'data': {'items': [{
         'id': 'test-site', 'name': 'Test Site', 'level': 'city', 'match_level': 'city', 'endpoints': 2, 'nodes': 3,
@@ -166,10 +166,6 @@ def test_group_card_and_endpoint_asset_charts_open_matching_data(revamp_groups_u
     page.get_by_role('button',name='Filter Device compliance policy: NonCompliant',exact=True).click()
     expect(page.locator('tbody tr')).to_have_count(1)
     expect(page.locator('tbody')).to_contain_text('NONCOMPLIANT-LAPTOP')
-    page.get_by_role('button',name='Assets Analytics',exact=True).click()
-    page.get_by_role('button',name='Filter Records by source: Microsoft Intune',exact=True).click()
-    expect(page.get_by_label('Source system', exact=True)).to_have_value('INTUNE')
-    expect(page.locator('.inventory-panel .table-footer')).to_contain_text('of 3 records')
     page.close()
 
 
@@ -276,9 +272,9 @@ def test_only_current_ui_navigation_is_exposed(revamp_portal_url, browser_contex
     expect(page.get_by_role('link', name='Existing portal')).to_have_count(0)
     expect(page.get_by_role('button', name='Open existing portal')).to_have_count(0)
     page.get_by_role('button', name='Open Knowledge Center', exact=True).click()
-    expect(page.get_by_role('heading', name='Knowledge Center', exact=True)).to_be_visible()
+    expect(page.get_by_role('heading', name='Knowledge workspace', exact=True)).to_be_visible()
     page.get_by_role('button', name='Help & support', exact=True).click()
-    expect(page.get_by_role('heading', name='Knowledge Center', exact=True)).to_be_visible()
+    expect(page.get_by_role('heading', name='Knowledge workspace', exact=True)).to_be_visible()
     page.close()
 
 
@@ -341,7 +337,8 @@ def test_errors_empty_recovery_and_unsupported_workspaces(revamp_portal_url, bro
     page.get_by_role('searchbox', name='Search Managed endpoint inventory').fill('absent-device')
     expect(page.locator('.empty-state')).to_contain_text('No records match')
     page.get_by_role('button', name='Knowledge Center', exact=True).click()
-    expect(page.get_by_role('heading', name='Data service unavailable')).to_be_visible()
+    expect(page.get_by_role('heading', name='Knowledge workspace', exact=True)).to_be_visible()
+    expect(page.get_by_role('button', name='Add content')).to_be_visible()
     expect(page.locator('main')).not_to_contain_text('248')
     page.get_by_role('button', name='Automations', exact=True).click()
     expect(page.locator('main')).not_to_contain_text('TechAdmin')
@@ -365,7 +362,7 @@ async def revamp_groups_url(revamp_portal_url, session):
     return revamp_portal_url
 
 
-def test_summary_failures_are_unavailable_and_global_search_reads_assets(revamp_portal_url, browser_context):
+def test_summary_failures_are_unavailable_and_global_search_preserves_custom_assets(revamp_portal_url, browser_context):
     page = browser_context.new_page()
     page.route('**/api/v1/intune/summary', lambda route: route.fulfill(status=503, json={'error': 'Unavailable'}))
     page.goto(revamp_portal_url)
@@ -374,9 +371,11 @@ def test_summary_failures_are_unavailable_and_global_search_reads_assets(revamp_
     expect(page.locator('.freshness')).to_contain_text('UNAVAILABLE')
     page.get_by_role('searchbox', name='Search configuration items, devices, or sites').fill('HEALTHY-SERVER')
     page.get_by_role('searchbox', name='Search configuration items, devices, or sites').press('Enter')
-    expect(page.get_by_role('heading', name='Assets intelligence')).to_be_visible()
-    expect(page.locator('tbody tr')).to_have_count(1)
-    expect(page.locator('tbody')).to_contain_text('HEALTHY-SERVER')
+    expect(page.get_by_role('heading', name='Assets Analytics')).to_be_visible()
+    expect(page.get_by_role('region', name='Asset inventory summary').get_by_role('button')).to_have_count(3)
+    for category in ['Servers', 'Network devices', 'Telecom']:
+        expect(page.get_by_role('button', name=f'Open {category} inventory')).to_be_visible()
+    expect(page.locator('.inventory-panel')).to_have_count(0)
     page.close()
 
 
@@ -423,7 +422,7 @@ def test_layout_and_navigation_at_supported_widths(revamp_portal_url, browser_co
                     .filter(el => el.getBoundingClientRect().right > innerWidth && !el.closest('.table-wrap'))
                     .map(el => ({tag: el.tagName, class: el.className, width: el.getBoundingClientRect().width, right: el.getBoundingClientRect().right, position: getComputedStyle(el).position}))})''')
     page.get_by_role('button', name='Knowledge Center', exact=True).click()
-    expect(page.get_by_role('heading', name='Knowledge Center', exact=True)).to_be_visible()
+    expect(page.get_by_role('heading', name='Knowledge workspace', exact=True)).to_be_visible()
     page.close()
 
 
@@ -466,5 +465,5 @@ def test_home_workspace_tiles_and_attention(revamp_portal_url, browser_context):
     expect(page.get_by_role('heading', name='SolarWinds group status')).to_have_count(0)
     expect(page.get_by_role('heading', name='Location and network health')).to_have_count(0)
     page.get_by_role('button', name='View Knowledge Center').click()
-    expect(page.get_by_role('heading', name='Knowledge Center', exact=True)).to_be_visible()
+    expect(page.get_by_role('heading', name='Knowledge workspace', exact=True)).to_be_visible()
     page.close()

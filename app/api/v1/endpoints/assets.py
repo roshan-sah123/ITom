@@ -11,7 +11,7 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from app.api.v1.endpoints.module_access import require_local_module, require_inventory_key
 from app.core.config import settings
-from app.core.database import get_db
+from app.core.database import get_module_db
 from app.services.asset_review_service import AssetReviewConflict, AssetReviewService
 from app.services.asset_inventory_service import (
     AssetInventoryCategory,
@@ -56,7 +56,7 @@ def get_asset_inventory_service() -> AssetInventoryService:
 @router.get("/summary", status_code=status.HTTP_200_OK)
 async def get_asset_inventory_summary(
     service: AssetInventoryService = Depends(get_asset_inventory_service),
-    session=Depends(get_db),
+    session=Depends(get_module_db),
 ) -> dict:
     return await operation(AssetReviewService(session, service).summary(), session)
 
@@ -68,7 +68,7 @@ async def list_asset_inventory(
     page_size: int = Query(25, ge=1, le=100),
     search: str | None = Query(None, max_length=200),
     service: AssetInventoryService = Depends(get_asset_inventory_service),
-    session=Depends(get_db),
+    session=Depends(get_module_db),
 ) -> dict:
     if page_size not in {10, 25, 50, 100}:
         raise HTTPException(
@@ -157,36 +157,36 @@ async def check_admin():
 @router.get("/records/{category}", dependencies=[Depends(local_inventory)])
 async def inventory_records(category: AssetInventoryCategory, page: int = Query(1, ge=1),
     page_size: int = Query(25, ge=1, le=100), search: str = Query("", max_length=200),
-    service=Depends(get_asset_inventory_service), session=Depends(get_db)):
+    service=Depends(get_asset_inventory_service), session=Depends(get_module_db)):
     return await operation(AssetReviewService(session, service).list(category, page, page_size, search), session)
 
 
 @router.post("/records/{category}", status_code=201, dependencies=[Depends(inventory_admin)])
 async def create_record(category: AssetInventoryCategory, body=Depends(create_body),
-    service=Depends(get_asset_inventory_service), session=Depends(get_db)):
+    service=Depends(get_asset_inventory_service), session=Depends(get_module_db)):
     return await operation(AssetReviewService(session, service).create(category, body), session)
 
 
 @router.put("/records/{category}/{identifier}", dependencies=[Depends(inventory_admin)])
 async def edit_record(category: AssetInventoryCategory, identifier: UUID, body=Depends(edit_body),
-    service=Depends(get_asset_inventory_service), session=Depends(get_db)):
+    service=Depends(get_asset_inventory_service), session=Depends(get_module_db)):
     return await operation(AssetReviewService(session, service).change(category, identifier, body, "edit"), session)
 
 
 @router.post("/records/{category}/{identifier}/validate", dependencies=[Depends(inventory_admin)])
 async def validate_record(category: AssetInventoryCategory, identifier: UUID, body=Depends(review_body),
-    service=Depends(get_asset_inventory_service), session=Depends(get_db)):
+    service=Depends(get_asset_inventory_service), session=Depends(get_module_db)):
     return await operation(AssetReviewService(session, service).change(category, identifier, body, "validate"), session)
 
 
 @router.post("/records/{category}/{identifier}/fields/{field_index}/validate", dependencies=[Depends(inventory_admin)])
 async def validate_field(category: AssetInventoryCategory, identifier: UUID, field_index: int, body=Depends(review_body),
-    service=Depends(get_asset_inventory_service), session=Depends(get_db)):
+    service=Depends(get_asset_inventory_service), session=Depends(get_module_db)):
     return await operation(AssetReviewService(session, service).change(category, identifier, body, "validate_field", field_index), session)
 
 
 @router.delete("/records/{category}/{identifier}", status_code=204, dependencies=[Depends(inventory_admin)])
 async def delete_record(category: AssetInventoryCategory, identifier: UUID, body=Depends(review_body),
-    service=Depends(get_asset_inventory_service), session=Depends(get_db)):
+    service=Depends(get_asset_inventory_service), session=Depends(get_module_db)):
     result = await operation(AssetReviewService(session, service).change(category, identifier, body, "delete"), session)
     return result if isinstance(result, JSONResponse) else Response(status_code=204)
