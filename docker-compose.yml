@@ -32,7 +32,11 @@ services:
     restart: unless-stopped
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-itom_user}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD before starting Compose}@postgres:5432/${POSTGRES_DB:-itom_db}
+      ASSET_INVENTORY_DIR: /app/data/asset_inventory
+      CMDB_INVENTORY_ADMIN_TOKEN: ${CMDB_INVENTORY_ADMIN_TOKEN:-}
       PORT: 8000
+    volumes:
+      - ./data/asset_inventory:/app/data/asset_inventory:ro
     depends_on:
       postgres:
         condition: service_healthy

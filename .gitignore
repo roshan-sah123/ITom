@@ -34,6 +34,7 @@ build/
 *.tmp
 
 # Generated telemetry and local databases
+data/asset_inventory/
 data/*.json
 !data/.gitkeep
 data/*.db

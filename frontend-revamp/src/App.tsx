@@ -13,6 +13,9 @@ import type { IconName, WorkspaceConfig, Drilldown, Snapshot } from "./data";
 import { usePortalSnapshot } from "./api";
 import { InventoryPanel, SyncHistory } from "./Inventory";
 import { LocationScores } from "./LocationScores";
+import { AssetsAnalytics } from "./AssetsAnalytics";
+import { VendorManagement } from "./VendorManagement";
+import { KnowledgeCentre } from "./KnowledgeCentre";
 
 const iconPaths: Record<IconName, React.ReactNode> = {
   search: (
@@ -98,6 +101,7 @@ const navigation = [
   "Assets Analytics",
   "Knowledge Center",
   "Automations",
+  "Vendor Management",
 ];
 
 const navigationIcons: Record<string, IconName> = {
@@ -107,6 +111,7 @@ const navigationIcons: Record<string, IconName> = {
   "Assets Analytics": "database",
   "Knowledge Center": "check",
   Automations: "refresh",
+  "Vendor Management": "external",
 };
 
 function StatusBadge({ status }: { status: string }) {
@@ -675,22 +680,22 @@ function App() {
           </div>
           <p className="sidebar-section-label">WORKSPACES</p>
           {navigation.map((item) => (
-            <button
-              className={
-                activeNav === item ? "nav-item nav-item--active" : "nav-item"
-              }
-              key={item}
-              aria-current={
-                activeNav === item && !showSync ? "page" : undefined
-              }
-              onClick={() => navigate(item)}
-              type="button"
-            >
-              <span className="nav-item__icon">
-                <Icon name={navigationIcons[item]} size={17} />
-              </span>
-              <span className="nav-item__label">{item}</span>
-            </button>
+              <button
+                className={
+                  activeNav === item ? "nav-item nav-item--active" : "nav-item"
+                }
+                key={item}
+                aria-current={
+                  activeNav === item && !showSync ? "page" : undefined
+                }
+                onClick={() => navigate(item)}
+                type="button"
+              >
+                <span className="nav-item__icon">
+                  <Icon name={navigationIcons[item]} size={17} />
+                </span>
+                <span className="nav-item__label">{item}</span>
+              </button>
           ))}
           <div className="sidebar-status" data-status={freshness}>
             <span className="sidebar-status__dot" />
@@ -1161,6 +1166,15 @@ function App() {
               </div>
             </section>
           </>
+        ) : activeNav === "Assets Analytics" ? (
+          <AssetsAnalytics
+            onRefresh={refreshSnapshot}
+            revision={revision}
+          />
+        ) : activeNav === "Vendor Management" ? (
+          <VendorManagement />
+        ) : activeNav === "Knowledge Center" ? (
+          <KnowledgeCentre />
         ) : (
           <WorkspacePage
             key={activeNav}

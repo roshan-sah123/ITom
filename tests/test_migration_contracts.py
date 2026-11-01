@@ -71,6 +71,74 @@ def test_group_migration_compiles_postgresql_upgrade_and_downgrade():
     assert 'DROP TABLE solarwinds_group_members' in sql
 
 
+def test_vendor_migration_compiles_postgresql_upgrade_and_downgrade():
+    import importlib.util
+    from io import StringIO
+    from alembic.migration import MigrationContext
+    from alembic.operations import Operations
+
+    spec = importlib.util.spec_from_file_location(
+        "vendor_migration", ROOT / "alembic/versions/0011_vendor_submissions.py"
+    )
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    output = StringIO()
+    context = MigrationContext.configure(
+        dialect_name="postgresql", opts={"as_sql": True, "output_buffer": output}
+    )
+    with Operations.context(context):
+        module.upgrade()
+        module.downgrade()
+    sql = output.getvalue()
+    assert "CREATE TABLE vendor_submissions" in sql
+    assert "id SERIAL" in sql
+    assert "document JSONB NOT NULL" in sql
+    assert "UNIQUE (request_id)" in sql
+    assert "DROP TABLE vendor_submissions" in sql
+
+
+def test_asset_review_migration_compiles_postgresql_upgrade_and_downgrade():
+    import importlib.util
+    from io import StringIO
+    from alembic.migration import MigrationContext
+    from alembic.operations import Operations
+    spec = importlib.util.spec_from_file_location(
+        "asset_migration", ROOT / "alembic/versions/0012_asset_inventory_reviews.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    output = StringIO()
+    context = MigrationContext.configure(dialect_name="postgresql", opts={"as_sql": True, "output_buffer": output})
+    with Operations.context(context):
+        module.upgrade()
+        module.downgrade()
+    sql = output.getvalue()
+    assert "CREATE TABLE asset_inventory_records" in sql
+    assert "id UUID" in sql and "data JSONB NOT NULL" in sql
+    assert "UNIQUE (category, source_key)" in sql
+    assert "DROP TABLE asset_inventory_audit" in sql
+
+
+def test_knowledge_migration_compiles_postgresql_upgrade_and_downgrade():
+    import importlib.util
+    from io import StringIO
+    from alembic.migration import MigrationContext
+    from alembic.operations import Operations
+    spec = importlib.util.spec_from_file_location(
+        "knowledge_migration", ROOT / "alembic/versions/0013_knowledge_content.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    output = StringIO()
+    context = MigrationContext.configure(dialect_name="postgresql", opts={"as_sql": True, "output_buffer": output})
+    with Operations.context(context):
+        module.upgrade()
+        module.downgrade()
+    sql = output.getvalue()
+    assert "CREATE TABLE knowledge_content" in sql
+    assert "file_data BYTEA NOT NULL" in sql
+    assert "UNIQUE (request_id)" in sql
+    assert "DROP TABLE knowledge_content" in sql
+
+
 def test_group_links_sqlite_roundtrip_and_postgresql_ddl(migrated_database):
     assert migrate(migrated_database,'downgrade','0008_solarwinds_groups').returncode==0
     with sqlite3.connect(migrated_database) as db:

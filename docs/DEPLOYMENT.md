@@ -2,6 +2,45 @@
 
 The supported runtime is `app.main:app`. It serves `frontend/` and the database-backed API on one listener. The former file-based HTTP daemon and its remote deployment script have been retired.
 
+## UI revamp deployment handoff
+
+The `feature/itom-ui-revamp` source contains the approved Vendor, Assets and
+Knowledge changes. The running 8080 portal was not deployed or restarted.
+Preview databases, credentials, workbooks and generated preview bundles are not
+part of the source handoff.
+
+Before cutover, identify the **running service's actual database and environment**,
+not merely this checkout's default `.env`. During local preflight, the running
+8080 API and the shell-configured SQLite database had different telemetry counts
+and schema state. Do not migrate or restart against that unverified default.
+Back up the actual production database and frontend, install the updated
+requirements, and apply revisions 0011–0013 using its verified migration chain.
+For a populated database without an Alembic version table, reconcile its schema
+first; do not blindly stamp head or run the full initial migration chain.
+
+Transfer the private source workbooks separately: the approved chargeback workbook
+to `data/asset_inventory/server.xlsx`, plus the existing network and telecom
+workbooks. They are intentionally excluded from Git. Already-seeded categories
+are not overwritten just by replacing files; any source replacement needs an
+explicit backed-up migration. Preview Vendor/Knowledge records are not imported
+automatically.
+
+Build the approved frontend source in a release checkout:
+
+```powershell
+Set-Location frontend-revamp
+npm ci
+npm run build
+```
+
+This writes the deployable frontend and its matching asset references; do not use
+the earlier preview bundles. Configure `CMDB_INVENTORY_ADMIN_TOKEN` privately in
+the actual service environment, never in Git. Restart during the approved window
+and verify readiness, scheduler state, existing telemetry routes and all three
+module workflows. For shared access, integrate the authenticated gateway with
+the local-client/Host and same-origin guards; no public-origin bypass or SSO/RBAC
+implementation is included here.
+
 ## Windows local service
 
 Create `.venv`, install `requirements.txt`, and configure `.env` from `.env.example`. Apply schema migrations:
@@ -25,6 +64,127 @@ For ten-minute ingestion, set `SCHEDULER_ENABLED=true` and `SYNC_INTERVAL_SECOND
 
 For login startup, use `scripts/register_local_itom_task.ps1`; its `-Status` and `-Remove` switches inspect or remove that task. The older root `register_startup_service.ps1` manages a differently named task and remains available for existing installations. Do not register both tasks for one checkout.
 
+### Local asset inventory workbooks
+
+Place the three read-only source workbooks at `data/asset_inventory/server.xlsx`,
+`data/asset_inventory/network.xlsx` and `data/asset_inventory/telecom.xlsx`, or
+set `ASSET_INVENTORY_DIR` to another private directory. These files are excluded
+from Git and the container build context and are never served from the frontend.
+The approved server source is `CHARGEBACK_MASTER_v3.xlsx`, copied byte-for-byte
+to the private `server.xlsx` deployment slot. Its `CHARGEBACK MASTER` sheet has
+24 columns; use the actual workbook's non-empty records, not a hard-coded count.
+Network and telecom retain their existing source workbooks.
+The inventory page has no upload control. Revision `0012_asset_inventory_reviews`
+adds independent inventory records, source batches and review audits. The first
+read of each category seeds its selected workbook sheet once; subsequent reads
+use the persisted local CMDB, including manual rows and reviewed edits.
+The source files and live Graph/SolarWinds CMDB remain untouched. Replacing a
+workbook does not overwrite an already initialized category or resurrect deleted
+rows. There is deliberately no replace-import endpoint.
+
+Back up the intended database and run migrations only in an approved deployment
+window. Do not copy the reference branch's conflicting migration chain or database
+bootstrap changes into this branch. CMDB writes are same-origin and loopback-only.
+All environments require `CMDB_INVENTORY_ADMIN_TOKEN`, read only from the runtime
+environment. No development bypass is allowed: an unset token keeps sensitive
+operations locked (503); an incorrect/missing supplied key returns 401 when
+configured. The same key protects Edit, Validate and Delete across Vendor,
+Knowledge and all three CMDB categories (including cell review). CMDB Add data
+also retains its existing administration guard.
+The UI holds a supplied token only for the open
+inventory dialog, never in browser storage. Configure shared operator sign-in
+at the deployment boundary before exposing local administration remotely.
+
+### Shared Knowledge Centre
+
+Revision `0013_knowledge_content` stores metadata and uploaded documents/media
+in `knowledge_content` in the configured SQLite or PostgreSQL database.
+Back up that database and apply migrations in the approved deployment window.
+The grid/list,
+search, validation filters, categories (including Other), add/edit/delete,
+reviewer validation, file download and media preview workflows are available.
+Uploads are capped at 5 MiB (7 MiB JSON request). Reviewer names are self-reported.
+Validation is available only from the library action, not the content editor.
+Edit, Validate and Delete always require the same `CMDB_INVENTORY_ADMIN_TOKEN` as CMDB, including in
+development. Missing configuration returns 503; an incorrect key returns 401.
+The key is held only while the relevant editor/action dialog is open and is never persisted.
+Edits reset validation to Pending. Revisions reject stale edits/reviews/deletions.
+Files and metadata commit atomically. Deletion clears stored file bytes and keeps
+a retry-protection tombstone.
+
+New content and uploaded files save directly to the database on submission;
+no browser-copy action is needed or displayed. The portal does not read, publish
+or delete reference-branch localStorage/IndexedDB libraries. If older browser-only
+content needs migration, arrange an explicit export/migration before clearing
+that browser's storage; it is not automatically included in the shared library.
+Videos use browser-native playback; unsupported codecs/Office formats need a
+compatible downloaded application.
+
+All three module datastores (Vendor, Knowledge, workbook CMDB) are now server-side.
+Operators using the same deployed API/database see the same changes after refresh.
+Merely assigning `itom.coforge.com` does not deploy this code or share a browser
+library: deploy frontend/API, migrate and back up a persistent shared database,
+configure the key, and provide an authenticated gateway and approved access policy.
+Current module guards require loopback client/Host and same-origin writes;
+remote gateway/origin integration must be explicitly configured and verified,
+not bypassed. An isolated preview database is not the production database.
+
+### Portal Vendor Management
+
+Vendor Management is an in-portal workspace: submissions, the add/edit form and
+the details dialog remain on the portal's current origin. It uses the configured
+SQLite or PostgreSQL database, with the `vendor_submissions` table introduced by
+revision `0011_vendor_submissions`. Install the updated requirements (including
+Pillow), back up the intended datastore, and apply `alembic upgrade head` during
+an approved deployment window before restarting the API. Do not migrate or
+restart a running production portal just to preview this UI.
+
+Vendor reads and writes are loopback-only until sign-in is implemented; writes
+also require the same portal Origin. Reviewer names are explicitly self-reported,
+not authenticated identities. Submissions start Pending; editing resets review.
+Edit, Validate and Delete additionally require the shared CMDB admin key on the
+actual API mutation, not just a UI unlock. New submissions remain available
+without that key, subject to existing local/origin guards.
+Deletion removes the submission from the directory and clears its attachments,
+while a tombstone prevents a retry from recreating a deleted submission.
+Displayed serials are consecutive active-record ranks in creation order;
+database IDs remain unchanged. Search/pagination preserve the global sequence.
+SOPs are optional for every method, with PDF/DOCX/TXT limited to 10 MiB.
+Each step supports a validated PNG/JPEG/WebP image up to 1.5 MiB and 16 megapixels.
+The complete JSON request is limited to 14 MiB.
+
+The old loopback companion and `data/vendor_management.db` remain independent.
+No old records are imported, rewritten or deleted by the new workspace.
+
+### Future SSO / RBAC
+
+The shared key is an interim authorization gate, not user authentication or RBAC.
+When SSO is implemented, verify identity and designated-admin permissions
+server-side for every sensitive endpoint across these three modules. Hiding
+buttons is not sufficient. No SSO/RBAC integration is claimed by this change.
+Replacing a seeded workbook inventory is an explicit, backed-up deployment
+operation; it must not silently discard existing reviews or edit history.
+
+Vendor, Knowledge and workbook inventory popups are centered in the viewport,
+including nested action dialogs and file previews. Tall content scrolls inside
+the popup. Vendor/Knowledge detail views show content rather than repeating the
+serial, validation status, reviewer or validation date already in their libraries.
+
+For isolated Vite verification, start `app.main:app` on another loopback port
+with a fresh database, `SCHEDULER_ENABLED=false` and no source credentials.
+Set `ITOM_MODULE_API_PROXY` to that backend URL when starting Vite on 5173.
+Only vendor, knowledge and asset routes use this optional proxy; the existing operations
+routes continue to read from 8080. Browser navigation never leaves 5173.
+Build previews into a separate directory with `npm run build -- --outDir <path>`
+so verification does not replace production-served frontend assets.
+For the isolated browser journeys, install `requirements-browser.txt` and an
+available Edge/Chromium browser, set `ITOM_BROWSER_FRONTEND_DIR` to that build,
+then run:
+
+```powershell
+.venv\Scripts\python.exe -m pytest tests\browser\test_vendor_management.py tests\browser\test_knowledge_centre.py tests\browser\test_asset_reviews.py --run-browser -q
+```
+
 ## Linux service
 
 The template `systemd/itom.service` starts `.venv/bin/python -m uvicorn app.main:app` on loopback port 8080. Adapt its user, group, working directory and executable path to the installation. Create the virtual environment, install dependencies, configure `.env`, and run `alembic upgrade head` before enabling the service. The template does not perform migrations.
@@ -41,7 +201,7 @@ docker compose ps
 docker compose logs api
 ```
 
-Compose forwards only database configuration and `PORT` to the API. Configure explicit runtime environment/secrets for source credentials, proxy settings, `ENVIRONMENT=production` and a strong `SECRET_KEY`; `.env` is excluded from the image. Raw `data/` files are not mounted into the web root, and NGINX rejects `/data` requests.
+Compose forwards database configuration, the read-only asset workbook mount and `PORT` to the API. Configure explicit runtime environment/secrets for source credentials, proxy settings, `ENVIRONMENT=production` and a strong `SECRET_KEY`; `.env` is excluded from the image. Raw `data/` files are not mounted into the web root, and NGINX rejects `/data` requests.
 
 Keep the loopback binding unless an authenticated gateway protects inventory, exports, and manual sync. The application has no sign-in or sync rate limit. Sync API responses hide stored messages, stack traces, and diagnostic context; administrators can investigate the run ID using restricted backend records/logs.
 

@@ -605,7 +605,7 @@ export function buildPortalModel(snapshot: Snapshot) {
       description:
         title === "Automations"
           ? "Workflow execution data is not connected. Source synchronization history is available below."
-          : "A knowledge content service is not connected to this portal.",
+          : "Manage database-backed guides, runbooks, documents and training files.",
       metrics: [],
       chartTitle: "",
       chartCenter: "—",

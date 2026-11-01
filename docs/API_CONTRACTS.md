@@ -14,6 +14,15 @@ The current service is `app.main:app`. Its OpenAPI document at `/openapi.json` a
 | `GET /api/v1/cmdb/cis/{ci_id}` | Configuration item detail |
 | `GET /api/v1/cmdb/cis/{ci_id}/history` | Recorded status/health changes |
 | `GET /api/v1/cmdb/cis/{ci_id}/relationships` | Inventory relationships |
+| `GET /api/v1/assets/summary` | Availability and current record/review counts for workbook-backed local CMDB inventory |
+| `GET /api/v1/assets/inventory/{category}` | Paginated current inventory values (`server`, `network` or `telecom`) |
+| `GET /api/v1/assets/records/{category}` | Local inventory rows including column order, provenance, revisions and cell review metadata |
+| `GET /api/v1/assets/admin/check` | Check local/production inventory editing access |
+| `POST /api/v1/assets/records/{category}` | Add a manual inventory row using the source column schema |
+| `PUT /api/v1/assets/records/{category}/{id}` | Edit a row, preserving workbook columns and unchanged cell reviews |
+| `POST /api/v1/assets/records/{category}/{id}/validate` | Review every cell in a row |
+| `POST /api/v1/assets/records/{category}/{id}/fields/{index}/validate` | Review one zero-based workbook column |
+| `DELETE /api/v1/assets/records/{category}/{id}` | Hide a local inventory row without modifying its workbook |
 | `GET /api/v1/intune/summary` | Managed-device compliance, OS and storage summaries |
 | `GET /api/v1/intune/forecast` | Projection from successful daily observations |
 | `GET /api/v1/intune/devices` | Filtered managed-device inventory |
@@ -75,6 +84,109 @@ the UI derives source totals, options and distributions from this map.
 Summaries are computed from persisted telemetry. A domain with no ingested data may return 503. Freshness reports use `FRESH`, `STALE` and `UNKNOWN`; a successful HTTP response does not establish that upstream ingestion is current. Optional freshness timestamps are absent when there is no known successful refresh.
 
 The inventory source routes reject mutating methods. The separate sync trigger returns 202 before ingestion finishes; inspect status and run history for its outcome. Shared-network deployments must supply access controls, because authentication is not currently implemented by the application. Known error-handling and deployment limitations are documented in the [audit](CODEBASE_AUDIT_2026-10-08.md).
+
+## Local asset workbooks
+
+The asset inventory routes read `server.xlsx`, `network.xlsx` and `telecom.xlsx`
+from `ASSET_INVENTORY_DIR` (default `./data/asset_inventory`). Workbooks stay
+outside the public frontend, Git and the container build context. On the first
+read of each category, the selected workbook sheet seeds independent
+`asset_inventory_batches` and `asset_inventory_records` tables. Subsequent reads
+use that local CMDB inventory, including manual additions, edits and deletions;
+the source workbooks and Graph/SolarWinds telemetry are never written.
+An uninitialized category with a missing/unreadable workbook is unavailable,
+not an empty inventory. A seeded category remains available independently of
+the source file, and deleting its last row does not reseed it.
+The inventory view and API do not accept workbook uploads or replace-imports.
+
+`records` reads and all administration routes require loopback client/Host.
+Writes require same-origin requests; in every environment, administration
+also requires `Authorization: Bearer <CMDB_INVENTORY_ADMIN_TOKEN>`. An unset token
+keeps editing locked in every environment (503); an invalid/missing supplied key
+returns 401 when configured. There is no development bypass.
+Actor/reviewer names are self-reported, not authenticated identities.
+Every write sends `actor`; edit/validate/delete also send `expected_revision`.
+Create sends `name`, `source_sheet`, and ordered `data: [{index, header, value}]`;
+edit sends `name` and `data`. Values are plain finite numbers, strings, booleans
+or null. Column labels/order cannot change. JSON bodies are capped at 256 KiB.
+Stale revisions return 409, missing records 404, invalid data 422, and database
+failures a logged safe 503. Changes and their restricted audit records commit
+atomically. Row validation reviews every field; an edit invalidates only changed
+cells, preserving unchanged review evidence.
+
+## Shared Knowledge Centre
+
+`/api/v1/knowledge/content` uses the configured server database, independent of
+source telemetry. Reads require loopback client/Host; writes require the same
+portal Origin. `GET` accepts `page >= 1` and `page_size` from 1 to 100 and returns
+`items`, `total`, `page`, `page_size`, `total_pages`. Items include permanent `id`,
+consecutive display `serial`, `revision`, `name`, `description`, `category`,
+`file: {name,type,size,url}`, `validatedOn` and `validatedBy`.
+
+`POST` sends a unique 32-lowercase-hex `request_id`, metadata and
+`file: {name,type,data}` (strict base64). Replaying unchanged creation requests is
+idempotent; changed or deleted replays return 409.
+`PUT /{id}` sends metadata, `expected_revision` and optionally a replacement file;
+`file: null` preserves bytes. Validation fields are forbidden in create/edit
+bodies, and editing resets validation to Pending.
+Both editing and deletion require the same CMDB Bearer key as validation.
+`POST /{id}/validate` sends `reviewer`, `expected_revision` and a Bearer key matching
+`CMDB_INVENTORY_ADMIN_TOKEN`. The same CMDB key is enforced on actual validation
+in every environment (unset 503, incorrect 401). Reviewer names are self-reported.
+`DELETE /{id}?expected_revision=...` clears bytes and keeps a retry tombstone.
+Stale mutations return 409; missing rows 404; invalid files/fields 422; oversized
+JSON 413; database failures a logged safe 503. `GET /{id}/file` returns bytes with
+attachment disposition, no-store, nosniff and sandbox CSP.
+Metadata/file writes commit atomically.
+
+Content submissions save metadata and file bytes directly to the database.
+There is no browser-copy button or active browser persistence. Legacy browser
+libraries are neither read, published nor deleted. Operators sharing the API/database see changes after
+refresh, subject to approved gateway authentication and existing module guards.
+Uploads support PDF/DOCX/XLSX/PPTX/TXT, PNG/JPEG/WebP and MP4/WebM/MOV up to 5 MiB.
+Text is displayed as escaped text, images/PDFs preview in the dialog, and videos
+use native controls. Office formats require a compatible downloaded application;
+video playback depends on browser codec support. Validation timestamps come from
+the server, never an editable form field.
+No Figma sample records or figures are shipped.
+
+## Vendor submissions
+
+`/api/v1/vendors/submissions` is local-only and separate from source telemetry.
+All routes require a loopback client and loopback Host; writes require the same
+portal Origin. No frontend navigation redirects to the old companion port.
+Edit, Validate and Delete require the same runtime CMDB administration key on
+each API request in every environment (unconfigured 503, incorrect/missing 401).
+Creating submissions and ordinary reads retain their existing local/origin guards.
+The interim shared key is not SSO/RBAC; designated-admin role enforcement must
+be implemented server-side when authenticated identities become available.
+
+- `GET /`: searchable vendor list with `items`, `total`, `page`, `page_size`
+  and tentative `next_serial` (active count + 1). `serial` is the consecutive
+  active-record rank in creation order, independent of permanent database `id`.
+  Search/pagination preserve this global sequence; deletion closes display gaps
+  without rewriting or reusing IDs.
+- `POST /`: create with `request_id` (32 lowercase hexadecimal characters),
+  `vendor`, free-text `method`, 1-30 `steps`, and nullable `sop`.
+  Each step has `what_to_do`, `how_to_do` and nullable `image`.
+  Attachments are `{name, data}` with base64 content.
+- `GET /{id}`: details, review metadata and same-origin attachment URLs.
+  `include_files=true` additionally supplies `draft` and `sop_file` for editing.
+- `PUT /{id}`: edit using the creation shape plus `expected_revision`.
+  Edits reset validation to Pending. The form preserves existing files unless
+  the user removes or replaces them.
+- `POST /{id}/validate`: `{reviewer, expected_revision}`; records server UTC
+  time and a self-reported reviewer name, not an authenticated identity.
+- `DELETE /{id}?expected_revision=...`: removes a submission and its files.
+- `GET /{id}/sop` and `GET /{id}/images/{zero_based_step_index}`:
+  validated attachment bytes; SOPs download rather than executing inline.
+
+Create retries reuse `request_id`; conflicting payloads, deleted-request replays
+and stale edit/review/delete revisions return 409. Invalid inputs return 422,
+oversized JSON returns 413, unsupported request types return 415, unknown records
+return 404, and datastore failures return a safe 503. Portal SOPs are optional,
+unlike the legacy companion contract. New data never modifies the legacy
+`data/vendor_management.db`.
 
 ## Source integrations
 
