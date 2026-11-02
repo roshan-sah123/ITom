@@ -82,7 +82,7 @@ def test_vendor_submit_prompt_review_edit_details_and_delete(vendor_url, browser
     page.get_by_role("button", name="Open submission", exact=True).click()
     expect(page.get_by_role("dialog", name="Submission details")).to_contain_text("Record reference")
     expect(page.get_by_role("button", name="View SOP", exact=True)).to_have_count(0)
-    expect(page.get_by_role("dialog", name="Submission details")).to_contain_text("Download only")
+    expect(page.get_by_role("dialog", name="Submission details")).not_to_contain_text("Download only")
     with page.expect_download() as downloaded:
         page.get_by_role("link", name="journey.txt", exact=True).click()
     assert Path(downloaded.value.path()).read_bytes() == b"Approved procedure"
@@ -151,7 +151,7 @@ def test_vendor_sop_download_only_accepts_opaque_documents(vendor_url, browser_c
     expect(page.locator(".vendor-table tbody tr")).to_contain_text("Journey partner")
     page.get_by_role("button", name="Open submission", exact=True).click()
     details = page.get_by_role("dialog", name="Submission details")
-    expect(details).to_contain_text("Download only")
+    expect(details).not_to_contain_text("Download only")
     expect(details.locator("iframe")).to_have_count(0)
     expect(page.get_by_role("button", name="View SOP", exact=True)).to_have_count(0)
     with page.expect_download() as downloaded:

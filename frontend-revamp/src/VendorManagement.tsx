@@ -307,7 +307,6 @@ export function VendorManagement() {
         <h3 className="vendor-detail-section-title">SOP</h3>
         {details.sop ? <div className="vendor-row-actions">
           <a className="button button--secondary" href={details.sop.url} download>{details.sop.name}</a>
-          <small>Download only. SOP contents are not scanned or previewed; open only trusted documents.</small>
         </div> : <p>No SOP attached.</p>}
       </VendorDialog>}
       {preview && <VendorAttachmentPreview attachment={preview} onClose={() => setPreview(null)} />}

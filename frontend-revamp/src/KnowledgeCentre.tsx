@@ -28,7 +28,6 @@ function KnowledgeDetails({ record, onClose }: { record: KnowledgeRecord; onClos
       <div><span>File format</span><strong>{fileFormat(record.file.name)}</strong></div>
     </div>
     <section className="knowledge-description"><h3>Description</h3><p>{record.description}</p></section>
-    <p>Download only. File contents are not inspected, scanned, or previewed; download only trusted files.</p>
     <div className="knowledge-actions">
       <a className="button button--secondary" href={record.file.url} download={record.file.name}>Download file</a>
       <button type="button" className="button button--secondary" onClick={onClose}>Close</button>

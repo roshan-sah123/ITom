@@ -57,7 +57,7 @@ def test_knowledge_arbitrary_file_upload_download(module_portal_url, browser_con
     expect(form).not_to_be_visible()
     page.get_by_role("button", name="Open", exact=True).click()
     details = page.get_by_role("dialog", name="Opaque document", exact=True)
-    expect(details).to_contain_text("not inspected, scanned, or previewed")
+    expect(details).not_to_contain_text("not inspected, scanned, or previewed")
     expect(details.locator("iframe, pre")).to_have_count(0)
     expect(details.get_by_role("button", name="View file", exact=True)).to_have_count(0)
     with page.expect_download() as downloaded:
@@ -109,7 +109,7 @@ def test_knowledge_grid_list_filter_edit_review_download_and_delete(module_porta
     assert_centered(details)
     assert_no_review_metadata(details)
     expect(details.get_by_role("button", name="View file", exact=True)).to_have_count(0)
-    expect(details).to_contain_text("Download only")
+    expect(details).not_to_contain_text("Download only")
     with page.expect_download() as download:
         details.get_by_role("link", name="Download file", exact=True).click()
     assert Path(download.value.path()).read_bytes() == b"Instructions <script>not executable</script>"
@@ -160,7 +160,7 @@ def test_knowledge_submission_shared_across_profiles_without_publishing_legacy_c
     page.get_by_role("button", name="Open", exact=True).click()
     details = page.get_by_role("dialog", name="Shared guide", exact=True)
     expect(details.get_by_role("button", name="View file", exact=True)).to_have_count(0)
-    expect(details).to_contain_text("Download only")
+    expect(details).not_to_contain_text("Download only")
     details.get_by_role("button", name="Close", exact=True).click()
     page.get_by_role("button", name="Delete", exact=True).click()
     deletion = page.get_by_role("dialog", name="Delete content", exact=True)
@@ -207,7 +207,7 @@ def test_knowledge_video_is_download_only_and_browser_storage_independence(modul
     form.get_by_role("button", name="Add content", exact=True).click()
     page.get_by_role("button", name="Open", exact=True).click()
     details = page.get_by_role("dialog", name="Video journey")
-    expect(details).to_contain_text("not inspected, scanned, or previewed")
+    expect(details).not_to_contain_text("not inspected, scanned, or previewed")
     expect(details.locator("video, img, iframe, pre")).to_have_count(0)
     with page.expect_download() as downloaded:
         details.get_by_role("link", name="Download file", exact=True).click()
@@ -254,7 +254,7 @@ def test_knowledge_server_replacement_preserves_unrelated_legacy_browser_files(m
     page.get_by_role("button", name="Open", exact=True).click()
     details = page.get_by_role("dialog", name="Reference guide", exact=True)
     expect(details.get_by_role("button", name="View file", exact=True)).to_have_count(0)
-    expect(details).to_contain_text("Download only")
+    expect(details).not_to_contain_text("Download only")
     details.get_by_role("button", name="Close", exact=True).click()
     page.get_by_role("button", name="Edit", exact=True).click()
     form = page.get_by_role("dialog", name="Edit content", exact=True)

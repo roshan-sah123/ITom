@@ -4,6 +4,17 @@ The supported runtime is `app.main:app`. It serves `frontend/` and the database-
 
 ## UI revamp deployment handoff
 
+### Production attachment details copy update
+
+Only the Vendor SOP and Knowledge file warning sentences were removed from
+the open-details dialogs. The matching static assets were deployed atomically
+with a private previous-entry backup. Production remains download-only: the
+localhost-only new-tab View feature is not included in this release. No API
+restart, runtime configuration, upload policy or database change was made.
+The frontend TypeScript/Vite build passed, production readiness returned 200,
+and the production API listener process remained unchanged. Edge verified both
+workspaces; no records were available for a populated-details live check.
+
 ### Knowledge opaque file upload update
 
 Knowledge Centre accepts any non-empty file type, with or without an extension,
