@@ -21,6 +21,30 @@ def content(request_id="a" * 32):
             "data": base64.b64encode(b"Instructions <script>escaped</script>").decode()}}
 
 
+@pytest.mark.parametrize("name,mime,raw", [
+    ("compressed.pdf", "application/pdf", b"%PDF-1.7 /ObjStm /Encrypt /OpenAction"),
+    ("linked.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", b"PK\x03\x04opaque external-linked document"),
+    ("instructions.txt", "text/plain", b"\xff\xfeT\x00e\x00x\x00t\x00"),
+])
+@pytest.mark.asyncio
+async def test_knowledge_opaque_documents_upload_edit_and_download(knowledge_client, name, mime, raw):
+    body = content()
+    body["file"] = {"name": name, "type": mime, "data": base64.b64encode(raw).decode()}
+    response = await knowledge_client.post("/api/v1/knowledge/content", json=body)
+    assert response.status_code == 201, response.text
+    path = f'/api/v1/knowledge/content/{response.json()["id"]}'
+    edited = await knowledge_client.put(path, json={
+        "name": "Edited", "description": "Preserve bytes", "category": "SOP",
+        "file": body["file"], "expected_revision": 1,
+    })
+    assert edited.status_code == 200, edited.text
+    download = await knowledge_client.get(path + "/file")
+    assert download.content == raw
+    assert download.headers["content-type"] == "application/octet-stream"
+    assert download.headers["content-disposition"].startswith("attachment;")
+    assert download.headers["x-content-type-options"] == "nosniff"
+
+
 @pytest.mark.asyncio
 async def test_knowledge_shared_database_file_lifecycle_and_key_enforcement(knowledge_client, api_environment):
     client = knowledge_client
@@ -151,6 +175,9 @@ async def test_knowledge_supported_images_and_office_formats(knowledge_client, e
     body["file"] = {"name": "resource" + extension, "type": FORMATS[extension],
                     "data": base64.b64encode(stream.getvalue()).decode()}
     created = await knowledge_client.post("/api/v1/knowledge/content", json=body)
+    assert created.status_code == 201, created.text
+    downloaded = await knowledge_client.get(f'/api/v1/knowledge/content/{created.json()["id"]}/file')
+    assert downloaded.headers["content-type"].split(";")[0] == FORMATS[extension]
     assert created.status_code == 201, created.text
     assert (await knowledge_client.get(created.json()["file"]["url"])).content == stream.getvalue()
 

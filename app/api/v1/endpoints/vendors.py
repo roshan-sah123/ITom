@@ -114,10 +114,10 @@ async def delete_submission(identifier: int, expected_revision: int = Query(...,
     return Response(status_code=204)
 
 
-def file_response(attachment, image=False, raw=None):
+def file_response(attachment, image=False, raw=None, download_only=True):
     return Response(
         content=raw if raw is not None else base64.b64decode(attachment["data"]),
-        media_type=attachment["mime"] if image else "application/octet-stream",
+        media_type="application/octet-stream" if download_only and not image else attachment["mime"],
         headers={
             "Content-Disposition": ("inline" if image else "attachment")
             + "; filename*=UTF-8''" + quote(attachment["name"], safe=""),

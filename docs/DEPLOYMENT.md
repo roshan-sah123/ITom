@@ -4,6 +4,27 @@ The supported runtime is `app.main:app`. It serves `frontend/` and the database-
 
 ## UI revamp deployment handoff
 
+### Knowledge document attachment compatibility update
+
+Knowledge Centre now accepts PDF, DOCX and TXT as opaque download-only documents,
+matching Vendor's internal-content policy while retaining Knowledge's existing
+5 MiB limit and 7 MiB request cap. Filename, extension/MIME and base64 checks,
+admin-key enforcement, revisions and atomic file storage remain intact.
+Documents are not scanned, extracted or previewed; open only trusted downloads
+after approved endpoint scanning. Existing stored documents also download only.
+Image/video previews and XLSX/PPTX validation retain their existing behavior.
+The matching frontend and backend are deployed on 8080 and the HTTPS portal,
+using the existing startup task after a private previous-source/static-entry
+backup and verified SQLite snapshot. No database migration or runtime
+configuration changed. Validation passed: 142 API tests, 25 frontend tests,
+the TypeScript/Vite build and 12 Knowledge/Vendor browser journeys.
+Live HTTPS nonexistent-record edit probes passed PDF/DOCX/TXT validation and
+returned 404 without saving anything. Edge verified the live Add content form;
+there were no current Knowledge records for an existing-file live download
+check. Isolated tests cover download bytes, headers and preserved media MIME.
+Readiness, module reads and both telemetry summaries returned 200, with
+telemetry FRESH after restart.
+
 ### Vendor SOP attachment compatibility update
 
 The approved relaxation is deployed on 8080 and the HTTPS portal: PDF, DOCX and
@@ -12,7 +33,8 @@ content checks do not reject links, PDF object streams, encryption or text
 encodings; the portal does not scan or preview them. Downloads must be treated
 as untrusted and checked with approved endpoint protection before opening.
 Filename/extension, base64, file/request-size limits, screenshot checks and
-admin-key guards remain enforced. Knowledge and Assets validation is unchanged.
+admin-key guards remain enforced. That Vendor-only deployment left Knowledge
+and Assets validation unchanged; Knowledge's subsequent update is documented above.
 
 The matching UI and Vendor backend were deployed using the existing startup
 task, with a private previous-source/static-entry backup and verified module

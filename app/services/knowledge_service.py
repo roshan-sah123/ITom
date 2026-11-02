@@ -62,15 +62,8 @@ def validate_file(file: KnowledgeFileInput):
         raise ValueError("Invalid file base64 content.") from error
     if not 0 < len(raw) <= MAX_FILE:
         raise ValueError("Knowledge files must be non-empty and at most 5 MiB.")
-    if extension == ".txt":
-        try:
-            text = raw.decode("utf-8-sig")
-        except UnicodeError as error:
-            raise ValueError("Text files must be UTF-8.") from error
-        if any(unicodedata.category(char).startswith("C") and char not in "\r\n\t" for char in text):
-            raise ValueError("Text files cannot contain binary control characters.")
-    elif extension in {".pdf", ".docx"}:
-        validate_sop({"name": name, "data": file.data})
+    if extension in {".pdf", ".docx", ".txt"}:
+        validate_sop({"name": name, "data": file.data}, download_only=True)
     elif mime.startswith("image/"):
         try:
             with warnings.catch_warnings():

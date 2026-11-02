@@ -33,6 +33,34 @@ def add_content(page, name="Journey guide"):
     expect(form).not_to_be_visible()
 
 
+@pytest.mark.parametrize("filename,mime,raw", [
+    ("compressed.pdf", "application/pdf", b"%PDF-1.7 /ObjStm /Encrypt"),
+    ("linked.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", b"PK\x03\x04opaque document"),
+    ("encoded.txt", "text/plain", b"\xff\xfeT\x00e\x00x\x00t\x00"),
+])
+def test_knowledge_opaque_document_upload_download(module_portal_url, browser_context, filename, mime, raw):
+    page = browser_context.new_page()
+    open_knowledge(page, module_portal_url)
+    page.get_by_role("button", name="+ Add content", exact=True).click()
+    form = page.get_by_role("dialog", name="Add content", exact=True)
+    form.get_by_label("Content name *", exact=True).fill("Opaque document")
+    form.get_by_label("Description *", exact=True).fill("Download only")
+    form.get_by_label("Content type *", exact=True).select_option("Other")
+    form.get_by_label("Other category *", exact=True).fill("Reference")
+    form.locator("input[type=file]").set_input_files({"name": filename, "mimeType": mime, "buffer": raw})
+    form.get_by_role("button", name="Add content", exact=True).click()
+    expect(form).not_to_be_visible()
+    page.get_by_role("button", name="Open", exact=True).click()
+    details = page.get_by_role("dialog", name="Opaque document", exact=True)
+    expect(details).to_contain_text("not scanned or previewed")
+    expect(details.locator("iframe, pre")).to_have_count(0)
+    expect(details.get_by_role("button", name="View file", exact=True)).to_have_count(0)
+    with page.expect_download() as downloaded:
+        details.get_by_role("link", name="Download file", exact=True).click()
+    assert Path(downloaded.value.path()).read_bytes() == raw
+    page.close()
+
+
 def test_knowledge_grid_list_filter_edit_review_download_and_delete(module_portal_url, browser_context, monkeypatch):
     from app.core.config import settings
     monkeypatch.setattr(settings, "CMDB_INVENTORY_ADMIN_TOKEN", "isolated-review-key")
@@ -75,8 +103,8 @@ def test_knowledge_grid_list_filter_edit_review_download_and_delete(module_porta
     details = page.get_by_role("dialog", name="Journey guide", exact=True)
     assert_centered(details)
     assert_no_review_metadata(details)
-    details.get_by_role("button", name="View file", exact=True).click()
-    expect(details.locator("pre")).to_have_text("Instructions <script>not executable</script>")
+    expect(details.get_by_role("button", name="View file", exact=True)).to_have_count(0)
+    expect(details).to_contain_text("Download only")
     with page.expect_download() as download:
         details.get_by_role("link", name="Download file", exact=True).click()
     assert Path(download.value.path()).read_bytes() == b"Instructions <script>not executable</script>"
@@ -126,8 +154,8 @@ def test_knowledge_submission_shared_across_profiles_without_publishing_legacy_c
     stale.get_by_role("button", name="Cancel", exact=True).click()
     page.get_by_role("button", name="Open", exact=True).click()
     details = page.get_by_role("dialog", name="Shared guide", exact=True)
-    details.get_by_role("button", name="View file", exact=True).click()
-    expect(details.locator("pre")).to_have_text("Instructions <script>not executable</script>")
+    expect(details.get_by_role("button", name="View file", exact=True)).to_have_count(0)
+    expect(details).to_contain_text("Download only")
     details.get_by_role("button", name="Close", exact=True).click()
     page.get_by_role("button", name="Delete", exact=True).click()
     deletion = page.get_by_role("dialog", name="Delete content", exact=True)
@@ -219,8 +247,8 @@ def test_knowledge_server_replacement_preserves_unrelated_legacy_browser_files(m
     expect(page.locator(".knowledge-card")).to_have_count(1)
     page.get_by_role("button", name="Open", exact=True).click()
     details = page.get_by_role("dialog", name="Reference guide", exact=True)
-    details.get_by_role("button", name="View file", exact=True).click()
-    expect(details.locator("pre")).to_have_text("Instructions <script>not executable</script>")
+    expect(details.get_by_role("button", name="View file", exact=True)).to_have_count(0)
+    expect(details).to_contain_text("Download only")
     details.get_by_role("button", name="Close", exact=True).click()
     page.get_by_role("button", name="Edit", exact=True).click()
     form = page.get_by_role("dialog", name="Edit content", exact=True)
@@ -232,8 +260,10 @@ def test_knowledge_server_replacement_preserves_unrelated_legacy_browser_files(m
     page.get_by_role("button", name="Knowledge Center", exact=True).click()
     expect(page.locator(".knowledge-card")).to_contain_text("replacement.txt")
     page.get_by_role("button", name="Open", exact=True).click()
-    details.get_by_role("button", name="View file", exact=True).click()
-    expect(details.locator("pre")).to_have_text("Replacement instructions")
+    expect(details.get_by_role("button", name="View file", exact=True)).to_have_count(0)
+    with page.expect_download() as downloaded:
+        details.get_by_role("link", name="Download file", exact=True).click()
+    assert Path(downloaded.value.path()).read_bytes() == b"Replacement instructions"
     assert page.evaluate("""async () => {
       const db=await new Promise(resolve=>{const request=indexedDB.open('itom-knowledge-files-v1',2);request.onsuccess=()=>resolve(request.result)});
       const value=await new Promise(resolve=>{const request=db.transaction('files').objectStore('files').get('reference-file');request.onsuccess=()=>resolve(request.result)});

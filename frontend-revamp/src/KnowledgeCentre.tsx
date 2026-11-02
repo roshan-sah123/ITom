@@ -23,19 +23,19 @@ function KnowledgeIcon({ kind }: { kind: "total" | "validated" | "pending" | "fi
 
 function KnowledgeDetails({ record, onClose }: { record: KnowledgeRecord; onClose: () => void }) {
   const [url, setUrl] = useState("");
-  const [text, setText] = useState("");
+  const downloadOnly = /\.(pdf|docx|txt)$/i.test(record.file.name);
   const [viewFile, setViewFile] = useState(record.file.type.startsWith("video/"));
   const [error, setError] = useState("");
   useEffect(() => {
+    if (downloadOnly) return;
     let cancelled = false, objectUrl = "";
     void knowledgeBlob(record).then(async blob => {
       objectUrl = URL.createObjectURL(blob);
-      const content = record.file.type === "text/plain" ? await blob.text() : "";
-      if (!cancelled) { setUrl(objectUrl); setText(content); }
+      if (!cancelled) { setUrl(objectUrl); }
       else URL.revokeObjectURL(objectUrl);
     }).catch(reason => { if (!cancelled) setError(message(reason)); });
     return () => { cancelled = true; if (objectUrl) URL.revokeObjectURL(objectUrl); };
-  }, [record]);
+  }, [record, downloadOnly]);
   const type = record.file.type;
   return <WorkspaceDialog title={record.name} subtitle={record.file.name} icon={<KnowledgeIcon kind={record.file.type.startsWith("video/") ? "video" : "file"} />} wide className="knowledge-dialog" onClose={onClose}>
     <div className="vendor-detail-metadata">
@@ -44,20 +44,19 @@ function KnowledgeDetails({ record, onClose }: { record: KnowledgeRecord; onClos
     </div>
     <section className="knowledge-description"><h3>Description</h3><p>{record.description}</p></section>
     {error && <p role="alert" className="data-notice">{error}</p>}
-    {viewFile && url && <section className="knowledge-preview" aria-label="File preview">
+    {downloadOnly && <p>Download only. Document contents are not scanned or previewed; open only trusted files.</p>}
+    {!downloadOnly && viewFile && url && <section className="knowledge-preview" aria-label="File preview">
       {type.startsWith("video/") ? <>
         <video src={url} controls playsInline preload="metadata" aria-label={`Watch ${record.name}`}
           onError={() => setError("This browser cannot play this video format. Download the video to open it in a supported player.")} />
         <p>Use the player controls for playback, volume, seeking and full screen.</p>
       </> : type.startsWith("image/") ? <img src={url} alt={record.name} />
-        : type === "application/pdf" ? <iframe title={`View ${record.name}`} src={url} sandbox="allow-scripts" />
-          : type === "text/plain" ? <pre>{text}</pre>
-            : <p>This file format needs a compatible application. Download the file to view it.</p>}
+        : <p>This file format needs a compatible application. Download the file to view it.</p>}
     </section>}
     <div className="knowledge-actions">
-      <button type="button" className="button button--primary" disabled={!url} onClick={() => setViewFile(true)}>View file</button>
-      <a className="button button--secondary" href={url || undefined} download={record.file.name}
-        aria-disabled={!url} onClick={event => { if (!url) event.preventDefault(); }}>{type.startsWith("video/") ? "Download video" : "Download file"}</a>
+      {!downloadOnly && <button type="button" className="button button--primary" disabled={!url} onClick={() => setViewFile(true)}>View file</button>}
+      <a className="button button--secondary" href={downloadOnly ? record.file.url : url || undefined} download={record.file.name}
+        aria-disabled={!downloadOnly && !url} onClick={event => { if (!downloadOnly && !url) event.preventDefault(); }}>{type.startsWith("video/") ? "Download video" : "Download file"}</a>
       <button type="button" className="button button--secondary" onClick={onClose}>Close</button>
     </div>
   </WorkspaceDialog>;

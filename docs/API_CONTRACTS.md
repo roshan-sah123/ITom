@@ -155,8 +155,13 @@ There is no browser-copy button or active browser persistence. Legacy browser
 libraries are neither read, published nor deleted. Operators sharing the API/database see changes after
 refresh, subject to approved gateway authentication and existing module guards.
 Uploads support PDF/DOCX/XLSX/PPTX/TXT, PNG/JPEG/WebP and MP4/WebM/MOV up to 5 MiB.
-Text is displayed as escaped text, images/PDFs preview in the dialog, and videos
-use native controls. Office formats require a compatible downloaded application;
+PDF/DOCX/TXT documents follow the Vendor download-only policy: internal content
+is not inspected, extracted or malware-scanned, and downloads use
+`application/octet-stream`, attachment disposition, no-store, nosniff and sandbox
+CSP. The existing 5 MiB limit, filename/extension/MIME, strict base64 and request
+limits remain enforced. This also applies to previously stored documents.
+Images preview in the dialog and videos use native controls. XLSX/PPTX retain
+their existing content checks and require a compatible downloaded application;
 video playback depends on browser codec support. Validation timestamps come from
 the server, never an editable form field.
 No Figma sample records or figures are shipped.
@@ -238,8 +243,9 @@ Their internal content is not inspected, parsed, extracted or malware-scanned:
 hyperlinks, PDF object streams, encryption and alternative text encodings do
 not cause rejection. Acceptance does not establish a safe or readable document.
 Users must scan downloads and open only trusted files in an appropriate local
-application. Knowledge Centre validation and screenshot checks are unchanged;
-the stricter shared helper remains the default for other callers.
+application. Knowledge Centre PDF/DOCX/TXT use the same opaque-download policy
+with their existing 5 MiB limit; other media validation and screenshot checks
+are unchanged. The stricter shared helper remains the default for other callers.
 
 ## Source integrations
 
