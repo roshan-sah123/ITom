@@ -20,11 +20,12 @@ test("knowledge content requires description and category, without editor valida
   assert.throws(() => validateKnowledgeDraft({ ...draft, description: "" }));
 });
 
-test("knowledge uploads retain all reference formats and enforce the exact 5 MiB limit", () => {
+test("knowledge accepts any non-empty file type and enforces the exact 5 MiB limit", () => {
   for (const [name, type] of [["guide.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"], ["training.mp4", "video/mp4"], ["sheet.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"], ["slides.pptx", "application/vnd.openxmlformats-officedocument.presentationml.presentation"]]) {
-    assert.doesNotThrow(() => validateKnowledgeFile({ name, type, size: 5 * 1024 * 1024 }));
+    assert.equal(validateKnowledgeFile({ name, type, size: 5 * 1024 * 1024 }), "application/octet-stream");
   }
+  assert.equal(validateKnowledgeFile({ name: "payload.exe", type: "application/x-msdownload", size: 100 }), "application/octet-stream");
+  assert.equal(validateKnowledgeFile({ name: "extensionless", type: "", size: 100 }), "application/octet-stream");
   assert.throws(() => validateKnowledgeFile({ name: "guide.txt", type: "text/plain", size: 5 * 1024 * 1024 + 1 }));
-  assert.throws(() => validateKnowledgeFile({ name: "unsafe.html", type: "text/html", size: 100 }));
-  assert.throws(() => validateKnowledgeFile({ name: "fake.pdf", type: "text/html", size: 100 }));
+  assert.throws(() => validateKnowledgeFile({ name: "empty.bin", type: "application/octet-stream", size: 0 }));
 });

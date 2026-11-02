@@ -154,16 +154,15 @@ Content submissions save metadata and file bytes directly to the database.
 There is no browser-copy button or active browser persistence. Legacy browser
 libraries are neither read, published nor deleted. Operators sharing the API/database see changes after
 refresh, subject to approved gateway authentication and existing module guards.
-Uploads support PDF/DOCX/XLSX/PPTX/TXT, PNG/JPEG/WebP and MP4/WebM/MOV up to 5 MiB.
-PDF/DOCX/TXT documents follow the Vendor download-only policy: internal content
-is not inspected, extracted or malware-scanned, and downloads use
+Uploads accept any non-empty file type, with or without an extension, up to 5 MiB.
+File bytes are stored opaquely; content, extension and declared MIME are not
+inspected or malware-scanned. Files and downloads use
 `application/octet-stream`, attachment disposition, no-store, nosniff and sandbox
-CSP. The existing 5 MiB limit, filename/extension/MIME, strict base64 and request
-limits remain enforced. This also applies to previously stored documents.
-Images preview in the dialog and videos use native controls. XLSX/PPTX retain
-their existing content checks and require a compatible downloaded application;
-video playback depends on browser codec support. Validation timestamps come from
-the server, never an editable form field.
+CSP; the UI offers downloads only, including for previously stored files.
+The existing filename/path-character, strict base64, 5 MiB file and 7 MiB request
+limits, and admin-key guards remain enforced. Treat every download as untrusted
+and scan it with approved endpoint protection before opening. Validation
+timestamps come from the server, never an editable form field.
 No Figma sample records or figures are shipped.
 
 ## Vendor submissions

@@ -1,14 +1,8 @@
 import base64
 import hashlib
-import io
 import json
-import unicodedata
-import warnings
 from datetime import datetime, timezone
-from pathlib import Path, PurePosixPath
-from zipfile import BadZipFile, ZipFile
 
-from PIL import Image, UnidentifiedImageError
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import func, select, update
 from sqlalchemy.orm import undefer
@@ -17,16 +11,9 @@ from starlette.concurrency import run_in_threadpool
 
 from app.models.knowledge import KnowledgeContent
 from app.services.vendor_submission_service import VendorConflict, iso_time
-from frontend.vendor_management_server import clean_text, safe_xml, validate_sop
+from frontend.vendor_management_server import clean_text
 
 MAX_FILE = 5 * 1024 * 1024
-FORMATS = {
-    ".pdf": "application/pdf", ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    ".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-    ".txt": "text/plain", ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
-    ".webp": "image/webp", ".mp4": "video/mp4", ".webm": "video/webm", ".mov": "video/quicktime",
-}
 
 
 class KnowledgeFileInput(BaseModel):
@@ -50,10 +37,6 @@ def validate_file(file: KnowledgeFileInput):
     name = clean_text(file.name, "Filename", 150)
     if any(char in name for char in '/\\:<>"|?*') or name.startswith(".") or name.endswith((".", " ")):
         raise ValueError("Use a simple filename without path characters.")
-    extension = Path(name).suffix.lower()
-    mime = FORMATS.get(extension)
-    if not mime or mime != file.type:
-        raise ValueError("Unsupported file format or mismatched MIME type.")
     if len(file.data) > ((MAX_FILE + 2) // 3) * 4:
         raise ValueError("Knowledge files must be at most 5 MiB.")
     try:
@@ -62,67 +45,7 @@ def validate_file(file: KnowledgeFileInput):
         raise ValueError("Invalid file base64 content.") from error
     if not 0 < len(raw) <= MAX_FILE:
         raise ValueError("Knowledge files must be non-empty and at most 5 MiB.")
-    if extension in {".pdf", ".docx", ".txt"}:
-        validate_sop({"name": name, "data": file.data}, download_only=True)
-    elif mime.startswith("image/"):
-        try:
-            with warnings.catch_warnings():
-                warnings.simplefilter("error", Image.DecompressionBombWarning)
-                with Image.open(io.BytesIO(raw)) as image:
-                    if Image.MIME.get(image.format) != mime or image.width * image.height > 16_000_000:
-                        raise ValueError("Image content must match its extension and be at most 16 megapixels.")
-                    image.verify()
-                with Image.open(io.BytesIO(raw)) as image:
-                    image.load()
-        except (UnidentifiedImageError, OSError, Image.DecompressionBombError, Image.DecompressionBombWarning) as error:
-            raise ValueError("Invalid image content.") from error
-    elif extension in {".xlsx", ".pptx"}:
-        try:
-            with ZipFile(io.BytesIO(raw)) as archive:
-                entries = archive.infolist()
-                names = {entry.filename for entry in entries}
-                required = "xl/workbook.xml" if extension == ".xlsx" else "ppt/presentation.xml"
-                if (required not in names or "[Content_Types].xml" not in names or len(entries) > 2000
-                        or len({name.casefold() for name in names}) != len(entries)):
-                    raise ValueError("Invalid Office document structure.")
-                if sum(entry.file_size for entry in entries) > 30 * 1024 * 1024:
-                    raise ValueError("Expanded Office document exceeds 30 MiB.")
-                for entry in entries:
-                    if (entry.flag_bits & 1 or entry.filename.startswith("/") or ".." in PurePosixPath(entry.filename).parts
-                            or "\\" in entry.filename or ":" in entry.filename
-                            or any(unicodedata.category(char).startswith("C") for char in entry.filename)):
-                        raise ValueError("Unsafe Office archive.")
-                    if any(marker in entry.filename.lower() for marker in ("vbaproject", "activex", "embeddings", "externallinks")):
-                        raise ValueError("Active or embedded Office content is not supported.")
-                    if entry.filename.endswith((".xml", ".rels")):
-                        with archive.open(entry) as stream:
-                            data = stream.read(10 * 1024 * 1024 + 1)
-                            if len(data) > 10 * 1024 * 1024 or stream.read(1):
-                                raise ValueError("Office XML entry exceeds 10 MiB.")
-                        root = safe_xml(data)
-                        if b"macroenabled" in data.lower():
-                            raise ValueError("Macro-enabled Office content is not supported.")
-                        if entry.filename.endswith(".rels"):
-                            for relation in root:
-                                if relation.get("TargetMode", "Internal") != "Internal":
-                                    raise ValueError("External Office content is not supported.")
-                        if entry.filename == required:
-                            expected = ("{http://schemas.openxmlformats.org/spreadsheetml/2006/main}workbook"
-                                        if extension == ".xlsx" else
-                                        "{http://schemas.openxmlformats.org/presentationml/2006/main}presentation")
-                            if root.tag != expected:
-                                raise ValueError("Invalid Office document root.")
-        except (BadZipFile, RuntimeError, NotImplementedError, OSError) as error:
-            raise ValueError("Invalid Office file.") from error
-    elif extension == ".webm":
-        if not raw.startswith(b"\x1a\x45\xdf\xa3") or b"webm" not in raw[:4096]:
-            raise ValueError("Invalid WebM file header.")
-    elif extension in {".mp4", ".mov"}:
-        size = int.from_bytes(raw[:4], "big")
-        markers = {b"ftyp"} if extension == ".mp4" else {b"ftyp", b"moov", b"mdat", b"wide", b"free"}
-        if len(raw) < 12 or raw[4:8] not in markers or (size not in {0, 1} and (size < 8 or size > len(raw))):
-            raise ValueError("Invalid video container header.")
-    return {"file_name": name, "file_type": mime, "file_size": len(raw), "file_data": raw}
+    return {"file_name": name, "file_type": "application/octet-stream", "file_size": len(raw), "file_data": raw}
 
 
 class KnowledgeService:

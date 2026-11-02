@@ -37,8 +37,11 @@ def add_content(page, name="Journey guide"):
     ("compressed.pdf", "application/pdf", b"%PDF-1.7 /ObjStm /Encrypt"),
     ("linked.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", b"PK\x03\x04opaque document"),
     ("encoded.txt", "text/plain", b"\xff\xfeT\x00e\x00x\x00t\x00"),
+    ("external.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", b"invalid workbook with external references"),
+    ("payload.exe", "application/x-msdownload", b"opaque executable bytes"),
+    ("extensionless", "", b"arbitrary binary\x00bytes"),
 ])
-def test_knowledge_opaque_document_upload_download(module_portal_url, browser_context, filename, mime, raw):
+def test_knowledge_arbitrary_file_upload_download(module_portal_url, browser_context, filename, mime, raw):
     page = browser_context.new_page()
     open_knowledge(page, module_portal_url)
     page.get_by_role("button", name="+ Add content", exact=True).click()
@@ -48,11 +51,13 @@ def test_knowledge_opaque_document_upload_download(module_portal_url, browser_co
     form.get_by_label("Content type *", exact=True).select_option("Other")
     form.get_by_label("Other category *", exact=True).fill("Reference")
     form.locator("input[type=file]").set_input_files({"name": filename, "mimeType": mime, "buffer": raw})
+    expect(form).to_contain_text("Any file type up to 5 MiB")
+    expect(form).to_contain_text("download-only")
     form.get_by_role("button", name="Add content", exact=True).click()
     expect(form).not_to_be_visible()
     page.get_by_role("button", name="Open", exact=True).click()
     details = page.get_by_role("dialog", name="Opaque document", exact=True)
-    expect(details).to_contain_text("not scanned or previewed")
+    expect(details).to_contain_text("not inspected, scanned, or previewed")
     expect(details.locator("iframe, pre")).to_have_count(0)
     expect(details.get_by_role("button", name="View file", exact=True)).to_have_count(0)
     with page.expect_download() as downloaded:
@@ -174,7 +179,7 @@ def test_knowledge_submission_shared_across_profiles_without_publishing_legacy_c
     page.close()
 
 
-def test_knowledge_video_playback_and_browser_storage_independence(module_portal_url, browser_context):
+def test_knowledge_video_is_download_only_and_browser_storage_independence(module_portal_url, browser_context):
     page = browser_context.new_page()
     open_knowledge(page, module_portal_url)
     video = page.evaluate("""async () => {
@@ -201,11 +206,12 @@ def test_knowledge_video_playback_and_browser_storage_independence(module_portal
     form.locator("input[type=file]").set_input_files({"name": "journey.webm", "mimeType": "video/webm", "buffer": base64.b64decode(video)})
     form.get_by_role("button", name="Add content", exact=True).click()
     page.get_by_role("button", name="Open", exact=True).click()
-    player = page.get_by_role("dialog", name="Video journey").locator("video")
-    expect(player).to_be_visible()
-    page.wait_for_function("document.querySelector('.knowledge-preview video').readyState >= 2")
-    player.evaluate("video => video.play()")
-    page.wait_for_function("document.querySelector('.knowledge-preview video').currentTime > 0")
+    details = page.get_by_role("dialog", name="Video journey")
+    expect(details).to_contain_text("not inspected, scanned, or previewed")
+    expect(details.locator("video, img, iframe, pre")).to_have_count(0)
+    with page.expect_download() as downloaded:
+        details.get_by_role("link", name="Download file", exact=True).click()
+    assert Path(downloaded.value.path()).read_bytes() == base64.b64decode(video)
     page.close()
     unavailable = browser_context.new_page()
     unavailable.add_init_script("Object.defineProperty(window, 'indexedDB', {value: undefined});")

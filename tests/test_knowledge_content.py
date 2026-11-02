@@ -25,9 +25,13 @@ def content(request_id="a" * 32):
     ("compressed.pdf", "application/pdf", b"%PDF-1.7 /ObjStm /Encrypt /OpenAction"),
     ("linked.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", b"PK\x03\x04opaque external-linked document"),
     ("instructions.txt", "text/plain", b"\xff\xfeT\x00e\x00x\x00t\x00"),
+    ("external-links.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+     b"not a workbook; external connections and active content are not inspected"),
+    ("payload.exe", "application/x-msdownload", b"arbitrary executable bytes"),
+    ("extensionless", "", b"unrecognized binary\x00payload"),
 ])
 @pytest.mark.asyncio
-async def test_knowledge_opaque_documents_upload_edit_and_download(knowledge_client, name, mime, raw):
+async def test_knowledge_arbitrary_files_upload_edit_and_download(knowledge_client, name, mime, raw):
     body = content()
     body["file"] = {"name": name, "type": mime, "data": base64.b64encode(raw).decode()}
     response = await knowledge_client.post("/api/v1/knowledge/content", json=body)
@@ -87,7 +91,12 @@ async def test_knowledge_server_rejects_validation_bypass_invalid_files_and_limi
     body = content()
     body["file"]["name"] = "fake.png"
     body["file"]["type"] = "image/png"
-    assert (await client.post("/api/v1/knowledge/content", json=body)).status_code == 422
+    body["file"]["data"] = base64.b64encode(b"not an image").decode()
+    uploaded = await client.post("/api/v1/knowledge/content", json=body)
+    assert uploaded.status_code == 201, uploaded.text
+    download = await client.get(f'/api/v1/knowledge/content/{uploaded.json()["id"]}/file')
+    assert download.content == b"not an image"
+    assert download.headers["content-type"] == "application/octet-stream"
     body = content()
     body["file"]["data"] = base64.b64encode(b"x" * (5 * 1024 * 1024 + 1)).decode()
     assert (await client.post("/api/v1/knowledge/content", json=body)).status_code == 422
@@ -97,19 +106,23 @@ async def test_knowledge_server_rejects_validation_bypass_invalid_files_and_limi
 
 
 @pytest.mark.asyncio
-async def test_knowledge_files_require_valid_office_xml_and_key_configuration(knowledge_client, monkeypatch):
+async def test_knowledge_does_not_inspect_office_content_and_requires_key_configuration(knowledge_client, monkeypatch):
     from app.core.config import settings
-    from app.services.knowledge_service import FORMATS
     client = knowledge_client
     body = content()
     stream = io.BytesIO()
     with ZipFile(stream, "w") as archive:
         archive.writestr("[Content_Types].xml", "<Types/>")
         archive.writestr("xl/workbook.xml", "not XML")
-    body["file"] = {"name": "sheet.xlsx", "type": FORMATS[".xlsx"],
+    body["file"] = {"name": "sheet.xlsx", "type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                     "data": base64.b64encode(stream.getvalue()).decode()}
-    assert (await client.post("/api/v1/knowledge/content", json=body)).status_code == 422
-    created = (await client.post("/api/v1/knowledge/content", json=content())).json()
+    uploaded = await client.post("/api/v1/knowledge/content", json=body)
+    assert uploaded.status_code == 201, uploaded.text
+    assert uploaded.json()["file"]["type"] == "application/octet-stream"
+    download = await client.get(f'/api/v1/knowledge/content/{uploaded.json()["id"]}/file')
+    assert download.content == stream.getvalue()
+    assert download.headers["content-type"] == "application/octet-stream"
+    created = (await client.post("/api/v1/knowledge/content", json=content("b" * 32))).json()
     monkeypatch.setattr(settings, "CMDB_INVENTORY_ADMIN_TOKEN", None)
     response = await client.post(f'/api/v1/knowledge/content/{created["id"]}/validate',
                                  json={"reviewer": "Reviewer", "expected_revision": 1})
@@ -158,7 +171,6 @@ async def test_knowledge_exact_file_limit_replacement_and_same_cmdb_key(knowledg
 async def test_knowledge_supported_images_and_office_formats(knowledge_client, extension):
     from PIL import Image
     import openpyxl
-    from app.services.knowledge_service import FORMATS
     stream = io.BytesIO()
     if extension in {".png", ".jpg", ".webp"}:
         Image.new("RGB", (4, 4)).save(stream, format={".png": "PNG", ".jpg": "JPEG", ".webp": "WEBP"}[extension])
@@ -172,12 +184,12 @@ async def test_knowledge_supported_images_and_office_formats(knowledge_client, e
             archive.writestr("[Content_Types].xml", '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"/>')
             archive.writestr("ppt/presentation.xml", '<p:presentation xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"/>')
     body = content()
-    body["file"] = {"name": "resource" + extension, "type": FORMATS[extension],
+    body["file"] = {"name": "resource" + extension, "type": "application/octet-stream",
                     "data": base64.b64encode(stream.getvalue()).decode()}
     created = await knowledge_client.post("/api/v1/knowledge/content", json=body)
     assert created.status_code == 201, created.text
     downloaded = await knowledge_client.get(f'/api/v1/knowledge/content/{created.json()["id"]}/file')
-    assert downloaded.headers["content-type"].split(";")[0] == FORMATS[extension]
+    assert downloaded.headers["content-type"] == "application/octet-stream"
     assert created.status_code == 201, created.text
     assert (await knowledge_client.get(created.json()["file"]["url"])).content == stream.getvalue()
 

@@ -1,5 +1,4 @@
 import json
-from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
@@ -39,7 +38,7 @@ async def json_body(request: Request, schema, limit):
         return schema.model_validate(json.loads(raw.decode("utf-8"), parse_constant=reject_constant,
                                                         object_pairs_hook=unique_object))
     except (ValidationError, ValueError, UnicodeError, RecursionError) as error:
-        raise HTTPException(422, "Provide valid content/reviewer details, revision and a supported file up to 5 MiB.") from error
+        raise HTTPException(422, "Provide valid content/reviewer details, revision and a non-empty file up to 5 MiB.") from error
 
 
 async def content_body(request: Request):
@@ -79,5 +78,4 @@ async def delete_content(identifier: int, expected_revision: int = Query(..., ge
 @router.get("/{identifier}/file")
 async def download_content(identifier: int, session=Depends(get_module_db)):
     row = await operation(KnowledgeService(session).get(identifier, file=True), session, label="Knowledge")
-    return file_response({"name": row.file_name, "mime": row.file_type}, raw=row.file_data,
-                         download_only=Path(row.file_name).suffix.lower() in {".pdf", ".docx", ".txt"})
+    return file_response({"name": row.file_name, "mime": row.file_type}, raw=row.file_data, download_only=True)

@@ -4,15 +4,27 @@ The supported runtime is `app.main:app`. It serves `frontend/` and the database-
 
 ## UI revamp deployment handoff
 
-### Knowledge document attachment compatibility update
+### Knowledge opaque file upload update
 
-Knowledge Centre now accepts PDF, DOCX and TXT as opaque download-only documents,
-matching Vendor's internal-content policy while retaining Knowledge's existing
-5 MiB limit and 7 MiB request cap. Filename, extension/MIME and base64 checks,
-admin-key enforcement, revisions and atomic file storage remain intact.
-Documents are not scanned, extracted or previewed; open only trusted downloads
-after approved endpoint scanning. Existing stored documents also download only.
-Image/video previews and XLSX/PPTX validation retain their existing behavior.
+Knowledge Centre accepts any non-empty file type, with or without an extension,
+as an opaque download-only attachment. No extension, declared MIME or file
+contents are inspected or malware-scanned. The 5 MiB file and 7 MiB request
+limits, safe filename checks, strict base64 validation, admin-key enforcement,
+revisions and atomic file storage remain. All downloads use
+`application/octet-stream` with attachment, no-store, nosniff and sandbox CSP;
+the UI does not preview files. Treat all files as untrusted and scan them with
+approved endpoint protection before opening.
+
+The matching UI and backend are deployed on port 8080 and the HTTPS portal using
+the existing startup task. No database migration or runtime configuration
+changed. Regression tests cover arbitrary extensions/MIME, opaque bytes,
+download headers and preserved size/admin controls: 145 API tests, 25 frontend
+tests, the TypeScript/Vite build and 10 browser journeys passed. Live HTTPS
+validation accepted synthetic XLSX, EXE and extensionless uploads through the
+file checks, then returned 404 for a nonexistent target without saving records.
+Live Edge verified an arbitrary-extension file selection and the warning text;
+the form was not submitted. Readiness/module routes and source summaries returned
+200, and telemetry remained FRESH.
 The matching frontend and backend are deployed on 8080 and the HTTPS portal,
 using the existing startup task after a private previous-source/static-entry
 backup and verified SQLite snapshot. No database migration or runtime

@@ -4,14 +4,7 @@ export const KNOWLEDGE_CATEGORIES = [
   "Training Video", "Training Presentation", "User Guide", "Policy / Standard",
   "Troubleshooting Guide", "Other",
 ] as const;
-export const KNOWLEDGE_ACCEPT = ".pdf,.docx,.xlsx,.pptx,.txt,.png,.jpg,.jpeg,.webp,.mp4,.webm,.mov";
-const FORMATS: Record<string, string> = {
-  pdf: "application/pdf", docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-  txt: "text/plain", png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg",
-  webp: "image/webp", mp4: "video/mp4", webm: "video/webm", mov: "video/quicktime",
-};
+const KNOWLEDGE_FILE_TYPE = "application/octet-stream";
 export type KnowledgeStatus = "All" | "Validated" | "Pending";
 export type KnowledgeDraft = { name: string; description: string; category: string };
 export type KnowledgeRecord = KnowledgeDraft & {
@@ -38,10 +31,9 @@ export function validateKnowledgeDraft(draft: KnowledgeDraft) {
   }
 }
 export function validateKnowledgeFile(file: Pick<File, "name" | "type" | "size">) {
-  const type = FORMATS[file.name.split(".").pop()?.toLowerCase() || ""];
-  if (!type || (file.type && file.type !== type) || file.size <= 0 || file.size > 5 * 1024 * 1024)
-    throw new Error("Use PDF, DOCX, XLSX, PPTX, TXT, PNG, JPEG, WebP, MP4, WebM or MOV, non-empty and up to 5 MiB.");
-  return type;
+  if (file.size <= 0 || file.size > 5 * 1024 * 1024)
+    throw new Error("Choose a non-empty file up to 5 MiB.");
+  return KNOWLEDGE_FILE_TYPE;
 }
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const response = await fetch(`/api/v1/knowledge/content${path}`, {
@@ -99,9 +91,4 @@ export async function validateKnowledge(record: KnowledgeRecord, reviewer: strin
 export async function deleteKnowledge(record: KnowledgeRecord, key: string) {
   if (!key) throw new Error("Enter the CMDB admin key.");
   await request(`/${record.id}?expected_revision=${record.revision}`, { method: "DELETE", headers: { Authorization: `Bearer ${key}` } }); notify();
-}
-export async function knowledgeBlob(record: KnowledgeRecord): Promise<Blob> {
-  const response = await fetch(record.file.url, { signal: AbortSignal.timeout(30000) });
-  if (!response.ok) throw new Error(`Stored file could not be loaded (${response.status}).`);
-  return response.blob();
 }
