@@ -60,6 +60,7 @@ function WorkbookInventoryDialog({
   onChange: () => void;
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
+  const [fullScreen, setFullScreen] = useState(false);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
@@ -194,7 +195,7 @@ function WorkbookInventoryDialog({
   return (<>
     <dialog
       aria-labelledby="asset-inventory-title"
-      className="asset-inventory-dialog"
+      className={`asset-inventory-dialog${fullScreen ? " asset-inventory-dialog--fullscreen" : ""}`}
       ref={dialogRef}
       onCancel={(event) => {
         event.preventDefault();
@@ -223,8 +224,23 @@ function WorkbookInventoryDialog({
             if (editMode) setEditMode(false);
             else { setDialogError(""); setEnablePrompt(true); }
           }}>{editMode ? "Done editing" : "Edit mode"}</button>
+        </div>
+        <div className="asset-dialog__window-controls">
+          <button
+            aria-label={fullScreen ? `Restore ${label} inventory size` : `Full screen ${label} inventory`}
+            aria-pressed={fullScreen}
+            title={fullScreen ? "Restore size" : "Full screen"}
+            className="asset-dialog__close"
+            onClick={() => setFullScreen(value => !value)}
+            type="button"
+          >
+            <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+              <path d={fullScreen ? "M9 3v6H3m18 0h-6V3M3 15h6v6m6 0v-6h6" : "M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"} />
+            </svg>
+          </button>
           <button
             aria-label={`Close ${label} inventory`}
+            title="Close"
             className="asset-dialog__close"
             onClick={onClose}
             type="button"
@@ -232,7 +248,6 @@ function WorkbookInventoryDialog({
             ×
           </button>
         </div>
-        <p className="asset-review-note">Workbook sources remain unchanged. Edits and row/cell validation are saved in a separate portal inventory. Operator names are self-reported.</p>
         {notice && <p role="status" className="vendor-notice">{notice}</p>}
       </div>
 

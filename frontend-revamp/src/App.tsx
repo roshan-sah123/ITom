@@ -102,8 +102,8 @@ const navigation = [
   "Digital Workspace",
   "Assets Analytics",
   "Knowledge Center",
-  "Automations",
   "Vendor Management",
+  "Automations",
 ];
 
 const navigationIcons: Record<string, IconName> = {

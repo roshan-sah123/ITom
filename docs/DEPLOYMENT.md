@@ -4,6 +4,32 @@ The supported runtime is `app.main:app`. It serves `frontend/` and the database-
 
 ## UI revamp deployment handoff
 
+### Asset dialog UI deployment (8080 and 5173)
+
+The current React preview places Vendor Management before Automations.
+Server, Network and Telecom inventory dialogs have top-right fullscreen/restore
+and close controls; fullscreen expands within the browser viewport and preserves
+search, pagination and loaded records. Escape still closes the inventory.
+The explanatory workbook/reviewer paragraph is removed from the dialog header;
+source provenance and admin/reviewer requirements are unchanged.
+
+After preview approval, only the matching CSS/JS and HTML entry point were
+deployed to 8080. Existing assets and a private copy of the previous entry point
+were retained for rollback. The API process was not restarted; backend source,
+runtime configuration, database schemas and ingestion settings were unchanged.
+The new assets are `index-zCH6sAQl.js` and `index-C77Zs5vD.css`.
+
+The TypeScript/build check and three isolated asset browser journeys passed,
+including desktop/mobile sizing, nested admin dialogs and Escape closing.
+Live Edge checks passed on both localhost:8080 and the HTTPS portal for navigation
+order, all three persisted inventories, top-right close, fullscreen/restore and
+paragraph removal without changing records. Both readiness endpoints, source
+summaries and module read smoke checks returned 200.
+
+For future previews, build into an isolated output and run
+`tests/browser/test_asset_reviews.py --run-browser`; do not write into the live
+`frontend/` directory merely to test changes.
+
 ### Deploying this branch on another server
 
 Use `feature/itom-main-preview`, which contains the latest-main integration,

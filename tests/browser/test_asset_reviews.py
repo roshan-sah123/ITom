@@ -89,3 +89,53 @@ def test_cmdb_categories_row_cell_reviews_edit_export_add_delete(asset_portal_ur
         inventory.get_by_role("button", name=f"Close {label} inventory", exact=True).click()
     assert page.url == asset_portal_url
     page.close()
+
+
+@pytest.mark.parametrize("viewport", [{"width": 1440, "height": 900}, {"width": 390, "height": 844}])
+def test_asset_dialog_corner_controls_fullscreen_and_navigation_order(asset_portal_url, browser_context, viewport):
+    page = browser_context.new_page()
+    page.set_viewport_size(viewport)
+    page.goto(asset_portal_url)
+    navigation = page.get_by_role("navigation", name="Primary navigation")
+    labels = navigation.get_by_role("button").all_text_contents()
+    assert next(i for i, label in enumerate(labels) if "Vendor Management" in label) < next(
+        i for i, label in enumerate(labels) if "Automations" in label)
+    page.get_by_role("button", name="Assets Analytics", exact=True).click()
+    for label in ["Servers", "Network devices", "Telecom"]:
+        page.get_by_role("button", name=f"Open {label} inventory", exact=True).click()
+        inventory = page.get_by_role("dialog", name=label, exact=True)
+        expect(inventory.locator("tbody tr")).to_have_count(1)
+        expect(inventory.get_by_text("Workbook sources remain unchanged.", exact=False)).to_have_count(0)
+        close = inventory.get_by_role("button", name=f"Close {label} inventory", exact=True)
+        expand = inventory.get_by_role("button", name=f"Full screen {label} inventory", exact=True)
+        expect(close).to_be_visible()
+        expect(expand).to_be_visible()
+        original = inventory.bounding_box()
+        corner = close.bounding_box()
+        assert 0 <= original["x"] + original["width"] - corner["x"] - corner["width"] <= 25
+        assert 0 <= corner["y"] - original["y"] <= 25
+        inventory.get_by_role("searchbox").fill("Delhi")
+        expand.click()
+        restore = inventory.get_by_role("button", name=f"Restore {label} inventory size", exact=True)
+        expect(restore).to_have_attribute("aria-pressed", "true")
+        fullscreen = inventory.bounding_box()
+        assert abs(fullscreen["width"] - viewport["width"]) <= 2
+        assert abs(fullscreen["height"] - viewport["height"]) <= 2
+        expect(inventory.get_by_role("searchbox")).to_have_value("Delhi")
+        expect(inventory.locator("tbody tr")).to_have_count(1)
+        inventory.get_by_role("button", name="Edit mode", exact=True).click()
+        unlock = page.get_by_role("dialog", name="Enable inventory editing")
+        expect(unlock).to_be_visible()
+        assert_centered(unlock)
+        unlock.get_by_role("button", name="Close Enable inventory editing", exact=True).click()
+        restore.click()
+        expect(expand).to_have_attribute("aria-pressed", "false")
+        assert abs(inventory.bounding_box()["width"] - original["width"]) <= 2
+        close.click()
+        expect(inventory).to_have_count(0)
+        page.get_by_role("button", name=f"Open {label} inventory", exact=True).click()
+        expect(page.get_by_role("button", name=f"Full screen {label} inventory")).to_have_attribute("aria-pressed", "false")
+        page.get_by_role("button", name=f"Full screen {label} inventory").click()
+        page.keyboard.press("Escape")
+        expect(inventory).to_have_count(0)
+    page.close()
