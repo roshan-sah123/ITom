@@ -209,7 +209,7 @@ def validate_docx(data):
         raise ValueError("Invalid or unsupported DOCX archive.") from error
 
 
-def validate_sop(value):
+def validate_sop(value, *, download_only=False):
     if value is None:
         return None
     if not isinstance(value, dict) or set(value) != {"name", "data"}:
@@ -229,6 +229,10 @@ def validate_sop(value):
         raise ValueError("Invalid SOP base64 data.") from error
     if not 0 < len(data) <= MAX_FILE:
         raise ValueError("SOP must contain 1 byte to 10 MiB.")
+    if download_only:
+        # Opaque attachments are never parsed, extracted or previewed by the portal.
+        return {"name": name, "mime": "application/octet-stream", "data": data,
+                "size": len(data), "sha256": hashlib.sha256(data).hexdigest()}
     if extension == ".txt":
         try:
             text = data.decode("utf-8-sig")

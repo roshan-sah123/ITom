@@ -117,7 +117,58 @@ async def test_vendor_sop_optional_and_download_is_safe(vendor_client):
     assert download.headers["content-disposition"].startswith("attachment;")
     body["request_id"] = "c" * 32
     body["sop"] = {"name": "guide.txt", "data": base64.b64encode(b"<script>unsafe</script>").decode()}
-    assert (await vendor_client.post("/api/v1/vendors/submissions", json=body)).status_code == 422
+    result = await vendor_client.post("/api/v1/vendors/submissions", json=body)
+    assert result.status_code == 201
+    download = await vendor_client.get(f'/api/v1/vendors/submissions/{result.json()["id"]}/sop')
+    assert download.content == b"<script>unsafe</script>"
+    assert download.headers["content-type"] == "application/octet-stream"
+    assert download.headers["content-disposition"].startswith("attachment;")
+
+
+@pytest.mark.parametrize("name,data", [
+    ("compressed.pdf", b"%PDF-1.7\n1 0 obj << /Type /ObjStm /Encrypt 2 0 R /OpenAction 3 0 R >> endobj\nstartxref\n0\n%%EOF"),
+    ("linked.docx", b"PK\x03\x04uninspected document with external relationships"),
+    ("instructions.txt", b"\xff\xfeL\x00i\x00n\x00k\x00"),
+])
+@pytest.mark.asyncio
+async def test_vendor_sop_is_opaque_download_and_survives_edit(vendor_client, name, data):
+    body = submission()
+    body["sop"] = {"name": name, "data": base64.b64encode(data).decode()}
+    response = await vendor_client.post("/api/v1/vendors/submissions", json=body)
+    assert response.status_code == 201, response.text
+    identifier = response.json()["id"]
+    path = f"/api/v1/vendors/submissions/{identifier}"
+    detail = (await vendor_client.get(path + "?include_files=true")).json()
+    assert detail["sop_file"] == body["sop"]
+    edit = {**detail["draft"], "request_id": "b" * 32, "sop": detail["sop_file"], "expected_revision": 1}
+    assert (await vendor_client.put(path, json=edit)).status_code == 200
+    download = await vendor_client.get(path + "/sop")
+    assert download.content == data
+    assert download.headers["content-type"] == "application/octet-stream"
+    assert download.headers["content-disposition"].startswith("attachment;")
+    assert download.headers["x-content-type-options"] == "nosniff"
+    assert "sandbox" in download.headers["content-security-policy"]
+
+
+@pytest.mark.parametrize("sop", [
+    {"name": "script.exe", "data": "YWJj"},
+    {"name": "../guide.pdf", "data": "YWJj"},
+    {"name": "guide.pdf", "data": "not-base64!"},
+    {"name": "guide.pdf", "data": ""},
+])
+@pytest.mark.asyncio
+async def test_vendor_sop_still_rejects_bad_envelopes(vendor_client, sop):
+    assert (await vendor_client.post("/api/v1/vendors/submissions", json={**submission(), "sop": sop})).status_code == 422
+
+
+def test_vendor_sop_keeps_exact_ten_mib_limit():
+    from app.services.vendor_submission_service import SubmissionInput, validated_document
+    body = submission()
+    body["sop"] = {"name": "large.pdf", "data": base64.b64encode(b"x" * (10 * 1024 * 1024)).decode()}
+    assert validated_document(SubmissionInput.model_validate(body))["sop"]["size"] == 10 * 1024 * 1024
+    body["sop"]["data"] = base64.b64encode(b"x" * (10 * 1024 * 1024 + 1)).decode()
+    with pytest.raises(ValueError, match="10 MiB"):
+        validated_document(SubmissionInput.model_validate(body))
 
 
 @pytest.mark.asyncio

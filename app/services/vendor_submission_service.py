@@ -86,7 +86,7 @@ def validated_document(body: SubmissionInput) -> dict:
         if any(not text.strip() for text in texts.values()):
             raise ValueError("What to do and How to do are required for every step.")
         steps.append({**texts, "image": validate_image(step.image) if step.image else None})
-    sop = validate_sop(body.sop.model_dump() if body.sop else None)
+    sop = validate_sop(body.sop.model_dump() if body.sop else None, download_only=True)
     return {
         "vendor": clean_text(body.vendor, "Vendor name", 100),
         "method": clean_text(body.method, "Method", 80),

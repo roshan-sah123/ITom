@@ -4,6 +4,24 @@ The supported runtime is `app.main:app`. It serves `frontend/` and the database-
 
 ## UI revamp deployment handoff
 
+### Vendor SOP attachment compatibility update
+
+The approved relaxation is deployed on 8080 and the HTTPS portal: PDF, DOCX and
+TXT SOPs are accepted as opaque download-only attachments up to 10 MiB. Internal
+content checks do not reject links, PDF object streams, encryption or text
+encodings; the portal does not scan or preview them. Downloads must be treated
+as untrusted and checked with approved endpoint protection before opening.
+Filename/extension, base64, file/request-size limits, screenshot checks and
+admin-key guards remain enforced. Knowledge and Assets validation is unchanged.
+
+The matching UI and Vendor backend were deployed using the existing startup
+task, with a private previous-source/static-entry backup and verified module
+snapshot. No runtime configuration or database migration changed. Live HTTPS
+nonexistent-record edit probes passed PDF/DOCX/TXT attachment validation and
+returned 404 without saving records; readiness and both source summaries
+returned 200 and telemetry remained FRESH. Isolated browser journeys cover
+upload/save/download for each type, screenshots and existing asset dialogs.
+
 ### Asset dialog UI deployment (8080 and 5173)
 
 The current React preview places Vendor Management before Automations.
@@ -438,6 +456,15 @@ while a tombstone prevents a retry from recreating a deleted submission.
 Displayed serials are consecutive active-record ranks in creation order;
 database IDs remain unchanged. Search/pagination preserve the global sequence.
 SOPs are optional for every method, with PDF/DOCX/TXT limited to 10 MiB.
+Vendor SOP content restrictions are relaxed by explicit request: these files
+are stored as opaque bytes, not parsed, extracted or scanned. Filenames,
+extensions, strict base64, the 10 MiB file limit and 14 MiB request cap remain
+enforced. Compressed/encrypted PDFs, linked DOCX documents and non-UTF-8 TXT
+attachments are accepted. This does not certify their safety or readability.
+SOP downloads use `application/octet-stream`, attachment disposition, `nosniff`,
+no-store and sandbox CSP; the portal no longer offers SOP previews. Screenshot
+previews and Knowledge Centre validation are unchanged. Scan downloaded files
+with approved endpoint protection and open only trusted documents.
 Each step supports a validated PNG/JPEG/WebP image up to 1.5 MiB and 16 megapixels.
 The complete JSON request is limited to 14 MiB.
 

@@ -22,11 +22,9 @@ const errorMessage = (reason: unknown) => reason instanceof Error ? reason.messa
 const dateLabel = (value: string | null) => value ? new Date(value).toLocaleString() : "—";
 
 function VendorAttachmentPreview({ attachment, onClose }: {
-  attachment: { name: string; url: string; image: boolean }; onClose: () => void;
+  attachment: { name: string; url: string }; onClose: () => void;
 }) {
   const [url, setUrl] = useState("");
-  const [mime, setMime] = useState("");
-  const [text, setText] = useState("");
   const [error, setError] = useState("");
   useEffect(() => {
     const controller = new AbortController();
@@ -34,21 +32,18 @@ function VendorAttachmentPreview({ attachment, onClose }: {
     void fetch(attachment.url, { signal: controller.signal }).then(async response => {
       if (!response.ok) throw new Error(`Attachment could not be loaded (${response.status}).`);
       const blob = await response.blob();
-      const content = blob.type.startsWith("text/plain") ? await blob.text() : "";
       if (controller.signal.aborted) return;
-      objectUrl = URL.createObjectURL(blob); setUrl(objectUrl); setMime(blob.type); setText(content);
+      objectUrl = URL.createObjectURL(blob); setUrl(objectUrl);
     }).catch(reason => { if (!controller.signal.aborted) setError(errorMessage(reason)); });
     return () => { controller.abort(); if (objectUrl) URL.revokeObjectURL(objectUrl); };
   }, [attachment]);
-  return <VendorDialog title={attachment.image ? "Screenshot preview" : "SOP preview"} wide onClose={onClose}>
+  return <VendorDialog title="Screenshot preview" wide onClose={onClose}>
     <p>{attachment.name}</p>
     {error && <p role="alert" className="data-notice">{error}</p>}
     {url ? <section className="knowledge-preview">
-      {attachment.image ? <img src={url} alt={attachment.name} /> : mime.startsWith("text/plain") ? <pre>{text}</pre>
-        : mime === "application/pdf" ? <iframe title={attachment.name} src={url} sandbox="allow-scripts" />
-          : <p>Download this document to view it in a compatible application.</p>}
+      <img src={url} alt={attachment.name} />
     </section> : !error && <p role="status">Loading attachment…</p>}
-    <a className="button button--secondary" href={attachment.url} download={attachment.name}>Download {attachment.image ? "image" : "SOP"}</a>
+    <a className="button button--secondary" href={attachment.url} download={attachment.name}>Download image</a>
   </VendorDialog>;
 }
 
@@ -68,7 +63,7 @@ export function VendorManagement() {
   const [fileReads, setFileReads] = useState(0);
   const [busy, setBusy] = useState(false);
   const [details, setDetails] = useState<VendorDetail | null>(null);
-  const [preview, setPreview] = useState<{ name: string; url: string; image: boolean } | null>(null);
+  const [preview, setPreview] = useState<{ name: string; url: string } | null>(null);
   const [action, setAction] = useState<{ kind: "validate" | "delete"; item: VendorRecord } | null>(null);
   const [reviewer, setReviewer] = useState("");
   const [adminKey, setAdminKey] = useState("");
@@ -306,13 +301,13 @@ export function VendorManagement() {
           <div className="vendor-detail-metadata"><div><span>WHAT TO DO</span><p>{step.what_to_do}</p></div><div><span>HOW TO DO</span><p>{step.how_to_do}</p></div></div>
           {step.image && <div className="vendor-detail-image"><h4>Screenshot / Image</h4>
             <button type="button" className="vendor-image-preview" aria-label={`Enlarge Step ${index + 1} screenshot`}
-              onClick={() => setPreview({ ...step.image!, image: true })}><img src={step.image.url} alt={`Step ${index + 1}: ${step.image.name}`} /></button>
+              onClick={() => setPreview(step.image!)}><img src={step.image.url} alt={`Step ${index + 1}: ${step.image.name}`} /></button>
           </div>}
         </section>)}
         <h3 className="vendor-detail-section-title">SOP</h3>
         {details.sop ? <div className="vendor-row-actions">
-          <button type="button" className="button button--primary" onClick={() => setPreview({ ...details.sop!, image: false })}>View SOP</button>
           <a className="button button--secondary" href={details.sop.url} download>{details.sop.name}</a>
+          <small>Download only. SOP contents are not scanned or previewed; open only trusted documents.</small>
         </div> : <p>No SOP attached.</p>}
       </VendorDialog>}
       {preview && <VendorAttachmentPreview attachment={preview} onClose={() => setPreview(null)} />}

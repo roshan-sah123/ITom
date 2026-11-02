@@ -221,7 +221,9 @@ Validate still additionally require the existing administration Bearer key.
   time and a self-reported reviewer name, not an authenticated identity.
 - `DELETE /{id}?expected_revision=...`: removes a submission and its files.
 - `GET /{id}/sop` and `GET /{id}/images/{zero_based_step_index}`:
-  validated attachment bytes; SOPs download rather than executing inline.
+  attachment bytes; screenshots remain content-validated. SOPs are opaque,
+  download-only `application/octet-stream` responses with attachment disposition,
+  `nosniff`, no-store and sandbox CSP. There is no SOP iframe/text preview.
 
 Create retries reuse `request_id`; conflicting payloads, deleted-request replays
 and stale edit/review/delete revisions return 409. Invalid inputs return 422,
@@ -229,6 +231,15 @@ oversized JSON returns 413, unsupported request types return 415, unknown record
 return 404, and datastore failures return a safe 503. Portal SOPs are optional,
 unlike the legacy companion contract. New data never modifies the legacy
 `data/vendor_management.db`.
+
+Vendor SOPs accept `.pdf`, `.docx` and `.txt` files from 1 byte through 10 MiB,
+with filename, extension, strict base64 and overall request-size validation.
+Their internal content is not inspected, parsed, extracted or malware-scanned:
+hyperlinks, PDF object streams, encryption and alternative text encodings do
+not cause rejection. Acceptance does not establish a safe or readable document.
+Users must scan downloads and open only trusted files in an appropriate local
+application. Knowledge Centre validation and screenshot checks are unchanged;
+the stricter shared helper remains the default for other callers.
 
 ## Source integrations
 
