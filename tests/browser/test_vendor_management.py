@@ -1,7 +1,7 @@
 """Portal-native vendor journeys against a migrated, isolated test database."""
 
 import io
-from pathlib import Path
+from urllib.parse import parse_qs, urljoin, urlsplit
 
 import pytest
 from PIL import Image
@@ -81,11 +81,19 @@ def test_vendor_submit_prompt_review_edit_details_and_delete(vendor_url, browser
     expect(row).to_contain_text("Journey partner")
     page.get_by_role("button", name="Open submission", exact=True).click()
     expect(page.get_by_role("dialog", name="Submission details")).to_contain_text("Record reference")
-    expect(page.get_by_role("button", name="View SOP", exact=True)).to_have_count(0)
-    expect(page.get_by_role("dialog", name="Submission details")).not_to_contain_text("Download only")
-    with page.expect_download() as downloaded:
-        page.get_by_role("link", name="journey.txt", exact=True).click()
-    assert Path(downloaded.value.path()).read_bytes() == b"Approved procedure"
+    details = page.get_by_role("dialog", name="Submission details")
+    expect(details).not_to_contain_text("not scanned")
+    view = details.get_by_role("link", name="View SOP", exact=True)
+    expect(view).to_have_attribute("target", "_blank")
+    assert "attachment=" in view.get_attribute("href")
+    with page.expect_popup() as popup:
+        view.click()
+    preview = popup.value
+    expect(preview.locator("body")).to_contain_text("Approved procedure")
+    assert "attachment=" in preview.url
+    expect(preview.locator("pre")).to_have_text("Approved procedure")
+    preview.close()
+    expect(details.locator("a[download]")).to_have_count(0)
     page.get_by_role("button", name="Close Submission details", exact=True).click()
     page.get_by_role("button", name="Delete", exact=True).click()
     deletion = page.get_by_role("dialog", name="Delete submission")
@@ -151,10 +159,11 @@ def test_vendor_sop_download_only_accepts_opaque_documents(vendor_url, browser_c
     expect(page.locator(".vendor-table tbody tr")).to_contain_text("Journey partner")
     page.get_by_role("button", name="Open submission", exact=True).click()
     details = page.get_by_role("dialog", name="Submission details")
-    expect(details).not_to_contain_text("Download only")
+    expect(details).not_to_contain_text("not scanned")
     expect(details.locator("iframe")).to_have_count(0)
-    expect(page.get_by_role("button", name="View SOP", exact=True)).to_have_count(0)
-    with page.expect_download() as downloaded:
-        details.get_by_role("link", name=filename, exact=True).click()
-    assert Path(downloaded.value.path()).read_bytes() == content
+    expect(details.get_by_role("link", name="View SOP", exact=True)).to_have_attribute("target", "_blank")
+    expect(details.locator("a[download]")).to_have_count(0)
+    href = details.get_by_role("link", name="View SOP", exact=True).get_attribute("href")
+    path = parse_qs(urlsplit(href).query)["attachment"][0]
+    assert browser_context.request.get(urljoin(page.url, path)).body() == content
     page.close()

@@ -21,17 +21,58 @@ def content(request_id="a" * 32):
             "data": base64.b64encode(b"Instructions <script>escaped</script>").decode()}}
 
 
+@pytest.mark.parametrize("filename", ["sheet.xlsx", "sheet.xls", "sheet.csv", "payload.exe", "extensionless", "image.png", "page.html", "movie.avi", "guide.pdf.exe"])
+@pytest.mark.asyncio
+async def test_knowledge_rejects_unapproved_extensions_on_create_and_replacement(knowledge_client, filename):
+    created = await knowledge_client.post("/api/v1/knowledge/content", json=content())
+    assert created.status_code == 201
+    body = content("b" * 32)
+    body["file"] = {"name": filename, "type": "application/pdf", "data": base64.b64encode(b"opaque").decode()}
+    rejected = await knowledge_client.post("/api/v1/knowledge/content", json=body)
+    assert rejected.status_code == 422
+    assert "DOCX, PDF, PPTX, TXT" in rejected.json()["detail"]
+    path = f'/api/v1/knowledge/content/{created.json()["id"]}'
+    replacement = await knowledge_client.put(path, json={
+        "name": "Changed", "description": "Replacement", "category": "SOP",
+        "file": body["file"], "expected_revision": 1,
+    })
+    assert replacement.status_code == 422
+    preserved = (await knowledge_client.get("/api/v1/knowledge/content")).json()["items"][0]
+    assert preserved["revision"] == 1
+    assert preserved["file"]["name"] == "guide.txt"
+    assert (await knowledge_client.get(path + "/file")).content == b"Instructions <script>escaped</script>"
+
+
+@pytest.mark.asyncio
+async def test_knowledge_existing_excel_remains_readable_and_metadata_editable(knowledge_client, db_session_factory):
+    from sqlalchemy import update
+    from app.models.knowledge import KnowledgeContent
+    created = await knowledge_client.post("/api/v1/knowledge/content", json=content())
+    identifier = int(created.json()["id"])
+    async with db_session_factory() as session:
+        await session.execute(update(KnowledgeContent).where(KnowledgeContent.id == identifier).values(file_name="existing.xlsx"))
+        await session.commit()
+    path = f"/api/v1/knowledge/content/{identifier}"
+    edited = await knowledge_client.put(path, json={
+        "name": "Existing workbook", "description": "Metadata only", "category": "Reference Document",
+        "expected_revision": 1, "file": None,
+    })
+    assert edited.status_code == 200
+    assert edited.json()["file"]["name"] == "existing.xlsx"
+    assert (await knowledge_client.get(path + "/file")).content == b"Instructions <script>escaped</script>"
+
+
 @pytest.mark.parametrize("name,mime,raw", [
     ("compressed.pdf", "application/pdf", b"%PDF-1.7 /ObjStm /Encrypt /OpenAction"),
     ("linked.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", b"PK\x03\x04opaque external-linked document"),
     ("instructions.txt", "text/plain", b"\xff\xfeT\x00e\x00x\x00t\x00"),
-    ("external-links.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-     b"not a workbook; external connections and active content are not inspected"),
-    ("payload.exe", "application/x-msdownload", b"arbitrary executable bytes"),
-    ("extensionless", "", b"unrecognized binary\x00payload"),
+    ("slides.pptx", "", b"opaque presentation"),
+    ("training.mp4", "video/mp4", b"opaque video"),
+    ("training.webm", "", b"opaque video"),
+    ("training.MOV", "", b"opaque video"),
 ])
 @pytest.mark.asyncio
-async def test_knowledge_arbitrary_files_upload_edit_and_download(knowledge_client, name, mime, raw):
+async def test_knowledge_allowed_files_upload_edit_and_original_bytes(knowledge_client, name, mime, raw):
     body = content()
     body["file"] = {"name": name, "type": mime, "data": base64.b64encode(raw).decode()}
     response = await knowledge_client.post("/api/v1/knowledge/content", json=body)
@@ -47,6 +88,26 @@ async def test_knowledge_arbitrary_files_upload_edit_and_download(knowledge_clie
     assert download.headers["content-type"] == "application/octet-stream"
     assert download.headers["content-disposition"].startswith("attachment;")
     assert download.headers["x-content-type-options"] == "nosniff"
+
+
+@pytest.mark.asyncio
+async def test_knowledge_rejects_html_upload(knowledge_client):
+    body = content()
+    raw = b"<script>parent.document.body.innerHTML='changed'</script><p>Preview</p>"
+    body["file"] = {"name": "preview.html", "type": "text/html", "data": base64.b64encode(raw).decode()}
+    created = await knowledge_client.post("/api/v1/knowledge/content", json=body)
+    assert created.status_code == 422, created.text
+
+
+@pytest.mark.asyncio
+async def test_knowledge_preview_returns_safe_text(knowledge_client):
+    created = await knowledge_client.post("/api/v1/knowledge/content", json=content())
+    path = created.json()["file"]["url"]
+    response = await knowledge_client.get(path + "?preview=true")
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "text/plain; charset=utf-8"
+    assert response.headers["content-disposition"] == "inline"
+    assert response.content == b"Instructions <script>escaped</script>"
 
 
 @pytest.mark.asyncio
@@ -93,10 +154,7 @@ async def test_knowledge_server_rejects_validation_bypass_invalid_files_and_limi
     body["file"]["type"] = "image/png"
     body["file"]["data"] = base64.b64encode(b"not an image").decode()
     uploaded = await client.post("/api/v1/knowledge/content", json=body)
-    assert uploaded.status_code == 201, uploaded.text
-    download = await client.get(f'/api/v1/knowledge/content/{uploaded.json()["id"]}/file')
-    assert download.content == b"not an image"
-    assert download.headers["content-type"] == "application/octet-stream"
+    assert uploaded.status_code == 422, uploaded.text
     body = content()
     body["file"]["data"] = base64.b64encode(b"x" * (5 * 1024 * 1024 + 1)).decode()
     assert (await client.post("/api/v1/knowledge/content", json=body)).status_code == 422
@@ -113,8 +171,8 @@ async def test_knowledge_does_not_inspect_office_content_and_requires_key_config
     stream = io.BytesIO()
     with ZipFile(stream, "w") as archive:
         archive.writestr("[Content_Types].xml", "<Types/>")
-        archive.writestr("xl/workbook.xml", "not XML")
-    body["file"] = {"name": "sheet.xlsx", "type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        archive.writestr("ppt/presentation.xml", "not XML")
+    body["file"] = {"name": "slides.pptx", "type": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
                     "data": base64.b64encode(stream.getvalue()).decode()}
     uploaded = await client.post("/api/v1/knowledge/content", json=body)
     assert uploaded.status_code == 201, uploaded.text
@@ -166,32 +224,20 @@ async def test_knowledge_exact_file_limit_replacement_and_same_cmdb_key(knowledg
                              headers={"Authorization": "Bearer test-only-key"})).status_code == 200
 
 
-@pytest.mark.parametrize("extension", [".png", ".jpg", ".webp", ".xlsx", ".pptx"])
+@pytest.mark.parametrize("extension", [".docx", ".pptx"])
 @pytest.mark.asyncio
-async def test_knowledge_supported_images_and_office_formats(knowledge_client, extension):
-    from PIL import Image
-    import openpyxl
-    stream = io.BytesIO()
-    if extension in {".png", ".jpg", ".webp"}:
-        Image.new("RGB", (4, 4)).save(stream, format={".png": "PNG", ".jpg": "JPEG", ".webp": "WEBP"}[extension])
-    elif extension == ".xlsx":
-        workbook = openpyxl.Workbook()
-        workbook.active.append(["Operational instructions"])
-        workbook.save(stream)
-        workbook.close()
-    else:
-        with ZipFile(stream, "w") as archive:
-            archive.writestr("[Content_Types].xml", '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"/>')
-            archive.writestr("ppt/presentation.xml", '<p:presentation xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"/>')
+async def test_knowledge_supported_office_formats(knowledge_client, extension):
+    from tests.preview_fixtures import office_document
+    raw = office_document(extension)
     body = content()
     body["file"] = {"name": "resource" + extension, "type": "application/octet-stream",
-                    "data": base64.b64encode(stream.getvalue()).decode()}
+                    "data": base64.b64encode(raw).decode()}
     created = await knowledge_client.post("/api/v1/knowledge/content", json=body)
     assert created.status_code == 201, created.text
     downloaded = await knowledge_client.get(f'/api/v1/knowledge/content/{created.json()["id"]}/file')
     assert downloaded.headers["content-type"] == "application/octet-stream"
     assert created.status_code == 201, created.text
-    assert (await knowledge_client.get(created.json()["file"]["url"])).content == stream.getvalue()
+    assert (await knowledge_client.get(created.json()["file"]["url"])).content == raw
 
 
 @pytest.mark.asyncio

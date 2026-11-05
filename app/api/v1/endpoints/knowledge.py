@@ -3,7 +3,7 @@ import json
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from app.api.v1.endpoints.module_access import require_local_module, require_inventory_key
-from app.api.v1.endpoints.vendors import file_response, operation
+from app.api.v1.endpoints.vendors import attachment_preview_response, file_response, operation
 from app.core.database import get_module_db
 from app.services.knowledge_service import KnowledgeInput, KnowledgeService
 from frontend.vendor_management_server import reject_constant, unique_object
@@ -76,6 +76,9 @@ async def delete_content(identifier: int, expected_revision: int = Query(..., ge
 
 
 @router.get("/{identifier}/file")
-async def download_content(identifier: int, session=Depends(get_module_db)):
+async def download_content(identifier: int, preview: bool = Query(False), session=Depends(get_module_db)):
     row = await operation(KnowledgeService(session).get(identifier, file=True), session, label="Knowledge")
-    return file_response({"name": row.file_name, "mime": row.file_type}, raw=row.file_data, download_only=True)
+    if preview:
+        return await attachment_preview_response(row.file_name, row.file_data)
+    return file_response({"name": row.file_name, "mime": row.file_type}, raw=row.file_data,
+                         download_only=True)

@@ -147,18 +147,27 @@ in every environment (unset 503, incorrect 401). Reviewer names are self-reporte
 `DELETE /{id}?expected_revision=...` clears bytes and keeps a retry tombstone.
 Stale mutations return 409; missing rows 404; invalid files/fields 422; oversized
 JSON 413; database failures a logged safe 503. `GET /{id}/file` returns bytes with
-attachment disposition, no-store, nosniff and sandbox CSP.
+attachment disposition, no-store, nosniff and sandbox CSP. Add `?preview=true`
+for a supported native preview or local Office-to-PDF conversion, as described
+under Attachment previews below. Unsupported formats return an explicit error,
+not the original attachment as a download fallback.
 Metadata/file writes commit atomically.
 
 Content submissions save metadata and file bytes directly to the database.
 There is no browser-copy button or active browser persistence. Legacy browser
 libraries are neither read, published nor deleted. Operators sharing the API/database see changes after
 refresh, subject to approved gateway authentication and existing module guards.
-Uploads accept any non-empty file type, with or without an extension, up to 5 MiB.
-File bytes are stored opaquely; content, extension and declared MIME are not
-inspected or malware-scanned. Files and downloads use
-`application/octet-stream`, attachment disposition, no-store, nosniff and sandbox
-CSP; the UI offers downloads only, including for previously stored files.
+New uploads and replacement files accept only DOCX, PDF, PPTX, TXT and
+MP4/WebM/MOV videos, up to 5 MiB. Excel (including XLS/XLSX/CSV), images,
+extensionless files and other formats are rejected by both the React form and
+API. Extension checks are case-insensitive; a declared MIME type does not bypass
+them. Existing stored files are preserved, and metadata-only edits do not
+revalidate or remove their bytes.
+File bytes are stored opaquely; internal contents and declared MIME are not
+inspected or malware-scanned on upload. Original-byte APIs use `application/octet-stream` and
+attachment disposition. The View action opens a dedicated
+same-origin viewer tab; its preview responses keep no-store, nosniff and sandbox
+CSP headers. There is no attachment Download action in this UI.
 The existing filename/path-character, strict base64, 5 MiB file and 7 MiB request
 limits, and admin-key guards remain enforced. Treat every download as untrusted
 and scan it with approved endpoint protection before opening. Validation
@@ -225,9 +234,10 @@ Validate still additionally require the existing administration Bearer key.
   time and a self-reported reviewer name, not an authenticated identity.
 - `DELETE /{id}?expected_revision=...`: removes a submission and its files.
 - `GET /{id}/sop` and `GET /{id}/images/{zero_based_step_index}`:
-  attachment bytes; screenshots remain content-validated. SOPs are opaque,
-  download-only `application/octet-stream` responses with attachment disposition,
-  `nosniff`, no-store and sandbox CSP. There is no SOP iframe/text preview.
+  attachment bytes; screenshots remain content-validated. SOP downloads use
+  `application/octet-stream` and attachment disposition. Add `?preview=true`
+  on the SOP route for the dedicated viewer. `nosniff`, no-store
+  and sandbox CSP remain set; unsupported previews return an explicit error.
 
 Create retries reuse `request_id`; conflicting payloads, deleted-request replays
 and stale edit/review/delete revisions return 409. Invalid inputs return 422,
@@ -242,9 +252,38 @@ Their internal content is not inspected, parsed, extracted or malware-scanned:
 hyperlinks, PDF object streams, encryption and alternative text encodings do
 not cause rejection. Acceptance does not establish a safe or readable document.
 Users must scan downloads and open only trusted files in an appropriate local
-application. Knowledge Centre PDF/DOCX/TXT use the same opaque-download policy
-with their existing 5 MiB limit; other media validation and screenshot checks
+application. Knowledge Centre uses opaque storage with its own extension
+allowlist and existing 5 MiB limit; other media validation and screenshot checks
 are unchanged. The stricter shared helper remains the default for other callers.
+
+## Attachment previews
+
+The React viewer at `/?attachment=<encoded attachment API path>&name=<filename>`
+accepts only local Knowledge file and Vendor SOP endpoint paths. It fetches
+`?preview=true`; it does not navigate the browser directly to uploaded bytes.
+PDFs render through bundled PDF.js and a local worker without a download/print
+toolbar. Text (TXT/CSV/LOG/JSON/XML), PNG/JPEG/WebP/GIF and browser-supported
+MP4/WebM/MOV render without external viewer services. UTF-16 BOMs are respected.
+The same preview path works for existing stored files; no re-upload is required.
+
+Office formats DOC/DOCX/ODT/RTF, XLS/XLSX/ODS and PPT/PPTX/ODP require
+`DOCUMENT_PREVIEW_CONVERTER` pointing to an installed local LibreOffice
+console executable (`soffice.com` on Windows). Each conversion uses a temporary
+copy and unique profile with macros disabled. The original stored bytes and
+revision are unchanged. Only one conversion per process runs at a time (429
+when busy), with a 45-second timeout and 30 MiB output cap.
+
+Missing converter returns 503; unsupported formats 415; unreadable/encrypted
+conversion output 422; timeout 504. The viewer reports errors and offers retry,
+never a download fallback. A PDF preview is limited to 150 pages and a maximum
+6 million pixels per page. Damaged native files or unsupported video codecs
+also show an explicit unavailable state.
+
+These are viewing controls, not DRM: original download API routes remain
+compatible and browser users can still save or capture displayed data. Upload
+acceptance, storage limits and admin controls have not changed. Temporary
+profiles are not an OS sandbox; isolate the converter and block its outbound
+network access before enabling it for untrusted documents.
 
 ## Source integrations
 

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { WorkspaceDialog as VendorDialog } from "./WorkspaceDialog";
+import { attachmentViewUrl } from "./attachmentPreview";
 import {
   readVendorFile, validateVendorDraft, vendorRequest, vendorSubmissionBody,
 } from "./vendors";
@@ -306,7 +307,7 @@ export function VendorManagement() {
         </section>)}
         <h3 className="vendor-detail-section-title">SOP</h3>
         {details.sop ? <div className="vendor-row-actions">
-          <a className="button button--secondary" href={details.sop.url} download>{details.sop.name}</a>
+          <a className="button button--primary" href={attachmentViewUrl(details.sop.url, details.sop.name)} target="_blank" rel="noopener noreferrer">View SOP</a>
         </div> : <p>No SOP attached.</p>}
       </VendorDialog>}
       {preview && <VendorAttachmentPreview attachment={preview} onClose={() => setPreview(null)} />}

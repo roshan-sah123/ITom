@@ -8,6 +8,7 @@ from urllib.parse import quote
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+from starlette.concurrency import run_in_threadpool
 
 from app.api.v1.endpoints.module_access import require_local_module, require_inventory_key
 from app.core.database import get_module_db
@@ -15,6 +16,7 @@ from app.services.vendor_submission_service import (
     MAX_BODY, SubmissionInput, VendorConflict, VendorSubmissionService,
 )
 from frontend.vendor_management_server import reject_constant, unique_object
+from app.services.attachment_preview import PreviewError, preview_attachment
 
 logger = logging.getLogger("itom.vendors")
 
@@ -127,9 +129,23 @@ def file_response(attachment, image=False, raw=None, download_only=True):
     )
 
 
+async def attachment_preview_response(name: str, raw: bytes):
+    try:
+        content, mime = await run_in_threadpool(preview_attachment, name, raw)
+    except PreviewError as error:
+        raise HTTPException(error.status_code, str(error)) from error
+    return Response(content, media_type=mime, headers={
+        "Content-Disposition": "inline",
+        "Content-Security-Policy": "default-src 'none'; sandbox",
+        "X-Content-Type-Options": "nosniff", "Cache-Control": "no-store",
+    })
+
+
 @router.get("/{identifier}/sop")
-async def download_sop(identifier: int, session=Depends(get_module_db)):
+async def download_sop(identifier: int, preview: bool = Query(False), session=Depends(get_module_db)):
     attachment = await operation(VendorSubmissionService(session).attachment(identifier), session)
+    if preview:
+        return await attachment_preview_response(attachment["name"], base64.b64decode(attachment["data"]))
     return file_response(attachment)
 
 

@@ -91,6 +91,37 @@ def test_cmdb_categories_row_cell_reviews_edit_export_add_delete(asset_portal_ur
     page.close()
 
 
+@pytest.mark.parametrize("fullscreen", [False, True])
+@pytest.mark.parametrize("viewport", [{"width": 1440, "height": 900}, {"width": 390, "height": 844}])
+def test_all_inventory_column_headers_stay_visible_while_scrolling(asset_portal_url, browser_context, fullscreen, viewport):
+    assert browser_context.request.get(asset_portal_url + "api/v1/assets/summary").ok
+    page = browser_context.new_page()
+    page.set_viewport_size(viewport)
+    page.goto(asset_portal_url)
+    page.get_by_role("button", name="Assets Analytics", exact=True).click()
+    for label in ["Servers", "Network devices", "Telecom"]:
+        page.get_by_role("button", name=f"Open {label} inventory", exact=True).click()
+        dialog = page.get_by_role("dialog", name=label, exact=True)
+        expect(dialog.locator("tbody tr")).to_have_count(1)
+        if fullscreen:
+            dialog.get_by_role("button", name=f"Full screen {label} inventory", exact=True).click()
+        # Duplicate only fixture rows in the browser to exercise overflow without changing records.
+        dialog.locator("tbody").evaluate("""body => {
+          const row = body.firstElementChild;
+          for (let i=0; i<70; i++) body.append(row.cloneNode(true));
+        }""")
+        header = dialog.locator("thead th").first
+        before = header.bounding_box()
+        scroller = dialog.locator(".asset-table-wrap")
+        scroller.evaluate("element => { element.scrollTop = 500; }")
+        page.wait_for_function("document.querySelector('.asset-table-wrap').scrollTop > 100")
+        after = header.bounding_box()
+        assert abs(before["y"] - after["y"]) <= 2
+        assert header.evaluate("element => getComputedStyle(element).position") == "sticky"
+        dialog.get_by_role("button", name=f"Close {label} inventory", exact=True).click()
+    page.close()
+
+
 @pytest.mark.parametrize("viewport", [{"width": 1440, "height": 900}, {"width": 390, "height": 844}])
 def test_asset_dialog_corner_controls_fullscreen_and_navigation_order(asset_portal_url, browser_context, viewport):
     page = browser_context.new_page()

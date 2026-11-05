@@ -4,7 +4,66 @@ The supported runtime is `app.main:app`. It serves `frontend/` and the database-
 
 ## UI revamp deployment handoff
 
-### Production attachment details copy update
+### View-only attachment preview and Knowledge upload types
+
+Vendor SOP and Knowledge detail dialogs show View without Download. A bundled
+PDF.js viewer opens in a new tab; supported Office files convert to PDF on the
+local backend. Knowledge new/replacement uploads accept only DOCX, PDF, PPTX,
+TXT and MP4/WebM/MOV videos, up to 5 MiB; Excel and other formats are rejected
+in the browser and API. Existing stored attachments and metadata edits are
+preserved. Vendor's PDF/DOCX/TXT upload options are unchanged.
+Server, Network and Telecom table headers remain visible while
+scrolling in both normal and full-screen inventory dialogs.
+
+For local development, install a maintained LibreOffice build from the official
+Document Foundation distribution, verify the installer signature, and set
+`DOCUMENT_PREVIEW_CONVERTER` to the installed console executable (Windows example:
+`C:\Program Files\LibreOffice\program\soffice.com`). Leave the setting empty to
+disable Office previews; native PDF, text, image and video previews still work.
+No cloud viewer or third-party document upload is used.
+
+Run the backend on loopback with **separate local databases** and
+`SCHEDULER_ENABLED=false`. Start Vite with `ITOM_MODULE_API_PROXY` pointing to
+that backend, not its default production 8080 target. Keep the primary
+production API, static assets, scheduled task and source credentials unchanged.
+Take SQLite snapshots through the SQLite backup API, not by copying live WAL
+database files. Production module rows are never modified for preview tests.
+
+The local Windows installation uses an outbound-block firewall rule named
+`ITOM local document preview - block outbound`, scoped only to
+`C:\Program Files\LibreOffice\program\soffice.bin`. It does not block the portal
+or source ingestion. Do not remove that rule while preview conversion is enabled.
+Conversion uses temporary per-document profiles, disables macros and attempts
+to disable link updates; these measures are not an OS sandbox. The application
+caps conversion concurrency, duration and PDF output size. Keep the converter
+patched, deny its outbound access, and use OS-level isolation/resource limits
+for stronger protection when processing untrusted files.
+
+See [attachment preview contracts](API_CONTRACTS.md#attachment-previews)
+for supported formats and explicit unavailable states. Video codec support
+depends on the browser; encrypted or damaged documents may not render.
+Removing UI Download controls is not DRM; original download APIs remain available
+for compatibility. No database migration is required. Deployment requires the
+matching API source, frontend build and `DOCUMENT_PREVIEW_CONVERTER` runtime
+setting, followed by a controlled API restart. Back up the previous static entry,
+runtime configuration and source before deploying. Preserve database URLs,
+source credentials, shared-access settings, TLS/proxy policy and scheduler.
+Verify readiness, module reads, main telemetry summaries, source freshness and
+scheduler status after restarting. Roll back source/config/static entry, not the
+live database, if application verification fails.
+
+The verified build is deployed on production 8080 and the configured shared
+HTTPS portal. Validation: 168 targeted API tests, 27 frontend tests, the
+TypeScript/Vite build and 50 browser journeys passed. Live checks confirmed
+Excel rejection, allowed-extension validation without creating records, View-only
+Vendor details, existing PDF/DOCX rendering and frozen headers in all three
+inventories. Module table fingerprints, including attachment bytes, match the
+pre-deployment snapshot. Primary source settings and database URLs were
+preserved; readiness, telemetry summaries, FRESH status and the enabled/running
+scheduler were verified after the controlled restart. Shared HTTPS entry,
+viewer chunk and PDF worker were verified with system TLS trust.
+
+### Previous production attachment details copy update
 
 Only the Vendor SOP and Knowledge file warning sentences were removed from
 the open-details dialogs. The matching static assets were deployed atomically
@@ -15,7 +74,7 @@ The frontend TypeScript/Vite build passed, production readiness returned 200,
 and the production API listener process remained unchanged. Edge verified both
 workspaces; no records were available for a populated-details live check.
 
-### Knowledge opaque file upload update
+### Previous Knowledge opaque file upload update (superseded)
 
 Knowledge Centre accepts any non-empty file type, with or without an extension,
 as an opaque download-only attachment. No extension, declared MIME or file

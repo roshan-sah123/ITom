@@ -2,6 +2,7 @@ import base64
 import hashlib
 import json
 from datetime import datetime, timezone
+from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import func, select, update
@@ -14,6 +15,7 @@ from app.services.vendor_submission_service import VendorConflict, iso_time
 from frontend.vendor_management_server import clean_text
 
 MAX_FILE = 5 * 1024 * 1024
+ALLOWED_EXTENSIONS = {".docx", ".pdf", ".pptx", ".txt", ".mp4", ".webm", ".mov"}
 
 
 class KnowledgeFileInput(BaseModel):
@@ -37,6 +39,8 @@ def validate_file(file: KnowledgeFileInput):
     name = clean_text(file.name, "Filename", 150)
     if any(char in name for char in '/\\:<>"|?*') or name.startswith(".") or name.endswith((".", " ")):
         raise ValueError("Use a simple filename without path characters.")
+    if Path(name).suffix.lower() not in ALLOWED_EXTENSIONS:
+        raise ValueError("Choose DOCX, PDF, PPTX, TXT or an MP4, WebM or MOV video. Excel files are not supported.")
     if len(file.data) > ((MAX_FILE + 2) // 3) * 4:
         raise ValueError("Knowledge files must be at most 5 MiB.")
     try:

@@ -115,6 +115,11 @@ async def test_vendor_sop_optional_and_download_is_safe(vendor_client):
     download = await vendor_client.get(f"/api/v1/vendors/submissions/{identifier}/sop")
     assert download.content == b"Support instructions"
     assert download.headers["content-disposition"].startswith("attachment;")
+    preview = await vendor_client.get(f"/api/v1/vendors/submissions/{identifier}/sop?preview=true")
+    assert preview.content == b"Support instructions"
+    assert preview.headers["content-type"] == "text/plain; charset=utf-8"
+    assert preview.headers["content-disposition"] == "inline"
+    assert "sandbox" in preview.headers["content-security-policy"]
     body["request_id"] = "c" * 32
     body["sop"] = {"name": "guide.txt", "data": base64.b64encode(b"<script>unsafe</script>").decode()}
     result = await vendor_client.post("/api/v1/vendors/submissions", json=body)

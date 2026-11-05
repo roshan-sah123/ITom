@@ -5,6 +5,7 @@ export const KNOWLEDGE_CATEGORIES = [
   "Troubleshooting Guide", "Other",
 ] as const;
 const KNOWLEDGE_FILE_TYPE = "application/octet-stream";
+export const KNOWLEDGE_FILE_ACCEPT = ".docx,.pdf,.pptx,.txt,.mp4,.webm,.mov";
 export type KnowledgeStatus = "All" | "Validated" | "Pending";
 export type KnowledgeDraft = { name: string; description: string; category: string };
 export type KnowledgeRecord = KnowledgeDraft & {
@@ -31,6 +32,9 @@ export function validateKnowledgeDraft(draft: KnowledgeDraft) {
   }
 }
 export function validateKnowledgeFile(file: Pick<File, "name" | "type" | "size">) {
+  const extension = file.name.toLowerCase().match(/\.[^.]+$/)?.[0];
+  if (!extension || !KNOWLEDGE_FILE_ACCEPT.split(",").includes(extension))
+    throw new Error("Choose DOCX, PDF, PPTX, TXT or an MP4, WebM or MOV video. Excel files are not supported.");
   if (file.size <= 0 || file.size > 5 * 1024 * 1024)
     throw new Error("Choose a non-empty file up to 5 MiB.");
   return KNOWLEDGE_FILE_TYPE;

@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { WorkspaceDialog } from "./WorkspaceDialog";
+import { attachmentViewUrl } from "./attachmentPreview";
 import {
-  KNOWLEDGE_CATEGORIES, deleteKnowledge, fileFormat, filterKnowledge,
+  KNOWLEDGE_CATEGORIES, KNOWLEDGE_FILE_ACCEPT, deleteKnowledge, fileFormat, filterKnowledge,
   knowledgeSummary, listKnowledge, saveKnowledge, validateKnowledgeFile, validateKnowledge,
 } from "./knowledge";
 import type { KnowledgeDraft, KnowledgeRecord, KnowledgeStatus } from "./knowledge";
@@ -29,7 +30,7 @@ function KnowledgeDetails({ record, onClose }: { record: KnowledgeRecord; onClos
     </div>
     <section className="knowledge-description"><h3>Description</h3><p>{record.description}</p></section>
     <div className="knowledge-actions">
-      <a className="button button--secondary" href={record.file.url} download={record.file.name}>Download file</a>
+      <a className="button button--primary" href={attachmentViewUrl(record.file.url, record.file.name)} target="_blank" rel="noopener noreferrer">View file</a>
       <button type="button" className="button button--secondary" onClick={onClose}>Close</button>
     </div>
   </WorkspaceDialog>;
@@ -174,12 +175,12 @@ export function KnowledgeCentre() {
           <label>Content type *<select aria-label="Content type *" value={draft.category} onChange={event => setDraft({ ...draft, category: event.target.value })}>{KNOWLEDGE_CATEGORIES.map(value => <option key={value}>{value}</option>)}</select></label>
           {draft.category === "Other" && <label className="knowledge-form-full">Other category *<input aria-label="Other category *" required maxLength={100} value={otherCategory} onChange={event => setOtherCategory(event.target.value)} /></label>}
           <label className="knowledge-form-full">Description *<textarea aria-label="Description *" required maxLength={4000} placeholder="Describe this content" value={draft.description} onChange={event => setDraft({ ...draft, description: event.target.value })} /></label>
-          <label>Upload file {editor.original ? "(replace optional)" : "*"}<input aria-label={`Upload file ${editor.original ? "(replace optional)" : "*"}`} type="file" required={!editor.original} onChange={event => {
+          <label>Upload file {editor.original ? "(replace optional)" : "*"}<input aria-label={`Upload file ${editor.original ? "(replace optional)" : "*"}`} type="file" accept={KNOWLEDGE_FILE_ACCEPT} required={!editor.original} onChange={event => {
             const chosen = event.target.files?.[0] ?? null; setDialogError("");
             try { if (chosen) validateKnowledgeFile(chosen); setFile(chosen); }
             catch (reason) { setFile(null); event.target.value = ""; setDialogError(message(reason)); }
           }} /><small>{file?.name || editor.original?.file.name || "No file selected."}</small>
-            <small>Any file type up to 5 MiB. Files are stored without inspection and download-only; open only trusted files.</small></label>
+            <small>DOCX, PDF, PPTX, TXT or MP4, WebM and MOV videos up to 5 MiB. View in a new tab. Excel uploads are not supported.</small></label>
           <label>File format<input aria-label="File format" readOnly value={file ? fileFormat(file.name) : editor.original ? fileFormat(editor.original.file.name) : ""} placeholder="Derived from file" /></label>
           {editor.original && <label>CMDB admin key<input aria-label="CMDB admin key" type="password" autoComplete="off" required value={adminKey} onChange={event => setAdminKey(event.target.value)} /></label>}
         </div>

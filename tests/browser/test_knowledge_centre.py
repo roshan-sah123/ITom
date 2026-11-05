@@ -1,5 +1,6 @@
 import base64
-from pathlib import Path
+import re
+from urllib.parse import parse_qs, urljoin, urlsplit
 
 import pytest
 from tests.browser.dialog_assertions import assert_centered, assert_no_review_metadata
@@ -33,36 +34,135 @@ def add_content(page, name="Journey guide"):
     expect(form).not_to_be_visible()
 
 
+def stored_file_response(details, browser_context):
+    expect(details.get_by_role("link", name="Download file", exact=True)).to_have_count(0)
+    href = details.get_by_role("link", name="View file", exact=True).get_attribute("href")
+    path = parse_qs(urlsplit(href).query)["attachment"][0]
+    return browser_context.request.get(urljoin(details.page.url, path))
+
+
 @pytest.mark.parametrize("filename,mime,raw", [
     ("compressed.pdf", "application/pdf", b"%PDF-1.7 /ObjStm /Encrypt"),
     ("linked.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", b"PK\x03\x04opaque document"),
     ("encoded.txt", "text/plain", b"\xff\xfeT\x00e\x00x\x00t\x00"),
-    ("external.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", b"invalid workbook with external references"),
-    ("payload.exe", "application/x-msdownload", b"opaque executable bytes"),
-    ("extensionless", "", b"arbitrary binary\x00bytes"),
+    ("slides.pptx", "", b"opaque presentation"),
 ])
-def test_knowledge_arbitrary_file_upload_download(module_portal_url, browser_context, filename, mime, raw):
+def test_knowledge_allowed_file_upload_and_view_link(module_portal_url, browser_context, filename, mime, raw):
     page = browser_context.new_page()
     open_knowledge(page, module_portal_url)
     page.get_by_role("button", name="+ Add content", exact=True).click()
     form = page.get_by_role("dialog", name="Add content", exact=True)
     form.get_by_label("Content name *", exact=True).fill("Opaque document")
-    form.get_by_label("Description *", exact=True).fill("Download only")
+    form.get_by_label("Description *", exact=True).fill("Document reference")
     form.get_by_label("Content type *", exact=True).select_option("Other")
     form.get_by_label("Other category *", exact=True).fill("Reference")
     form.locator("input[type=file]").set_input_files({"name": filename, "mimeType": mime, "buffer": raw})
-    expect(form).to_contain_text("Any file type up to 5 MiB")
-    expect(form).to_contain_text("download-only")
+    expect(form).to_contain_text("DOCX, PDF, PPTX, TXT")
+    expect(form).to_contain_text("View in a new tab")
     form.get_by_role("button", name="Add content", exact=True).click()
     expect(form).not_to_be_visible()
     page.get_by_role("button", name="Open", exact=True).click()
     details = page.get_by_role("dialog", name="Opaque document", exact=True)
-    expect(details).not_to_contain_text("not inspected, scanned, or previewed")
+    expect(details).not_to_contain_text("not inspected")
     expect(details.locator("iframe, pre")).to_have_count(0)
-    expect(details.get_by_role("button", name="View file", exact=True)).to_have_count(0)
-    with page.expect_download() as downloaded:
-        details.get_by_role("link", name="Download file", exact=True).click()
-    assert Path(downloaded.value.path()).read_bytes() == raw
+    view = details.get_by_role("link", name="View file", exact=True)
+    expect(view).to_have_attribute("target", "_blank")
+    assert re.search(r"attachment=%2Fapi%2Fv1%2Fknowledge", view.get_attribute("href"))
+    assert stored_file_response(details, browser_context).body() == raw
+    if filename == "encoded.txt":
+        with page.expect_popup() as popup:
+            view.click()
+        expect(popup.value.locator("pre")).to_have_text("Text")
+        popup.value.close()
+    page.close()
+
+
+def test_knowledge_view_shows_text_without_interpreting_markup(module_portal_url, browser_context):
+    page = browser_context.new_page()
+    open_knowledge(page, module_portal_url)
+    page.get_by_role("button", name="+ Add content", exact=True).click()
+    form = page.get_by_role("dialog", name="Add content", exact=True)
+    form.get_by_label("Content name *", exact=True).fill("Text reference")
+    form.get_by_label("Description *", exact=True).fill("New tab view")
+    form.get_by_label("Content type *", exact=True).select_option("Other")
+    form.get_by_label("Other category *", exact=True).fill("Reference")
+    form.locator("input[type=file]").set_input_files({
+        "name": "reference.txt", "mimeType": "text/plain",
+        "buffer": b"<script>window.previewScriptRan=true</script><p>Preview works</p>",
+    })
+    form.get_by_role("button", name="Add content", exact=True).click()
+    page.get_by_role("button", name="Open", exact=True).click()
+    details = page.get_by_role("dialog", name="Text reference", exact=True)
+    expect(details).not_to_contain_text("not inspected")
+    with page.expect_popup() as popup:
+        details.get_by_role("link", name="View file", exact=True).click()
+    preview = popup.value
+    expect(preview.locator("body")).to_contain_text("Preview works")
+    assert preview.evaluate("window.previewScriptRan") is None
+    assert "attachment=" in preview.url
+    expect(preview.locator("pre")).to_contain_text("<script>")
+    expect(preview.locator("a[download], button").filter(has_text="Download")).to_have_count(0)
+    preview.close()
+    page.close()
+
+
+@pytest.mark.parametrize("filename", ["sheet.xlsx", "sheet.csv", "image.png", "payload.exe", "extensionless"])
+def test_knowledge_blocks_unapproved_file_selection(module_portal_url, browser_context, filename):
+    page = browser_context.new_page()
+    open_knowledge(page, module_portal_url)
+    page.get_by_role("button", name="+ Add content", exact=True).click()
+    form = page.get_by_role("dialog", name="Add content", exact=True)
+    upload = form.locator("input[type=file]")
+    expect(upload).to_have_attribute("accept", ".docx,.pdf,.pptx,.txt,.mp4,.webm,.mov")
+    upload.set_input_files({"name": filename, "mimeType": "application/pdf", "buffer": b"not allowed"})
+    expect(form.get_by_role("alert")).to_contain_text("Excel files are not supported")
+    assert upload.evaluate("element => element.files.length") == 0
+    assert browser_context.request.get(module_portal_url + "api/v1/knowledge/content").json()["total"] == 0
+    page.close()
+
+
+@pytest.mark.parametrize("extension", [".docx", ".pptx", ".pdf"])
+def test_document_preview_renders_without_download(module_portal_url, browser_context, extension, monkeypatch):
+    from app.core.config import settings
+    from tests.preview_fixtures import native_document, office_document
+    if extension != ".pdf" and not settings.DOCUMENT_PREVIEW_CONVERTER:
+        pytest.skip("Set DOCUMENT_PREVIEW_CONVERTER to exercise actual local Office conversion")
+    raw = native_document(extension) if extension == ".pdf" else office_document(extension)
+    page = browser_context.new_page()
+    open_knowledge(page, module_portal_url)
+    page.get_by_role("button", name="+ Add content", exact=True).click()
+    form = page.get_by_role("dialog", name="Add content", exact=True)
+    form.get_by_label("Content name *", exact=True).fill("Office preview")
+    form.get_by_label("Description *", exact=True).fill("Local conversion fixture")
+    form.locator("input[type=file]").set_input_files({
+        "name": "reference" + extension, "mimeType": "application/octet-stream", "buffer": raw,
+    })
+    form.get_by_role("button", name="Add content", exact=True).click()
+    page.get_by_role("button", name="Open", exact=True).click()
+    details = page.get_by_role("dialog", name="Office preview", exact=True)
+    assert stored_file_response(details, browser_context).body() == raw
+    downloads = []
+    browser_context.on("page", lambda new_page: new_page.on("download", lambda item: downloads.append(item)))
+    converter = settings.DOCUMENT_PREVIEW_CONVERTER
+    if extension == ".docx":
+        monkeypatch.setattr(settings, "DOCUMENT_PREVIEW_CONVERTER", "")
+    with page.expect_popup() as popup:
+        details.get_by_role("link", name="View file", exact=True).click()
+    preview = popup.value
+    if extension == ".docx":
+        expect(preview.get_by_role("alert")).to_contain_text("converter is not configured", timeout=10000)
+        monkeypatch.setattr(settings, "DOCUMENT_PREVIEW_CONVERTER", converter)
+        preview.get_by_role("button", name="Retry preview", exact=True).click()
+    expect(preview.locator("canvas").first).to_be_visible(timeout=60000)
+    expect(preview.get_by_role("status")).to_have_count(0, timeout=60000)
+    assert preview.locator("canvas").first.evaluate("""canvas => {
+      const pixels=canvas.getContext('2d').getImageData(0,0,canvas.width,canvas.height).data;
+      for(let i=0;i<pixels.length;i+=4) if(pixels[i+3] && pixels[i]<100 && pixels[i+1]<100 && pixels[i+2]<100) return true;
+      return false;
+    }""")
+    expect(preview.locator("a[download]")).to_have_count(0)
+    assert not downloads
+    preview.close()
     page.close()
 
 
@@ -108,11 +208,9 @@ def test_knowledge_grid_list_filter_edit_review_download_and_delete(module_porta
     details = page.get_by_role("dialog", name="Journey guide", exact=True)
     assert_centered(details)
     assert_no_review_metadata(details)
-    expect(details.get_by_role("button", name="View file", exact=True)).to_have_count(0)
-    expect(details).not_to_contain_text("Download only")
-    with page.expect_download() as download:
-        details.get_by_role("link", name="Download file", exact=True).click()
-    assert Path(download.value.path()).read_bytes() == b"Instructions <script>not executable</script>"
+    expect(details).not_to_contain_text("not inspected")
+    expect(details.get_by_role("link", name="View file", exact=True)).to_have_attribute("target", "_blank")
+    assert stored_file_response(details, browser_context).body() == b"Instructions <script>not executable</script>"
     details.get_by_role("button", name="Close", exact=True).click()
     page.set_viewport_size({"width": 390, "height": 844})
     assert page.locator(".knowledge-grid").evaluate("el => getComputedStyle(el).gridTemplateColumns.split(' ').length") == 1
@@ -159,8 +257,8 @@ def test_knowledge_submission_shared_across_profiles_without_publishing_legacy_c
     stale.get_by_role("button", name="Cancel", exact=True).click()
     page.get_by_role("button", name="Open", exact=True).click()
     details = page.get_by_role("dialog", name="Shared guide", exact=True)
-    expect(details.get_by_role("button", name="View file", exact=True)).to_have_count(0)
-    expect(details).not_to_contain_text("Download only")
+    expect(details).not_to_contain_text("not inspected")
+    expect(details.get_by_role("link", name="View file", exact=True)).to_have_attribute("target", "_blank")
     details.get_by_role("button", name="Close", exact=True).click()
     page.get_by_role("button", name="Delete", exact=True).click()
     deletion = page.get_by_role("dialog", name="Delete content", exact=True)
@@ -207,11 +305,14 @@ def test_knowledge_video_is_download_only_and_browser_storage_independence(modul
     form.get_by_role("button", name="Add content", exact=True).click()
     page.get_by_role("button", name="Open", exact=True).click()
     details = page.get_by_role("dialog", name="Video journey")
-    expect(details).not_to_contain_text("not inspected, scanned, or previewed")
+    expect(details).not_to_contain_text("not inspected")
     expect(details.locator("video, img, iframe, pre")).to_have_count(0)
-    with page.expect_download() as downloaded:
-        details.get_by_role("link", name="Download file", exact=True).click()
-    assert Path(downloaded.value.path()).read_bytes() == base64.b64decode(video)
+    assert stored_file_response(details, browser_context).body() == base64.b64decode(video)
+    with page.expect_popup() as popup:
+        details.get_by_role("link", name="View file", exact=True).click()
+    expect(popup.value.locator("video")).to_be_visible()
+    expect(popup.value.locator("video")).to_have_attribute("controlslist", "nodownload")
+    popup.value.close()
     page.close()
     unavailable = browser_context.new_page()
     unavailable.add_init_script("Object.defineProperty(window, 'indexedDB', {value: undefined});")
@@ -253,8 +354,8 @@ def test_knowledge_server_replacement_preserves_unrelated_legacy_browser_files(m
     expect(page.locator(".knowledge-card")).to_have_count(1)
     page.get_by_role("button", name="Open", exact=True).click()
     details = page.get_by_role("dialog", name="Reference guide", exact=True)
-    expect(details.get_by_role("button", name="View file", exact=True)).to_have_count(0)
-    expect(details).not_to_contain_text("Download only")
+    expect(details).not_to_contain_text("not inspected")
+    expect(details.get_by_role("link", name="View file", exact=True)).to_have_attribute("target", "_blank")
     details.get_by_role("button", name="Close", exact=True).click()
     page.get_by_role("button", name="Edit", exact=True).click()
     form = page.get_by_role("dialog", name="Edit content", exact=True)
@@ -266,10 +367,8 @@ def test_knowledge_server_replacement_preserves_unrelated_legacy_browser_files(m
     page.get_by_role("button", name="Knowledge Center", exact=True).click()
     expect(page.locator(".knowledge-card")).to_contain_text("replacement.txt")
     page.get_by_role("button", name="Open", exact=True).click()
-    expect(details.get_by_role("button", name="View file", exact=True)).to_have_count(0)
-    with page.expect_download() as downloaded:
-        details.get_by_role("link", name="Download file", exact=True).click()
-    assert Path(downloaded.value.path()).read_bytes() == b"Replacement instructions"
+    expect(details.get_by_role("link", name="View file", exact=True)).to_have_attribute("target", "_blank")
+    assert stored_file_response(details, browser_context).body() == b"Replacement instructions"
     assert page.evaluate("""async () => {
       const db=await new Promise(resolve=>{const request=indexedDB.open('itom-knowledge-files-v1',2);request.onsuccess=()=>resolve(request.result)});
       const value=await new Promise(resolve=>{const request=db.transaction('files').objectStore('files').get('reference-file');request.onsuccess=()=>resolve(request.result)});

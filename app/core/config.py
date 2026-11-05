@@ -38,6 +38,7 @@ class Settings(BaseSettings):
     SQLITE_DB_PATH: str = "./data/itom.db"
     ASSET_INVENTORY_DIR: str = "./data/asset_inventory"
     CMDB_INVENTORY_ADMIN_TOKEN: Optional[str] = None
+    DOCUMENT_PREVIEW_CONVERTER: str = ""
     MODULE_SHARED_ORIGIN: str = ""
     MODULE_SHARED_ACCESS_KEY: Optional[str] = None
     MODULE_NETWORK_ACCESS: bool = False
