@@ -370,7 +370,7 @@ function WorkspacePage({
             </section>
             <p className="chart-hint">
               {isOperations && operationsScope === "Location"
-                ? "These charts summarize geographic matches. Use the filters below to explore site scores."
+                ? "These charts summarize SolarWinds groups. Use the filters below to explore site scores."
                 : "Select a card, classification or status to view matching current records."}
             </p>
           </div>
@@ -382,7 +382,7 @@ function WorkspacePage({
             aria-label="Filtered data"
           >
             {selection.target === "groups" ? (
-              <LocationScores locations={locationScores} geographicLocations={geographicScores} available={locationScoresAvailable} loading={locationScoresLoading} geographicAvailable={geographicScoresAvailable} geographicLoading={geographicScoresLoading} />
+              <LocationScores groups={sourceGroups} available={snapshot.groups?.data_available === true} loading={loading} freshness={snapshot.freshness?.sources?.SOLARWINDS} />
             ) : (
               <InventoryPanel
                 key={`${config.endpoint}-${selectionId}`}

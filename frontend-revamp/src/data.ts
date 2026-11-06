@@ -216,15 +216,14 @@ export function operationsCategoryFilters(snapshot: Snapshot, scope: string): In
 
 export function buildOperationsCharts(snapshot: Snapshot, scope: string) {
   if (scope === "Location") {
-    const locations = snapshot.geographicScores?.items;
-    const statuses: Counts = {}, levels: Counts = {};
-    for (const row of locations ?? []) {
-      const status = row.scores?.combined?.value == null ? "Unavailable" : row.scores.combined.status ?? "Unknown";
+    const groups = snapshot.groups?.data_available ? snapshot.groups.items : undefined;
+    const statuses: Counts = {}, nodeStatuses: Counts = {};
+    for (const row of groups ?? []) {
+      const status = row.site_score.value == null ? "Unavailable" : row.site_score.status ?? "Unknown";
       statuses[status] = (statuses[status] ?? 0) + 1;
-      const level = row.match_level ?? "Unknown";
-      levels[level] = (levels[level] ?? 0) + 1;
+      for (const [name, count] of Object.entries(row.status_breakdown ?? {})) nodeStatuses[name] = (nodeStatuses[name] ?? 0) + count;
     }
-    return { chartTitle: "Combined score classification", chartCenter: locations ? number(locations.length) : "—", chartLegend: legend(statuses), barsTitle: "Geographic match level", bars: bars(levels) };
+    return { chartTitle: "SolarWinds site score classification", chartCenter: groups ? number(groups.length) : "—", chartLegend: legend(statuses), barsTitle: "Node status across groups", bars: bars(nodeStatuses) };
   }
   const categoryRows = operationsCategoryRows(snapshot, scope);
   const categoryCounts = (field: "health_counts" | "status_counts") => {
@@ -413,7 +412,7 @@ export function buildPortalModel(snapshot: Snapshot) {
         "Monitor node health, network capacity, and server performance across every location.",
       metrics: [
         metric(
-          "Location", snapshot.geographicScores ? snapshot.geographicScores.items.length : undefined,
+          "Location", snapshot.groups?.data_available ? snapshot.groups.items.length : undefined,
           "Geographic matches", "map", "purple", { label: "Location", target: "groups" },
         ),
         metric(

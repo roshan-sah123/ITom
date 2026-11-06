@@ -130,36 +130,24 @@ def test_summary_and_chart_clicks_filter_reset_paginate_and_export(drilldown_url
 
 def test_group_card_and_endpoint_charts_open_matching_data(revamp_groups_url,browser_context):
     page=browser_context.new_page()
-    location_fixture = {'data': {'items': [{
-        'id': 'test-site', 'name': 'Test Site', 'level': 'city', 'match_level': 'city', 'endpoints': 2, 'nodes': 3,
-        'scores': {'combined': {'value': 80, 'status': 'critical', 'reason': 'A component is below 75%'},
-                   'infrastructure': {'value': 100, 'status': 'healthy'}, 'endpoints': {'value': 70, 'status': 'critical'}},
-        'components': {'node_status': {'value': 100, 'numerator': 3, 'denominator': 3, 'usable': True}, 'compliance': {'value': 70, 'usable': True}, 'recent_checkins': {'value': 70, 'usable': True}}
+    group_fixture = {'data': {'data_available': True, 'items': [{
+        'group': {'group_id': 7, 'name': 'Test Site', 'status': 'Up'}, 'total_devices': 3,
+        'server_count': 1, 'network_count': 2, 'site_score': {'value': 100, 'status': 'healthy'},
+        'status_breakdown': {'Up': 3}, 'components': {'node_status': {'value': 100, 'denominator': 3, 'usable': True}}
     }]}}
-    page.route('**/api/v1/locations', lambda route: route.fulfill(json=location_fixture))
-    page.route('**/api/v1/locations/geographic-scores', lambda route: route.fulfill(json=location_fixture))
+    page.route('**/api/v1/solarwinds/groups/overview', lambda route: route.fulfill(json=group_fixture))
     page.goto(revamp_groups_url)
     page.get_by_role('button',name='Operations Analytics',exact=True).click()
     page.get_by_role('button',name='View Location',exact=True).click()
     expect(page.locator('.location-charts .analytics-donut')).to_be_disabled()
-    assert page.locator('.location-charts .analytics-donut').evaluate("el => getComputedStyle(el).opacity") == '1'
-    expect(page.locator('.location-charts .chart-hint')).to_contain_text('Use the filters below')
-    expect(page.get_by_role('heading',name='Location site scores',exact=True)).to_be_visible()
+    expect(page.get_by_role('heading',name='SolarWinds site scores',exact=True)).to_be_visible()
     expect(page.locator('.inventory-panel')).to_contain_text('Test Site')
-    expect(page.locator('.inventory-panel')).to_contain_text('Suggested P1')
-    expect(page.locator('.inventory-panel')).to_contain_text('100% (3 / 3)')
-    expect(page.locator('.inventory-panel')).to_contain_text('Geographic city')
-    page.get_by_label('Mapping scope').select_option('assigned')
-    expect(page.locator('.inventory-panel')).to_contain_text('Assigned')
-    page.get_by_label('Mapping scope').select_option('geographic')
+    expect(page.locator('.inventory-panel tbody')).to_contain_text('Healthy')
+    expect(page.get_by_label('Score type')).to_have_count(0)
+    expect(page.locator('.inventory-panel')).not_to_contain_text('Intune')
     with page.expect_download() as download:
         page.get_by_role('button', name='Export filtered CSV').click()
     assert download.value.suggested_filename == 'location-site-scores.csv'
-    page.get_by_label('Score type').select_option('infrastructure')
-    expect(page.locator('.inventory-panel tbody')).to_contain_text('healthy')
-    page.get_by_label('Score type').select_option('endpoints')
-    expect(page.locator('.inventory-panel tbody')).to_contain_text('70')
-    page.get_by_label('Score type').select_option('combined')
     page.get_by_role('button',name='Digital Workspace',exact=True).click()
     page.get_by_role('button',name='Filter Operating system fleet: Windows',exact=True).click()
     expect(page.locator('.inventory-panel .table-footer')).to_contain_text('of 3 records')

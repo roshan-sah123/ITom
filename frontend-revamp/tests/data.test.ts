@@ -20,13 +20,13 @@ test("operations charts use the selected source category and keep its inventory 
   assert.deepEqual(missing.chartLegend, []);
   const total = buildOperationsCharts(snapshot, "Total Nodes");
   assert.equal(total.chartCenter, "5");
-  const location = buildOperationsCharts({ geographicScores: { items: [
-    { id: "a", name: "A", endpoints: 2, match_level: "city", scores: { combined: { value: 80, status: "critical" } } },
-    { id: "b", name: "B", endpoints: 2, match_level: "country", scores: { combined: { value: null, status: "unavailable" } } },
+  const location = buildOperationsCharts({ groups: { data_available: true, items: [
+    { group: { group_id: 1, name: "Site", status: "Up" }, total_devices: 3, server_count: 1, network_count: 2,
+      site_score: { value: 100, status: "healthy" }, status_breakdown: { Up: 3 } },
   ] } }, "Location");
-  assert.equal(location.chartCenter, "2");
-  assert.equal(location.chartLegend.find((row) => row.label === "critical")?.value, "1");
-  assert.equal(location.bars.find((row) => row.label === "country")?.display, "1");
+  assert.equal(location.chartCenter, "1");
+  assert.equal(location.chartLegend.find((row) => row.label === "healthy")?.value, "1");
+  assert.equal(location.bars.find((row) => row.label === "Up")?.display, "3");
 });
 import { scorePriority, componentEvidence } from "../src/locationScoreData.ts";
 
