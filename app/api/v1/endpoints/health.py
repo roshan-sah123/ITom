@@ -21,7 +21,7 @@ async def module_readiness_probe(session: AsyncSession = Depends(get_module_db))
     await session.execute(text(
         "UPDATE module_alembic_version SET version_num = version_num WHERE 1 = 0"
     ))
-    return {"status": "ready", "database_engine": "sqlite", "migration_head": True}
+    return {"status": "ready", "database_engine": session.bind.dialect.name, "migration_head": True}
 
 
 @router.get("/healthz", status_code=status.HTTP_200_OK)

@@ -60,13 +60,19 @@ def test_secondary_defaults_to_its_own_file_and_rejects_shared_or_invalid_urls(m
     assert settings.DATABASE_URL_2 == "sqlite+aiosqlite:///./data/modules.db"
     assert settings.async_database_url.startswith("postgresql+asyncpg://")
     assert settings.module_database_url.endswith("/data/modules.db")
-    for secondary in ("", "postgresql://operator@localhost/telemetry", "sqlite+aiosqlite:///./data/itom.db"):
+    for secondary in ("", "mysql://operator@localhost/telemetry", "sqlite+aiosqlite:///./data/itom.db"):
         with pytest.raises(ValueError):
             Settings(_env_file=None, DATABASE_URL="sqlite+aiosqlite:///./data/itom.db", DATABASE_URL_2=secondary)
     alias = Settings(_env_file=None, DATABASE_URL="sqlite+aiosqlite:///./data/telemetry.db",
                      DATABASE_URL_2="sqlite:///./data/itom.db", SQLITE_DB_PATH="./data/other.db")
     assert alias.module_database_url.endswith("/data/itom.db")
     Settings(_env_file=None, DATABASE_URL="sqlite+aiosqlite:///./data/telemetry.db?timeout=30")
+
+
+def test_module_database_can_share_postgresql_with_primary():
+    url = "postgresql://operator@localhost/telemetry"
+    settings = Settings(_env_file=None, DATABASE_URL=url, DATABASE_URL_2=url)
+    assert settings.module_database_url == "postgresql+asyncpg://operator@localhost/telemetry"
 
 
 def test_module_migration_does_not_connect_to_postgres_primary(tmp_path):

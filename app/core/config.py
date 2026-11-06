@@ -313,8 +313,16 @@ class Settings(BaseSettings):
 
     @property
     def module_database_url(self) -> str:
-        """Resolve the independent module file without primary SQLite path aliases."""
-        return self._resolve_module_sqlite_url(self.DATABASE_URL_2)
+        """Resolve SQLite module storage or normalize a PostgreSQL connection."""
+        value = self.DATABASE_URL_2
+        if value.startswith(("postgresql://", "postgres://")):
+            value = value.replace("postgresql://", "postgresql+asyncpg://", 1).replace("postgres://", "postgresql+asyncpg://", 1)
+        if value.startswith("postgresql+asyncpg://"):
+            url = make_url(value)
+            if not url.database:
+                raise ValueError("DATABASE_URL_2 must name a PostgreSQL database.")
+            return value
+        return self._resolve_module_sqlite_url(value)
 
 
 settings = Settings()

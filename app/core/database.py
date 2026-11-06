@@ -128,7 +128,11 @@ def get_sessionmaker(engine_instance: Optional[AsyncEngine] = None) -> Optional[
 # Authoritative application engine and sessionmaker
 engine: Optional[AsyncEngine] = create_engine_for_url()
 AsyncSessionLocal: Optional[async_sessionmaker[AsyncSession]] = get_sessionmaker(engine)
-module_engine: AsyncEngine = _create_sqlite_engine(settings.module_database_url)
+module_engine: AsyncEngine = (
+    _create_sqlite_engine(settings.module_database_url)
+    if settings.module_database_url.startswith("sqlite")
+    else create_engine_for_url(settings.module_database_url)
+)
 ModuleSessionLocal = async_sessionmaker(module_engine, expire_on_commit=False, autoflush=False)
 
 
@@ -146,7 +150,7 @@ async def verify_module_schema(session: AsyncSession) -> None:
 
 
 async def get_module_db() -> AsyncGenerator[AsyncSession, None]:
-    """Always use DATABASE_URL_2; an unavailable module database never falls back."""
+    """Use DATABASE_URL_2 without falling back when storage is unavailable."""
     async with ModuleSessionLocal() as session:
         try:
             await verify_module_schema(session)

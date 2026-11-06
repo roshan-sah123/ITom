@@ -70,7 +70,7 @@ async def run_async_migrations() -> None:
     """Run migrations in 'online' mode using AsyncEngine."""
     configuration = config.get_section(config.config_ini_section, {})
     configuration["sqlalchemy.url"] = database_url
-    if module_database:
+    if module_database and make_url(database_url).get_backend_name() == "sqlite":
         database_path = make_url(database_url).database
         if database_path != ":memory:":
             Path(database_path).parent.mkdir(parents=True, exist_ok=True)
