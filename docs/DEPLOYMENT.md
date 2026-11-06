@@ -4,6 +4,64 @@ The supported runtime is `app.main:app`. It serves `frontend/` and the database-
 
 ## UI revamp deployment handoff
 
+### Server-wide production module storage
+
+The current Windows production module database is
+`C:\ProgramData\ITOM\data\modules.db`, outside the deployment user's profile.
+The actual production environment uses:
+
+```dotenv
+DATABASE_URL_2='sqlite+aiosqlite:///C:\ProgramData\ITOM\data\modules.db'
+```
+
+This is a deployment-specific absolute path, not a change to the portable
+application default. Local preview databases and the primary PostgreSQL
+`DATABASE_URL` remain unchanged. Older paths in the historical cutover notes
+below describe the previous module-storage location.
+
+For the cutover, production was stopped gracefully before a SQLite backup-API
+copy, preventing writes during migration. Integrity checks and all-table
+fingerprints verified records, attachment bytes, revisions and review data.
+Only `DATABASE_URL_2` changed; the existing scheduled task restarted successfully.
+Primary/module readiness, module responses, source summaries, the running
+scheduler and FRESH telemetry were verified. The previous profile-local database
+is retained for rollback only; it is no longer the production write target.
+Do not point two deployments at old/new copies and assume they replicate.
+
+The server-wide directory has restricted inheritable permissions for SYSTEM,
+Administrators and the current runtime account, with Administrators owning the
+database. Ordinary server users do not receive direct file access: they use the
+portal. Grant only the designated runtime/service account access when migrating
+the application. Do not grant Everyone access or place SQLite on a network share.
+
+Verified cutover materials are protected under
+`C:\ProgramData\ITOM\backups\module-path-migration-20261106`: module snapshot,
+private previous runtime configuration and verification fingerprints.
+This is a one-time migration backup, not an automatic backup schedule.
+Use SQLite database-aware backups for later protection and protect them as
+carefully as the live database.
+
+**Account-deletion limitation:** server-wide database storage survives deletion
+of the deployment user's profile, but the application, interpreter, runtime
+configuration, initial workbooks and login-triggered startup task still depend
+on that profile/account. Move those separately to permanent server locations
+and a dedicated service account before removing the user. This storage cutover
+alone does not make the portal independent of that account.
+
+### Asset rows-per-page expansion
+
+Server, Network and Telecom offer 10, 25, 50, 100, 150 and 200 rows per
+page. The asset API maximum is 200; other modules retain their existing limits.
+This update changes only pagination and its matching static frontend. No schema,
+database restore or record transformation is required. After the controlled
+production restart, module table fingerprints and runtime configuration were
+unchanged; readiness, existing module reads, scheduler and FRESH telemetry
+were verified. Live browser checks confirmed actual 150/200-row results in all
+three categories (bounded by available rows). Validation passed: 113 targeted
+API tests, 27 frontend tests and the build; asset browser pagination, review,
+sticky-header and desktop/mobile flows passed, with a pre-existing intermittent
+fixture-seeding conflict passing on targeted rerun.
+
 ### View-only attachment preview and Knowledge upload types
 
 Vendor SOP and Knowledge detail dialogs show View without Download. A bundled

@@ -109,6 +109,11 @@ An uninitialized category with a missing/unreadable workbook is unavailable,
 not an empty inventory. A seeded category remains available independently of
 the source file, and deleting its last row does not reseed it.
 The inventory view and API do not accept workbook uploads or replace-imports.
+Server, Network and Telecom row-count selectors offer 10, 25, 50, 100, 150
+and 200 rows per page. Asset record pagination is capped at 200; the inventory
+compatibility route accepts those six sizes. Defaults, search, export and
+revision behaviour are unchanged. This pagination change requires no schema
+migration or stored-data transformation.
 
 All asset reads, exports and writes require local access or the shared module session below.
 Writes require same-origin requests; in every environment, administration

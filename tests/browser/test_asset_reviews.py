@@ -91,6 +91,28 @@ def test_cmdb_categories_row_cell_reviews_edit_export_add_delete(asset_portal_ur
     page.close()
 
 
+def test_all_asset_page_size_options_and_reset(asset_portal_url, browser_context):
+    assert browser_context.request.get(asset_portal_url + "api/v1/assets/summary").ok
+    page = browser_context.new_page()
+    page.goto(asset_portal_url)
+    page.get_by_role("button", name="Assets Analytics", exact=True).click()
+    for label in ["Servers", "Network devices", "Telecom"]:
+        page.get_by_role("button", name=f"Open {label} inventory", exact=True).click()
+        dialog = page.get_by_role("dialog", name=label, exact=True)
+        dropdown = dialog.get_by_label("Rows per page", exact=True)
+        assert dropdown.locator("option").all_text_contents() == ["10", "25", "50", "100", "150", "200"]
+        for size in ["150", "200", "100"]:
+            with page.expect_response(lambda response: "/api/v1/assets/records/" in response.url
+                                      and f"page_size={size}" in response.url) as response:
+                dropdown.select_option(size)
+            assert response.value.status == 200
+            assert response.value.json()["page_size"] == int(size)
+            assert response.value.json()["page"] == 1
+            expect(dialog.locator("tbody tr")).to_have_count(1)
+        dialog.get_by_role("button", name=f"Close {label} inventory", exact=True).click()
+    page.close()
+
+
 @pytest.mark.parametrize("fullscreen", [False, True])
 @pytest.mark.parametrize("viewport", [{"width": 1440, "height": 900}, {"width": 390, "height": 844}])
 def test_all_inventory_column_headers_stay_visible_while_scrolling(asset_portal_url, browser_context, fullscreen, viewport):

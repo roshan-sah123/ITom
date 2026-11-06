@@ -14,6 +14,30 @@ def write_workbook(path, rows, sheet_name="Inventory"):
     workbook.close()
 
 
+@pytest.mark.asyncio
+@pytest.mark.parametrize("category", ["server", "network", "telecom"])
+async def test_asset_expanded_page_sizes_preserve_pagination(api_environment, tmp_path, category):
+    from httpx import ASGITransport, AsyncClient
+    from app.api.v1.endpoints.assets import get_asset_inventory_service
+    from app.services.asset_inventory_service import AssetInventoryService
+
+    write_workbook(tmp_path / f"{category}.xlsx",
+                   [["HOST NAME", "Site"]] + [[f"asset-{index:03}", "Delhi"] for index in range(205)])
+    api_environment.dependency_overrides[get_asset_inventory_service] = lambda: AssetInventoryService(tmp_path)
+    async with AsyncClient(transport=ASGITransport(app=api_environment, client=("127.0.0.1", 1234)),
+                           base_url="http://127.0.0.1:8080") as client:
+        for route in ["records", "inventory"]:
+            for size in [100, 150, 200]:
+                first = await client.get(f"/api/v1/assets/{route}/{category}?page_size={size}")
+                assert first.status_code == 200, first.text
+                assert len(first.json()["items"]) == size
+                assert first.json()["total"] == 205
+                second = await client.get(f"/api/v1/assets/{route}/{category}?page_size={size}&page=2")
+                assert second.status_code == 200
+                assert len(second.json()["items"]) == min(size, 205 - size)
+            assert (await client.get(f"/api/v1/assets/{route}/{category}?page_size=201")).status_code == 422
+
+
 def test_asset_inventory_reads_the_best_header_row_and_paginates_search(tmp_path):
     from app.services.asset_inventory_service import AssetInventoryService
 

@@ -277,7 +277,7 @@ function WorkbookInventoryDialog({
               setPage(1);
             }}
           >
-            {[10, 25, 50, 100].map((size) => (
+            {[10, 25, 50, 100, 150, 200].map((size) => (
               <option key={size} value={size}>
                 {size}
               </option>

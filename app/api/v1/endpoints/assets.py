@@ -69,15 +69,15 @@ async def get_asset_inventory_summary(
 async def list_asset_inventory(
     category: AssetInventoryCategory,
     page: int = Query(1, ge=1),
-    page_size: int = Query(25, ge=1, le=100),
+    page_size: int = Query(25, ge=1, le=200),
     search: str | None = Query(None, max_length=200),
     service: AssetInventoryService = Depends(get_asset_inventory_service),
     session=Depends(get_module_db),
 ) -> dict:
-    if page_size not in {10, 25, 50, 100}:
+    if page_size not in {10, 25, 50, 100, 150, 200}:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail="page_size must be one of [10, 25, 50, 100]",
+            detail="page_size must be one of [10, 25, 50, 100, 150, 200]",
         )
     result = await operation(AssetReviewService(session, service).list(category, page, page_size, search or ""), session)
     if isinstance(result, JSONResponse):
@@ -156,7 +156,7 @@ async def check_admin():
 
 @router.get("/records/{category}", dependencies=[Depends(local_inventory)])
 async def inventory_records(category: AssetInventoryCategory, page: int = Query(1, ge=1),
-    page_size: int = Query(25, ge=1, le=100), search: str = Query("", max_length=200),
+    page_size: int = Query(25, ge=1, le=200), search: str = Query("", max_length=200),
     service=Depends(get_asset_inventory_service), session=Depends(get_module_db)):
     return await operation(AssetReviewService(session, service).list(category, page, page_size, search), session)
 
