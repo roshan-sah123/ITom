@@ -103,7 +103,8 @@ test("uses API counts and preserves stale group scores and exact source names", 
           },
           total_devices: 7,
           server_count: 3,
-          network_count: 4,
+          network_count: 2,
+          categories: [{ value: "Telecom", count: 2 }, { value: "Network", count: 2 }, { value: "Server", count: 3 }],
           site_score: {
             value: null,
             reason: "Source data is stale or unavailable",
@@ -121,6 +122,7 @@ test("uses API counts and preserves stale group scores and exact source names", 
   assert.equal(model.locations[0].name, "India - Exact Source Group");
   assert.equal(model.siteRows[0].availability, "—");
   assert.equal(model.locations[0].servers, 3);
+  assert.equal(model.locations[0].telecom, 2);
   assert.equal(model.locations[0].total, 7);
   assert.equal(
     model.workspaceConfigs["Digital Workspace"].chartLegend[0].value,

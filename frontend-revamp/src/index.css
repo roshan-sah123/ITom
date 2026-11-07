@@ -829,6 +829,32 @@ button:disabled { opacity: .55; cursor: wait; }
 .operations-analytics td { font-weight: 550; }
 .operations-analytics .kpi-card p { color: var(--text); font-weight: 700; }
 
+.location-tree { padding: 16px 20px; border-bottom: 1px solid var(--line); }
+.location-tree h3 { margin: 0 0 6px; font-size: 14px; }
+.location-tree p { margin: 0 0 10px; color: var(--muted); font-size: 12px; }
+.location-tree ul { list-style: none; margin: 0; padding: 0; }
+.location-tree > ul { border: 1px solid var(--line); border-radius: 8px; }
+.location-tree__children { margin-left: 20px; border-left: 1px solid var(--line); }
+.location-tree__children p { padding: 4px 12px; }
+.location-tree__row { display: flex; align-items: center; gap: 7px; min-height: 34px; padding: 3px 9px; }
+.location-tree li:nth-child(even) > .location-tree__row { background: #f5f8fc; }
+.location-tree__toggle, .location-tree__spacer { flex: 0 0 24px; width: 24px; }
+.location-tree__toggle { min-height: 28px; border: 0; background: transparent; color: #52647f; cursor: pointer; font-size: 16px; }
+.location-tree__folder { color: #657993; }
+.location-tree__name { text-align: left; min-width: 0; overflow-wrap: anywhere; }
+.location-tree__status { display: inline-flex; align-items: center; gap: 5px; margin-left: auto; color: var(--muted); font-size: 11px; white-space: nowrap; }
+.location-tree__status span { width: 8px; height: 8px; border-radius: 50%; background: #8b97a8; }
+.location-tree__status--up span { background: #1c9b6a; }
+.location-tree__status--critical span { background: #d84545; }
+.location-tree__status--warning span { background: #d78616; }
+
+/* Keep all five infrastructure summaries together on tablet and desktop. */
+@media (min-width: 700px) {
+  .operations-analytics .workspace-kpis { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .operations-analytics .workspace-kpis .kpi-card { gap: 8px; padding: 10px; }
+  .operations-analytics .workspace-kpis .icon-box { flex: 0 0 34px; width: 34px; height: 34px; }
+}
+
 /* Summary controls use the same live populations as the inventory queries. */
 .kpi-card--interactive { width: 100%; text-align: left; font: inherit; }
 .kpi-card--interactive[aria-pressed="true"] { border-color: var(--brand); box-shadow: 0 0 0 2px #1554bf18; }

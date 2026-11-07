@@ -46,6 +46,7 @@ export type Group = {
   total_devices: number;
   server_count: number;
   network_count: number;
+  categories?: Array<{ value: string | null; count: number }>;
   site_score: { value: number | null; status?: string; reason?: string };
   mapping?: { status: string; location_name?: string | null };
   intune_endpoints?: number;
@@ -303,6 +304,7 @@ export function buildPortalModel(snapshot: Snapshot) {
     name: row.group.name,
     servers: row.server_count,
     network: row.network_count,
+    telecom: row.categories ? row.categories.reduce((sum, category) => sum + (category.value?.trim().toLowerCase() === "telecom" ? category.count : 0), 0) : null,
     total: row.total_devices,
     score: row.site_score.value,
     scoreStatus:
@@ -413,7 +415,7 @@ export function buildPortalModel(snapshot: Snapshot) {
       metrics: [
         metric(
           "Location", snapshot.groups?.data_available ? snapshot.groups.items.length : undefined,
-          "Geographic matches", "map", "purple", { label: "Location", target: "groups" },
+          "SolarWinds groups", "map", "purple", { label: "Location", target: "groups" },
         ),
         metric(
           "Total Nodes", sm?.total_nodes, "SolarWinds node inventory", "server", "blue", { label: "Total Nodes", filters: {} },

@@ -139,15 +139,9 @@ def test_group_card_and_endpoint_charts_open_matching_data(revamp_groups_url,bro
     page.goto(revamp_groups_url)
     page.get_by_role('button',name='Operations Analytics',exact=True).click()
     page.get_by_role('button',name='View Location',exact=True).click()
-    expect(page.locator('.location-charts .analytics-donut')).to_be_disabled()
-    expect(page.get_by_role('heading',name='SolarWinds site scores',exact=True)).to_be_visible()
-    expect(page.locator('.inventory-panel')).to_contain_text('Test Site')
-    expect(page.locator('.inventory-panel tbody')).to_contain_text('Healthy')
-    expect(page.get_by_label('Score type')).to_have_count(0)
-    expect(page.locator('.inventory-panel')).not_to_contain_text('Intune')
-    with page.expect_download() as download:
-        page.get_by_role('button', name='Export filtered CSV').click()
-    assert download.value.suggested_filename == 'location-site-scores.csv'
+    expect(page.get_by_role('heading',name='SolarWinds inventory hierarchy',exact=True)).to_be_visible()
+    expect(page.get_by_role('heading',name='SolarWinds site scores')).to_have_count(0)
+    expect(page.locator('.analytics-grid')).to_have_count(0)
     page.get_by_role('button',name='Digital Workspace',exact=True).click()
     page.get_by_role('button',name='Filter Operating system fleet: Windows',exact=True).click()
     expect(page.locator('.inventory-panel .table-footer')).to_contain_text('of 3 records')
@@ -348,6 +342,37 @@ async def revamp_groups_url(revamp_portal_url, session):
     session.add(make_run('SOLARWINDS', groups_extracted=1, memberships_extracted=2))
     await session.commit()
     return revamp_portal_url
+
+
+def test_location_hierarchy_expands_source_groups_and_opens_inventory(revamp_groups_url, browser_context):
+    page = browser_context.new_page()
+    page.route('**/api/v1/solarwinds/groups/10/members', lambda route: route.fulfill(json={'data': {'data_available': True, 'items': [{'kind': 'group', 'group_id': 11, 'name': 'BOCBATEL (Telecom Infra)', 'status': 'Warning', 'has_members': False}]}}))
+    page.goto(revamp_groups_url)
+    page.get_by_role('button', name='Operations Analytics', exact=True).click()
+    page.get_by_role('button', name='View Location', exact=True).click()
+    page.get_by_role('button', name='Expand BOCBA(Bolivia,Cochabamba-Encora)').click()
+    expect(page.get_by_role('button', name='Open group BOCBATEL (Telecom Infra)')).to_be_visible()
+    expect(page.locator('.location-tree__status--warning')).to_have_text('Warning')
+    page.get_by_role('button', name='Open group BOCBA(Bolivia,Cochabamba-Encora)').click()
+    expect(page.locator('.inventory-panel')).to_contain_text('Device 1')
+    page.get_by_role('button', name='Back to hierarchy').click()
+    expect(page.get_by_role('button', name='Open group BOCBATEL (Telecom Infra)')).to_be_visible()
+    page.get_by_role('button', name='Collapse BOCBA(Bolivia,Cochabamba-Encora)').click()
+    expect(page.get_by_role('button', name='Open group BOCBATEL (Telecom Infra)')).to_have_count(0)
+    page.close()
+
+
+def test_location_inventory_lists_group_devices_and_returns_to_scores(revamp_groups_url, browser_context):
+    page = browser_context.new_page()
+    page.goto(revamp_groups_url)
+    page.get_by_role('button', name='Operations Analytics', exact=True).click()
+    page.get_by_role('button', name='View Location', exact=True).click()
+    page.get_by_role('button', name='Open group BOCBA(Bolivia,Cochabamba-Encora)').click()
+    expect(page.locator('.inventory-panel')).to_contain_text('Device 1')
+    expect(page.locator('.inventory-panel')).to_contain_text('Device 2')
+    page.get_by_role('button', name='Back to hierarchy').click()
+    expect(page.get_by_role('heading', name='SolarWinds inventory hierarchy')).to_be_visible()
+    page.close()
 
 
 def test_summary_failures_are_unavailable_and_global_search_preserves_custom_assets(revamp_portal_url, browser_context):

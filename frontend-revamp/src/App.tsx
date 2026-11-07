@@ -134,6 +134,7 @@ function WorkspacePage({
   geographicScores,
   geographicScoresAvailable,
   geographicScoresLoading,
+  locationMatchesLoading,
   locationScoresAvailable,
   locationScoresLoading,
   snapshot,
@@ -156,6 +157,7 @@ function WorkspacePage({
   geographicScores: ReturnType<typeof buildPortalModel>["geographicScores"];
   geographicScoresAvailable: boolean;
   geographicScoresLoading: boolean;
+  locationMatchesLoading: boolean;
   locationScoresAvailable: boolean;
   locationScoresLoading: boolean;
   snapshot: Snapshot;
@@ -242,7 +244,7 @@ function WorkspacePage({
                 aria-label={`View ${metric.label}`}
                 aria-pressed={isOperations ? operationsScope === metric.label : selection.label === metric.action?.label}
                 disabled={loading || metric.value === "—" || !metric.action}
-                onClick={() => { if (isOperations) setOperationsScope(metric.label); if (metric.action) choose(metric.action, isOperations); }}
+                onClick={() => { if (isOperations) setOperationsScope(metric.label); if (metric.action) choose(metric.action, isOperations && metric.label !== "Location"); }}
               >
                 <div className={`icon-box icon-box--${metric.tone}`}>
                   <Icon name={metric.icon} size={18} />
@@ -258,7 +260,7 @@ function WorkspacePage({
             ))}
           </section>
 
-          <div
+          {!(isOperations && operationsScope === "Location") && <div
             ref={chartRef}
             tabIndex={-1}
             className={`drilldown-target${isOperations && operationsScope === "Location" ? " location-charts" : ""}`}
@@ -373,7 +375,7 @@ function WorkspacePage({
                 ? "These charts summarize SolarWinds groups. Use the filters below to explore site scores."
                 : "Select a card, classification or status to view matching current records."}
             </p>
-          </div>
+          </div>}
 
           <div
             ref={detailRef}
@@ -382,7 +384,7 @@ function WorkspacePage({
             aria-label="Filtered data"
           >
             {selection.target === "groups" ? (
-              <LocationScores groups={sourceGroups} available={snapshot.groups?.data_available === true} loading={loading} freshness={snapshot.freshness?.sources?.SOLARWINDS} />
+              <LocationScores freshness={snapshot.freshness?.sources?.SOLARWINDS} config={config} revision={revision} globalSearch={globalSearch} />
             ) : (
               <InventoryPanel
                 key={`${config.endpoint}-${selectionId}`}
@@ -406,6 +408,7 @@ function WorkspacePage({
               />
             )}
           </div>
+          {isOperations && operationsScope !== "Location" && <LocationMatches report={snapshot.locationMatches} loading={locationMatchesLoading} />}
         </>
       )}
     </>
@@ -847,9 +850,9 @@ function App() {
             geographicScoresLoading={sourceLoading("geographicScores")}
             locationScoresAvailable={!!snapshot.locations}
             locationScoresLoading={sourceLoading("locations")}
+            locationMatchesLoading={sourceLoading("locationMatches")}
             onClearSearch={() => setGlobalQuery("")}
           />
-          {activeNav === "Operations Analytics" && <LocationMatches report={snapshot.locationMatches} loading={sourceLoading("locationMatches")} />}
           </>
         )}
       </main>
