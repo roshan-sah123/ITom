@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  defaultOperationsScope,
   buildPortalModel,
   donutGradient,
   donutSlice,
@@ -308,4 +309,13 @@ test("snapshot requests publish results independently and isolate failures", asy
   resolveSlow({ value: 0 });
   await done;
   assert.ok(events.includes('slow:{"value":0}'));
+});
+
+test("operations defaults to locations while preserving explicit inventory drilldowns", () => {
+  assert.equal(defaultOperationsScope({}), "Location");
+  assert.equal(defaultOperationsScope({ status: "Down" }), "Total Nodes");
+  assert.equal(defaultOperationsScope({ health: "Low" }), "Total Nodes");
+  assert.equal(defaultOperationsScope({ pressure: true }), "Total Nodes");
+  assert.equal(defaultOperationsScope({ groupId: 7 }), "Total Nodes");
+  assert.equal(defaultOperationsScope({ search: "router" }), "Total Nodes");
 });

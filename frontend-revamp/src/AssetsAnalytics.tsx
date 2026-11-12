@@ -4,6 +4,9 @@ import { downloadCsv, number } from "./data";
 import { WorkspaceDialog } from "./WorkspaceDialog";
 import {
   assetCount,
+  assetCellDisplay,
+  assetReviewLabel,
+  missingNetworkWorkbookColumns,
   assetRequest,
   editedAssetValue,
   assetWorkbookSources,
@@ -130,9 +133,11 @@ function WorkbookInventoryDialog({
       const firstPage = await assetRequest<AssetRecordPage>(
         `/records/${category}?${params.toString()}`,
       );
+      const missingColumns = missingNetworkWorkbookColumns(category, firstPage.columns);
       const exportRows = (result: AssetRecordPage) => result.items.map(row => [
         ...row.data.map(cell => cell.value == null ? "" : String(cell.value)),
-        row.is_validated ? "Validated" : "Pending", row.validated_by ?? "", row.validated_at ?? "",
+        ...missingColumns.map(() => ""),
+        assetReviewLabel(category, row.is_validated), row.validated_by ?? "", row.validated_at ?? "",
       ]);
       const rows = exportRows(firstPage);
       for (let requestedPage = 2; requestedPage <= firstPage.total_pages; requestedPage++) {
@@ -142,7 +147,7 @@ function WorkbookInventoryDialog({
         );
         rows.push(...exportRows(result));
       }
-      downloadCsv(`${category}-inventory.csv`, [...firstPage.columns, "Validation", "Validated by", "Validated on"], rows);
+      downloadCsv(`${category}-inventory.csv`, [...firstPage.columns, ...missingColumns, "Validation", "Validated by", "Validated on"], rows);
     } catch (reason) {
       setError(`CSV export failed. ${errorText(reason)}`);
     } finally {
@@ -308,6 +313,7 @@ function WorkbookInventoryDialog({
                     {column}
                   </th>
                 ))}
+                {missingNetworkWorkbookColumns(category, inventory.columns).map(column => <th key={column} scope="col">{column}</th>)}
                 <th>Validation</th><th>Validated by</th><th>Validated on</th>{editMode && <th>Actions</th>}
               </tr>
             </thead>
@@ -315,24 +321,25 @@ function WorkbookInventoryDialog({
               {inventory.items.map((row) => (
                 <tr key={row.id}>
                   {row.data.map((cell) => {
-                    const value = cell.value;
+                    const value = assetCellDisplay(category, cell.header, cell.value);
                     const review = row.field_reviews[String(cell.index)];
                     return (
-                      <td key={cell.index} title={value == null ? undefined : String(value)}>
+                      <td key={cell.index} title={value}>
                         <button type="button" className={`asset-cell-button${review ? " asset-cell-button--validated" : ""}`}
                           aria-label={`Open ${cell.header} for ${row.name}`} onClick={() => openEditor(row, cell.index)}>
-                          {value == null || value === "" ? "—" : String(value)}
+                          {value}
                         </button>
                       </td>
                     );
                   })}
-                  <td><span className={`vendor-validation vendor-validation--${row.is_validated ? "validated" : "pending"}`}>{row.is_validated ? "Validated" : "Pending"}</span></td>
+                  {missingNetworkWorkbookColumns(category, inventory.columns).map(column => <td key={column} title="Not available in the current inventory">—</td>)}
+                  <td><span className={`vendor-validation vendor-validation--${row.is_validated ? "validated" : "pending"}`}>{assetReviewLabel(category, row.is_validated)}</span></td>
                   <td>{row.validated_by || "—"}</td><td>{row.validated_at ? new Date(row.validated_at).toLocaleString() : "—"}</td>
                   {editMode && <td><div className="vendor-row-actions">
                     <button type="button" className="button button--secondary" onClick={() => openEditor(row)}>Edit</button>
                     <button type="button" className="button button--secondary vendor-delete" onClick={() => { setDialogError(""); setActor(""); setAction({ kind: "delete", record: row }); }}>Delete</button>
                     <button type="button" className="button button--secondary" disabled={row.is_validated}
-                      onClick={() => { setDialogError(""); setActor(""); setAction({ kind: "validate", record: row }); }}>{row.is_validated ? "Validated" : "Validate"}</button>
+                      onClick={() => { setDialogError(""); setActor(""); setAction({ kind: "validate", record: row }); }}>{row.is_validated ? assetReviewLabel(category, true) : "Validate"}</button>
                   </div></td>}
                 </tr>
               ))}
@@ -348,6 +355,7 @@ function WorkbookInventoryDialog({
         )}
       </div>
       <div className="asset-dialog__footer">
+        {inventory && missingNetworkWorkbookColumns(category, inventory.columns).length > 0 && <span>Additional workbook fields are unavailable in the current inventory.</span>}
         <span aria-live="polite">
           {inventory
             ? `Showing ${start}–${end} of ${number(inventory.total)} records`

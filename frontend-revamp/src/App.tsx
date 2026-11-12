@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   buildPortalModel,
+  defaultOperationsScope,
   buildOperationsCharts,
   operationsCategoryFilters,
   donutGradient,
@@ -163,8 +164,10 @@ function WorkspacePage({
   snapshot: Snapshot;
   onClearSearch: () => void;
 }) {
+  const defaultScope = config.title === "Infrastructure intelligence" ? defaultOperationsScope({ status: initialStatus, health: initialHealth, pressure: initialPressure, groupId, search: globalSearch }) : "Total Nodes";
   const [selection, setSelection] = useState<Drilldown>({
     label: groupName ?? "",
+    ...(defaultScope === "Location" ? { target: "groups" as const } : {}),
     groupId,
     filters: {
       ...(initialStatus ? { status: initialStatus } : {}),
@@ -173,7 +176,7 @@ function WorkspacePage({
     },
   });
   const [selectionId, setSelectionId] = useState(0);
-  const [operationsScope, setOperationsScope] = useState("Total Nodes");
+  const [operationsScope, setOperationsScope] = useState<string>(defaultScope);
   const isOperations = config.title === "Infrastructure intelligence";
   const charts = isOperations ? buildOperationsCharts(snapshot, operationsScope) : config;
   const detailRef = useRef<HTMLDivElement>(null);

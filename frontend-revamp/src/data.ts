@@ -105,6 +105,9 @@ export type Drilldown = {
   target?: "groups" | "chart";
   groupId?: number;
 };
+export function defaultOperationsScope(options: { status?: string; health?: string; pressure?: boolean; groupId?: number; search?: string }): "Location" | "Total Nodes" {
+  return options.status || options.health || options.pressure || options.groupId || options.search?.trim() ? "Total Nodes" : "Location";
+}
 export type Legend = {
   label: string;
   value: string;

@@ -1,5 +1,15 @@
 export type AssetCategory = "server" | "network" | "telecom";
 
+export function assetReviewLabel(category: AssetCategory, validated: boolean): string {
+  return validated ? (category === "network" ? "Verified" : "Validated") : "Pending";
+}
+
+export function missingNetworkWorkbookColumns(category: AssetCategory, columns: string[]): string[] {
+  if (category !== "network") return [];
+  const existing = new Set(columns.map(column => column.trim().toLowerCase()));
+  return ["Country", "Make", "Firmware/IOS Version", "Login Status"].filter(column => !existing.has(column.toLowerCase()));
+}
+
 export const assetWorkbookSources: Array<{
   category: AssetCategory;
   label: string;
@@ -68,6 +78,15 @@ export function assetExportRows(inventory: AssetInventory): string[][] {
 }
 
 export type AssetCell = { index: number; header: string; value: string | number | boolean | null };
+export function assetCellDisplay(category: AssetCategory, header: string, value: AssetCell["value"]): string {
+  if (value == null || value === "") return "—";
+  const text = String(value);
+  if (category === "network" && /^(?:eol(?:\s+date)?|amc\s+end\s+date|validated\s+on)$/i.test(header.trim())) {
+    const match = /^(\d{4}-\d{2}-\d{2})[T ]\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})?$/.exec(text);
+    if (match) return match[1];
+  }
+  return text;
+}
 export type AssetReview = { header: string; value: AssetCell["value"]; validated_at: string; validated_by: string };
 export type AssetRecord = {
   id: string; name: string; category: AssetCategory; source_file: string; source_sheet: string;

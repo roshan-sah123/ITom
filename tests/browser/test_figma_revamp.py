@@ -82,6 +82,8 @@ def test_operations_cards_switch_chart_populations(operations_card_url, browser_
     expect(cards).to_have_count(5)
     for index, name in enumerate(['Location', 'Total Nodes', 'Network', 'Servers', 'Telecom']):
         expect(cards.nth(index)).to_have_attribute('aria-label', f'View {name}')
+    expect(page.get_by_role('button', name='View Location', exact=True)).to_have_attribute('aria-pressed', 'true')
+    expect(page.get_by_role('heading', name='SolarWinds inventory hierarchy', exact=True)).to_be_visible()
     page.get_by_role('button', name='View Telecom', exact=True).click()
     expect(page.locator('.analytics-donut strong')).to_have_text('1')
     expect(page.get_by_role('button', name='Filter Health classification: Medium')).to_contain_text('1')
@@ -155,6 +157,7 @@ def test_geographic_location_matches_show_source_evidence_and_filter(revamp_port
     page = browser_context.new_page()
     page.goto(revamp_portal_url)
     page.get_by_role('button', name='View Operations Analytics').click()
+    page.get_by_role('button', name='View Total Nodes', exact=True).click()
     page.locator('.location-matches > summary').click()
     report = page.locator('.location-matches')
     expect(report.locator('tbody tr')).to_have_count(1)
