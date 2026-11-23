@@ -74,6 +74,13 @@ The score is repeated for each device. Do not sum repeated score or location
 counts. A snapshot status is historical: use the source freshness timestamps
 and latest sync attempts to decide whether it is still actionable.
 
+Retention: every capture keeps its score row in `geographic_score_snapshots`,
+but `geographic_score_inventory` keeps the contributing device list only for
+each location's latest capture. Older device lists are deleted at capture time,
+because storing a full inventory copy per sync grew without bound.
+`scripts/prune_geographic_inventory.py` applies the same rule once to an
+existing database and releases the space.
+
 Check the latest attempt for each source before using a score for tickets:
 
 ```sql

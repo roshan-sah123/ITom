@@ -277,6 +277,29 @@ async def test_geographic_reporting_snapshot_matches_dashboard_and_membership(se
 
 
 @pytest.mark.asyncio
+async def test_geographic_capture_keeps_scores_but_only_latest_inventory(session):
+    from app.models.location import GeographicScoreSnapshot, GeographicScoreInventory
+    session.add(Location(id='hyderabad', name='Hyderabad', level='city'))
+    await session.flush()
+    now = datetime.now(timezone.utc).isoformat()
+    session.add(make_ci('INTUNE', 'device', 'Compliant', 'High', location_id='hyderabad', location_resolution='mapped', attributes={'last_sync_date_time': now}))
+    session.add(make_ci('SOLARWINDS', 'node', 'Up', 'High', location='India - Hyderabad'))
+    runs = [make_run('INTUNE'), make_run('SOLARWINDS')]
+    session.add_all(runs)
+    await session.flush()
+    service = LocationService(session)
+    await service.capture_geographic(runs[0].id)
+    await service.capture_geographic(runs[1].id)
+    await session.flush()
+    snapshots = (await session.scalars(select(GeographicScoreSnapshot))).all()
+    inventory = (await session.scalars(select(GeographicScoreInventory))).all()
+    latest = max(snapshots, key=lambda item: (str(item.sync_run_id) == str(runs[1].id), item.recorded_at))
+    assert str(latest.sync_run_id) == str(runs[1].id), [(str(s.sync_run_id), s.recorded_at) for s in snapshots]
+    assert len(snapshots) == 2
+    assert {item.snapshot_id for item in inventory} == {latest.id} and {item.name for item in inventory} == {'device', 'node'}
+
+
+@pytest.mark.asyncio
 async def test_backfill_idempotent_preserves_telemetry(session):
     service = LocationService(session)
     await service.install_seed()

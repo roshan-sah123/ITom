@@ -12,7 +12,7 @@ from fractions import Fraction
 from pathlib import Path
 from types import SimpleNamespace
 
-from sqlalchemy import select, func, and_, insert
+from sqlalchemy import select, func, and_, insert, delete
 from app.core.config import settings
 from app.models.ci import ConfigurationItem
 from app.models.location import Location, LocationMappingRule, LocationScoreSnapshot, GeographicScoreSnapshot, GeographicScoreInventory
@@ -580,3 +580,8 @@ class LocationService:
                 source_id=ci.source_id, name=ci.name, ci_type=ci.ci_type, status=ci.status,
                 source_location=ci.location, checkin_at_source=(ci.attributes or {}).get('last_sync_date_time'),
                 last_sync_time=ci.last_sync_time) for ci in inventory])
+            # Scores are kept for every capture; the contributing device list only for the latest one,
+            # otherwise a full inventory copy per sync grows without bound.
+            await self.session.execute(delete(GeographicScoreInventory).where(
+                GeographicScoreInventory.snapshot_id.in_(select(GeographicScoreSnapshot.id).where(
+                    GeographicScoreSnapshot.location_id == row['id'], GeographicScoreSnapshot.id != snapshot_id))))
