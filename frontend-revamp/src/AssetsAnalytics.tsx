@@ -4,9 +4,9 @@ import { downloadCsv, number } from "./data";
 import { WorkspaceDialog } from "./WorkspaceDialog";
 import {
   assetCount,
+  assetImportLabel,
   assetCellDisplay,
   assetReviewLabel,
-  missingNetworkWorkbookColumns,
   assetRequest,
   editedAssetValue,
   assetWorkbookSources,
@@ -18,7 +18,48 @@ import type {
   AssetCell,
   AssetSummary,
   AssetSummaryItem,
+  CostCenterReference,
 } from "./assets";
+
+function CostCenterReferenceDialog({ onClose }: { onClose: () => void }) {
+  const [reference, setReference] = useState<CostCenterReference | null>(null);
+  const [error, setError] = useState("");
+  useEffect(() => {
+    const controller = new AbortController();
+    void getJson<CostCenterReference>("/assets/reference/cost-centers", controller.signal)
+      .then((result) => { if (!controller.signal.aborted) setReference(result); })
+      .catch((reason: unknown) => { if (!controller.signal.aborted) setError(errorText(reason)); });
+    return () => controller.abort();
+  }, []);
+  return (
+    <WorkspaceDialog title="Cost-center reference" wide onClose={onClose}
+      subtitle="Admin-provided reference. Entries are not assigned to servers, network devices or telecom circuits.">
+      {error && <div className="data-notice" role="alert">Cost-center reference unavailable: {error}</div>}
+      {!error && !reference && <div className="empty-state">Loading cost-center reference…</div>}
+      {reference && !reference.data_available && <div className="empty-state">No cost-center reference has been imported.</div>}
+      {reference?.data_available && (
+        <>
+          <div className="asset-table-wrap">
+            <table className="asset-table">
+              <thead><tr>{reference.columns.map((column) => <th key={column} scope="col">{column}</th>)}</tr></thead>
+              <tbody>
+                {reference.items.map((item) => (
+                  <tr key={item.source_row}>
+                    {reference.columns.map((column) => <td key={column}>{item.values[column] ?? "—"}</td>)}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="asset-dialog__footer">
+            <span>Source: {reference.source_file ?? "—"}</span>
+            <span aria-live="polite">{number(reference.total)} reference rows</span>
+          </div>
+        </>
+      )}
+    </WorkspaceDialog>
+  );
+}
 
 type AssetIconKind = AssetCategory;
 
@@ -133,10 +174,8 @@ function WorkbookInventoryDialog({
       const firstPage = await assetRequest<AssetRecordPage>(
         `/records/${category}?${params.toString()}`,
       );
-      const missingColumns = missingNetworkWorkbookColumns(category, firstPage.columns);
       const exportRows = (result: AssetRecordPage) => result.items.map(row => [
         ...row.data.map(cell => cell.value == null ? "" : String(cell.value)),
-        ...missingColumns.map(() => ""),
         assetReviewLabel(category, row.is_validated), row.validated_by ?? "", row.validated_at ?? "",
       ]);
       const rows = exportRows(firstPage);
@@ -147,7 +186,7 @@ function WorkbookInventoryDialog({
         );
         rows.push(...exportRows(result));
       }
-      downloadCsv(`${category}-inventory.csv`, [...firstPage.columns, ...missingColumns, "Validation", "Validated by", "Validated on"], rows);
+      downloadCsv(`${category}-inventory.csv`, [...firstPage.columns, "Validation", "Validated by", "Validated on"], rows);
     } catch (reason) {
       setError(`CSV export failed. ${errorText(reason)}`);
     } finally {
@@ -313,7 +352,6 @@ function WorkbookInventoryDialog({
                     {column}
                   </th>
                 ))}
-                {missingNetworkWorkbookColumns(category, inventory.columns).map(column => <th key={column} scope="col">{column}</th>)}
                 <th>Validation</th><th>Validated by</th><th>Validated on</th>{editMode && <th>Actions</th>}
               </tr>
             </thead>
@@ -332,7 +370,6 @@ function WorkbookInventoryDialog({
                       </td>
                     );
                   })}
-                  {missingNetworkWorkbookColumns(category, inventory.columns).map(column => <td key={column} title="Not available in the current inventory">—</td>)}
                   <td><span className={`vendor-validation vendor-validation--${row.is_validated ? "validated" : "pending"}`}>{assetReviewLabel(category, row.is_validated)}</span></td>
                   <td>{row.validated_by || "—"}</td><td>{row.validated_at ? new Date(row.validated_at).toLocaleString() : "—"}</td>
                   {editMode && <td><div className="vendor-row-actions">
@@ -355,7 +392,6 @@ function WorkbookInventoryDialog({
         )}
       </div>
       <div className="asset-dialog__footer">
-        {inventory && missingNetworkWorkbookColumns(category, inventory.columns).length > 0 && <span>Additional workbook fields are unavailable in the current inventory.</span>}
         <span aria-live="polite">
           {inventory
             ? `Showing ${start}–${end} of ${number(inventory.total)} records`
@@ -444,6 +480,7 @@ export function AssetsAnalytics({
     null,
   );
   const [inventoryRevision, setInventoryRevision] = useState(0);
+  const [referenceOpen, setReferenceOpen] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -493,6 +530,13 @@ export function AssetsAnalytics({
         <div className="hero__actions">
           <button
             className="button button--secondary"
+            onClick={() => setReferenceOpen(true)}
+            type="button"
+          >
+            Cost-center reference
+          </button>
+          <button
+            className="button button--secondary"
             onClick={onRefresh}
             type="button"
           >
@@ -500,6 +544,7 @@ export function AssetsAnalytics({
           </button>
         </div>
       </section>
+      {referenceOpen && <CostCenterReferenceDialog onClose={() => setReferenceOpen(false)} />}
 
       {summaryError && (
         <div className="data-notice" role="alert">
@@ -529,7 +574,7 @@ export function AssetsAnalytics({
               <strong>{summaryLoading ? "…" : assetCount(item)}</strong>
               <span className="asset-summary-card__footer">
                 {item.data_available
-                  ? "Open inventory"
+                  ? assetImportLabel(item) ?? "Open inventory"
                   : summaryLoading
                     ? "Checking workbook"
                     : "Source unavailable"}

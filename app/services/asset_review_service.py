@@ -2,7 +2,7 @@ import asyncio
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import Integer, String, cast, func, or_, select, update
+from sqlalchemy import Integer, String, case, cast, func, or_, select, update
 
 from app.models.asset_review import AssetInventoryAudit, AssetInventoryBatch, AssetInventoryRecord
 from app.services.asset_inventory_service import AssetInventoryCategory, AssetInventoryUnavailable
@@ -10,6 +10,16 @@ from app.services.asset_inventory_service import AssetInventoryCategory, AssetIn
 
 class AssetReviewConflict(Exception):
     pass
+
+
+NAME_HEADERS = {"host name", "hostname", "computer name", "server name", "name", "serial number", "serial no"}
+REFERENCE_CATEGORY = "cost_center"
+
+
+def record_name(data, source_row):
+    return next((str(cell["value"]).strip() for cell in data
+                 if cell["header"].casefold() in NAME_HEADERS and cell["value"] not in (None, "")),
+                f"Inventory row {source_row}")
 
 
 class AssetReviewService:
@@ -27,9 +37,7 @@ class AssetReviewService:
         for order, row in enumerate(snapshot["rows"]):
             data = [{"index": index, "header": header, "value": row["values"][header]}
                     for index, header in enumerate(snapshot["columns"])]
-            name = next((str(cell["value"]).strip() for cell in data
-                         if cell["header"].casefold() in {"host name", "hostname", "computer name", "server name", "name", "serial number", "serial no"}
-                         and cell["value"] not in (None, "")), f"Inventory row {row['source_row']}")
+            name = record_name(data, row["source_row"])
             self.session.add(AssetInventoryRecord(
                 category=category.value, source_key=f"{snapshot['source_sheet']}:{row['source_row']}",
                 name=name, source_file=batch.source_file, source_sheet=batch.source_sheet,
@@ -49,8 +57,36 @@ class AssetReviewService:
                 .where(AssetInventoryRecord.category == category.value, AssetInventoryRecord.is_deleted.is_(False)))).one()
             items.append({"category": category.value, "label": label, "data_available": True, "total": counts[0],
                           "validated": counts[1] or 0, "pending": counts[0] - (counts[1] or 0),
-                          "column_count": len(batch.columns)})
+                          "column_count": len(batch.columns), "last_import": await self.last_import(category)})
         return {"data_available": any(item["data_available"] for item in items), "items": items}
+
+    async def cost_center_reference(self):
+        """Admin reference rows; they are standalone and not assigned to inventory records."""
+        batch = await self.session.get(AssetInventoryBatch, REFERENCE_CATEGORY)
+        if batch is None:
+            return {"data_available": False, "columns": [], "items": [], "total": 0, "source_file": None}
+        rows = (await self.session.execute(select(AssetInventoryRecord).where(
+            AssetInventoryRecord.category == REFERENCE_CATEGORY, AssetInventoryRecord.is_deleted.is_(False))
+            .order_by(AssetInventoryRecord.source_order))).scalars().all()
+        return {"data_available": True, "source_file": batch.source_file, "columns": batch.columns,
+                "items": [{"source_row": row.source_row, "values": {cell["header"]: cell["value"] for cell in row.data}}
+                          for row in rows], "total": len(rows)}
+
+    async def last_import(self, category):
+        audit = AssetInventoryAudit
+        imported = (audit.category == category.value, audit.action == "workbook-import")
+        last_at, touched = (await self.session.execute(select(
+            func.max(audit.created_at), func.count(func.distinct(audit.record_id)))
+            .where(*imported, ~audit.record_id.like("batch:%")))).one()
+        if last_at is None:
+            return None
+        workbook = or_(AssetInventoryRecord.source_key.like("workbook:%"), AssetInventoryRecord.source_key.like("export:%"))
+        created, added = (await self.session.execute(select(
+            func.count(), func.sum(case((AssetInventoryRecord.is_deleted.is_(False), 1), else_=0)))
+            .where(AssetInventoryRecord.category == category.value, workbook))).one()
+        if last_at.tzinfo is None:
+            last_at = last_at.replace(tzinfo=timezone.utc)
+        return {"at": last_at.isoformat(), "updated": touched - created, "added": added or 0}
 
     async def list(self, category, page, page_size, search):
         batch = await self.ensure_source(category)

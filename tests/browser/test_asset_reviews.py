@@ -59,7 +59,8 @@ def test_cmdb_categories_row_cell_reviews_edit_export_add_delete(asset_portal_ur
         assert_centered(review)
         review.get_by_label("Operator / reviewer name *", exact=True).fill("Row reviewer")
         review.get_by_role("button", name="Validate", exact=True).click()
-        expect(inventory.get_by_role("button", name="Validated", exact=True)).to_be_disabled()
+        reviewed_label = "Verified" if category == "network" else "Validated"
+        expect(inventory.get_by_role("button", name=reviewed_label, exact=True)).to_be_disabled()
         inventory.get_by_role("button", name="Edit", exact=True).click()
         edit = page.get_by_role("dialog", name="Edit inventory row")
         assert_centered(edit)
@@ -191,4 +192,20 @@ def test_asset_dialog_corner_controls_fullscreen_and_navigation_order(asset_port
         page.get_by_role("button", name=f"Full screen {label} inventory").click()
         page.keyboard.press("Escape")
         expect(inventory).to_have_count(0)
+    page.close()
+
+
+def test_cost_center_reference_is_read_only_and_separate_from_inventory(asset_portal_url, browser_context):
+    page = browser_context.new_page()
+    page.goto(asset_portal_url)
+    page.get_by_role("button", name="Assets Analytics", exact=True).click()
+    expect(page.locator(".asset-summary-grid > button")).to_have_count(3)
+    page.get_by_role("button", name="Cost-center reference", exact=True).click()
+    reference = page.get_by_role("dialog", name="Cost-center reference", exact=True)
+    expect(reference).to_contain_text("not assigned to servers, network devices or telecom circuits")
+    expect(reference).to_contain_text("No cost-center reference has been imported.")
+    expect(reference.get_by_role("button", name="Edit mode")).to_have_count(0)
+    assert_centered(reference)
+    reference.get_by_role("button", name="Close Cost-center reference", exact=True).click()
+    expect(reference).to_have_count(0)
     page.close()

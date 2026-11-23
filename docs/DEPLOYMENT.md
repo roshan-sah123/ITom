@@ -246,6 +246,33 @@ submissions. Workbooks must be supplied separately to `ASSET_INVENTORY_DIR`
 for any categories not yet initialized. Neither databases nor workbooks are in Git.
 Do not overwrite a live database or copy only a SQLite file while its WAL is active.
 
+To reconcile an already-seeded inventory with newer operator workbooks, run
+`scripts/import_asset_workbooks.py` with `--server/--network/--telecom` paths and
+their `--*-sheet` names. It is a dry run unless `--apply` is given, and writes a
+JSON report under `logs/`. Matched records (server host name; network serial
+number confirmed by host name/IP, or host name/IP with compatible identifiers;
+telecom circuit ID) only gain values for empty cells. Existing values, edits and
+operator-deleted assets are preserved, and ambiguous rows are reported, not
+written. New columns are appended for all records and unmatched assets are added.
+The script applies all categories in a single transaction with a revision check,
+so it is safe to rerun. Back up the asset tables before running `--apply`.
+`--portal-export <file.json>` instead imports an Assets Analytics JSON export
+(server, network and telecom records plus `admin_cost_center_reference`).
+Network rows match by S.N confirmed by host name, IP, model, site and a
+compatible serial. Cell reviews are carried over only where the stored value
+equals the reviewed value, and a source's verified status is kept while every
+populated cell is reviewed. The export's `Validation`, `Validated by` and
+`Validated on` data columns become `WORKBOOK VALIDATION`, `WORKBOOK VALIDATED BY`
+and `WORKBOOK VALIDATED ON`. The cost-center reference is stored as standalone
+rows (`cost_center` category) and is never assigned to devices.
+`--replace server --sheet-export <file.json>` makes one category hold exactly the
+rows of a single-sheet JSON export: records match by host name, take the source
+values verbatim (blank source cells become empty), and records absent from the
+source are retired (soft-deleted with a `workbook-retire` audit entry). Rows
+without a usable host name are added only when their serial number is unique and
+are listed for review. Reviews survive only on unchanged cells; nothing is
+marked verified. Other categories are untouched.
+
 The checked-in frontend is ready to serve; no Node build is needed unless React
 source is changed. Preserve the public Host through the HTTPS reverse proxy
 (IIS ARR: `preserveHostHeader=true`, server-level on this installation), then

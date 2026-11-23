@@ -158,6 +158,38 @@ class AssetInventoryService:
         finally:
             workbook.close()
 
+    @classmethod
+    def read_sheet(cls, path: str | Path, sheet_name: str) -> dict:
+        """Read one named worksheet with the same header and value rules as category workbooks."""
+        path = Path(path)
+        try:
+            workbook = openpyxl.load_workbook(path, read_only=True, data_only=True)
+        except (BadZipFile, InvalidFileException, OSError, ValueError) as error:
+            raise AssetInventoryUnavailable(f"Workbook {path.name} could not be read.") from error
+        try:
+            if sheet_name not in workbook.sheetnames:
+                raise AssetInventoryUnavailable(f"Workbook {path.name} has no sheet named {sheet_name!r}.")
+            sheet = workbook[sheet_name]
+            selected = cls._select_header(type("SingleSheet", (), {"worksheets": [sheet]})())
+            if selected is None:
+                raise AssetInventoryUnavailable(f"Sheet {sheet_name!r} in {path.name} has no usable header row.")
+            _, header_row, headers = selected
+            columns = cls._unique_headers(headers)
+            rows = []
+            for row_number, row in enumerate(sheet.iter_rows(
+                min_row=header_row + 1, max_col=len(columns), values_only=True,
+            ), start=header_row + 1):
+                if not any(value not in (None, "") for value in row):
+                    continue
+                rows.append({
+                    "source_row": row_number,
+                    "values": {column: cls._json_value(row[index] if index < len(row) else None)
+                               for index, column in enumerate(columns)},
+                })
+            return {"columns": columns, "rows": rows, "source_sheet": sheet.title, "source_file": path.name}
+        finally:
+            workbook.close()
+
     @staticmethod
     def _select_header(workbook):
         candidates = []

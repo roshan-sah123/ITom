@@ -109,6 +109,15 @@ An uninitialized category with a missing/unreadable workbook is unavailable,
 not an empty inventory. A seeded category remains available independently of
 the source file, and deleting its last row does not reseed it.
 The inventory view and API do not accept workbook uploads or replace-imports.
+Operators can reconcile newer workbooks offline with
+`scripts/import_asset_workbooks.py`; it fills only empty cells, appends new
+columns and adds unmatched assets, recording `workbook-import` audit entries
+(see `docs/DEPLOYMENT.md`). `GET /assets/summary` items include `last_import`
+(`at`, records `updated`, records `added`), derived from those audit entries,
+or `null` before any import; the category tiles show it.
+`GET /assets/reference/cost-centers` returns the imported admin cost-center
+reference (`columns`, `items`, `total`, `source_file`, `data_available`). It is
+read-only and implies no device assignment.
 Server, Network and Telecom row-count selectors offer 10, 25, 50, 100, 150
 and 200 rows per page. Asset record pagination is capped at 200; the inventory
 compatibility route accepts those six sizes. Defaults, search, export and

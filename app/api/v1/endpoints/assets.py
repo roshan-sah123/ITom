@@ -65,6 +65,14 @@ async def get_asset_inventory_summary(
     return await operation(AssetReviewService(session, service).summary(), session)
 
 
+@router.get("/reference/cost-centers", status_code=status.HTTP_200_OK)
+async def get_cost_center_reference(
+    service: AssetInventoryService = Depends(get_asset_inventory_service),
+    session=Depends(get_module_db),
+) -> dict:
+    return await operation(AssetReviewService(session, service).cost_center_reference(), session)
+
+
 @router.get("/inventory/{category}", status_code=status.HTTP_200_OK)
 async def list_asset_inventory(
     category: AssetInventoryCategory,

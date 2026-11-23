@@ -4,12 +4,6 @@ export function assetReviewLabel(category: AssetCategory, validated: boolean): s
   return validated ? (category === "network" ? "Verified" : "Validated") : "Pending";
 }
 
-export function missingNetworkWorkbookColumns(category: AssetCategory, columns: string[]): string[] {
-  if (category !== "network") return [];
-  const existing = new Set(columns.map(column => column.trim().toLowerCase()));
-  return ["Country", "Make", "Firmware/IOS Version", "Login Status"].filter(column => !existing.has(column.toLowerCase()));
-}
-
 export const assetWorkbookSources: Array<{
   category: AssetCategory;
   label: string;
@@ -35,11 +29,28 @@ export type AssetSummaryItem = {
   error?: string;
   validated?: number;
   pending?: number;
+  last_import?: { at: string; updated: number; added: number } | null;
 };
+
+export function assetImportLabel(item: AssetSummaryItem): string | null {
+  const latest = item.last_import;
+  const at = latest ? new Date(latest.at) : null;
+  if (!latest || !at || Number.isNaN(at.getTime())) return null;
+  const date = at.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+  return `Excel update ${date} · ${latest.updated.toLocaleString("en-US")} updated · ${latest.added.toLocaleString("en-US")} added`;
+}
 
 export type AssetSummary = {
   data_available: boolean;
   items: AssetSummaryItem[];
+};
+
+export type CostCenterReference = {
+  data_available: boolean;
+  source_file: string | null;
+  columns: string[];
+  items: Array<{ source_row: number; values: Record<string, string | number | null> }>;
+  total: number;
 };
 
 export type AssetRow = Record<string, string | number | boolean | null>;
@@ -81,7 +92,9 @@ export type AssetCell = { index: number; header: string; value: string | number 
 export function assetCellDisplay(category: AssetCategory, header: string, value: AssetCell["value"]): string {
   if (value == null || value === "") return "—";
   const text = String(value);
-  if (category === "network" && /^(?:eol(?:\s+date)?|amc\s+end\s+date|validated\s+on)$/i.test(header.trim())) {
+  if ((category === "network" && /^(?:eol(?:\s+date)?|amc\s+end\s+date|(?:workbook\s+)?validated\s+on)$/i.test(header.trim()))
+    || (category === "server" && /^(?:eol|amc\s+(?:start|end)\s+date|workbook\s+validated\s+on)$/i.test(header.trim()))
+    || (category === "telecom" && /^amc\s+(?:status|end\s+date)$/i.test(header.trim()))) {
     const match = /^(\d{4}-\d{2}-\d{2})[T ]\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})?$/.exec(text);
     if (match) return match[1];
   }
