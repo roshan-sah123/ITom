@@ -339,6 +339,8 @@ async def test_replace_makes_servers_match_source_only_and_leaves_other_categori
     assert rows["SRV-02"]["SERIAL NUMBER"] is None and rows["SRV-02"]["SERVER OWNER"] is None
     assert rows["SN9 (no host name)"]["HOST NAME"] == "?" and rows["SRV-02"]["_"]["source_row"] == 9
     assert [record["name"] for record in plan.retired] == ["SRV-OLD"]
+    tile = next(item for item in (await reviews.summary())["items"] if item["category"] == "server")["last_import"]
+    assert (tile["updated"], tile["added"], tile["removed"]) == (2, 1, 1)
     assert plan.review[0]["reason"].startswith("Added from the source")
     assert (await reviews.list(AssetInventoryCategory.NETWORK, 1, 25, ""))["items"] == network_before
     stored = (await session.execute(select(AssetInventoryRecord).where(AssetInventoryRecord.category == "server"))).scalars().all()

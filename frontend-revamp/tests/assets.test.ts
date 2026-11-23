@@ -76,6 +76,10 @@ test("asset tiles describe the latest persisted workbook import only when one ex
     "Excel update 16 Nov 2026 · 571 updated · 125 added",
   );
   assert.equal(assetImportLabel({ ...base, last_import: null }), null);
+  assert.equal(
+    assetImportLabel({ ...base, last_import: { at: "2026-11-23T04:14:09+00:00", updated: 678, added: 0, removed: 1 } }),
+    "Excel update 23 Nov 2026 · 678 updated · 0 added · 1 removed",
+  );
   assert.equal(assetImportLabel(base), null);
   assert.equal(assetImportLabel({ ...base, last_import: { at: "not a date", updated: 1, added: 0 } }), null);
 });

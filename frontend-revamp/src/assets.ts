@@ -29,7 +29,7 @@ export type AssetSummaryItem = {
   error?: string;
   validated?: number;
   pending?: number;
-  last_import?: { at: string; updated: number; added: number } | null;
+  last_import?: { at: string; updated: number; added: number; removed?: number } | null;
 };
 
 export function assetImportLabel(item: AssetSummaryItem): string | null {
@@ -37,7 +37,8 @@ export function assetImportLabel(item: AssetSummaryItem): string | null {
   const at = latest ? new Date(latest.at) : null;
   if (!latest || !at || Number.isNaN(at.getTime())) return null;
   const date = at.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
-  return `Excel update ${date} · ${latest.updated.toLocaleString("en-US")} updated · ${latest.added.toLocaleString("en-US")} added`;
+  const removed = latest.removed ? ` · ${latest.removed.toLocaleString("en-US")} removed` : "";
+  return `Excel update ${date} · ${latest.updated.toLocaleString("en-US")} updated · ${latest.added.toLocaleString("en-US")} added${removed}`;
 }
 
 export type AssetSummary = {

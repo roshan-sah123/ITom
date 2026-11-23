@@ -113,7 +113,8 @@ Operators can reconcile newer workbooks offline with
 `scripts/import_asset_workbooks.py`; it fills only empty cells, appends new
 columns and adds unmatched assets, recording `workbook-import` audit entries
 (see `docs/DEPLOYMENT.md`). `GET /assets/summary` items include `last_import`
-(`at`, records `updated`, records `added`), derived from those audit entries,
+(`at`, records `updated`, `added` and `removed` by the most recent import or
+replacement run, from its batch audit entry),
 or `null` before any import; the category tiles show it.
 `GET /assets/reference/cost-centers` returns the imported admin cost-center
 reference (`columns`, `items`, `total`, `source_file`, `data_available`). It is

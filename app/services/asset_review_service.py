@@ -2,7 +2,7 @@ import asyncio
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import Integer, String, case, cast, func, or_, select, update
+from sqlalchemy import Integer, String, cast, func, or_, select, update
 
 from app.models.asset_review import AssetInventoryAudit, AssetInventoryBatch, AssetInventoryRecord
 from app.services.asset_inventory_service import AssetInventoryCategory, AssetInventoryUnavailable
@@ -73,20 +73,20 @@ class AssetReviewService:
                           for row in rows], "total": len(rows)}
 
     async def last_import(self, category):
+        """Describe the most recent workbook import or replacement run for this category."""
         audit = AssetInventoryAudit
-        imported = (audit.category == category.value, audit.action == "workbook-import")
-        last_at, touched = (await self.session.execute(select(
-            func.max(audit.created_at), func.count(func.distinct(audit.record_id)))
-            .where(*imported, ~audit.record_id.like("batch:%")))).one()
-        if last_at is None:
+        latest = (await self.session.execute(select(audit.created_at, audit.details).where(
+            audit.category == category.value, audit.record_id == f"batch:{category.value}",
+            audit.action.in_(("workbook-import", "workbook-replace")))
+            .order_by(audit.created_at.desc()).limit(1))).first()
+        if latest is None:
             return None
-        workbook = or_(AssetInventoryRecord.source_key.like("workbook:%"), AssetInventoryRecord.source_key.like("export:%"))
-        created, added = (await self.session.execute(select(
-            func.count(), func.sum(case((AssetInventoryRecord.is_deleted.is_(False), 1), else_=0)))
-            .where(AssetInventoryRecord.category == category.value, workbook))).one()
+        last_at, details = latest
+        details = details if isinstance(details, dict) else {}
         if last_at.tzinfo is None:
             last_at = last_at.replace(tzinfo=timezone.utc)
-        return {"at": last_at.isoformat(), "updated": touched - created, "added": added or 0}
+        return {"at": last_at.isoformat(), "updated": int(details.get("records_updated") or 0),
+                "added": int(details.get("new_records") or 0), "removed": int(details.get("retired_records") or 0)}
 
     async def list(self, category, page, page_size, search):
         batch = await self.ensure_source(category)
