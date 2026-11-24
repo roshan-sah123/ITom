@@ -37,7 +37,7 @@ from __future__ import annotations
 import json
 import logging
 import os
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any, Dict, List, Optional, Protocol
 from app.repositories.decision_metrics import compliance_state, resource_value
 
@@ -481,7 +481,12 @@ def build_sources(source_system: str = "ALL", offline: bool = False) -> List[Tel
         offline: When True, use local fixtures instead of live APIs.
     """
     scope = (source_system or "ALL").upper()
-    wanted = ["INTUNE", "SOLARWINDS", "SPLUNK"] if scope == "ALL" else [scope]
+    if scope == "ALL":
+        from app.core.config import settings
+
+        wanted = ["INTUNE", "SOLARWINDS"] + (["SPLUNK"] if settings.SPLUNK_ASSETS_ENABLED else [])
+    else:
+        wanted = [scope]
 
     sources: List[TelemetrySource] = []
     for name in wanted:

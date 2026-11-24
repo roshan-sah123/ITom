@@ -43,7 +43,7 @@ import json
 import os
 import sys
 import unittest
-from typing import Any, Dict, List
+from typing import Any, Dict
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if PROJECT_ROOT not in sys.path:
@@ -51,19 +51,13 @@ if PROJECT_ROOT not in sys.path:
 
 from src.sync.cmdb_generator import (
     CMDBService,
-    classify_device_role,
-    classify_hardware_vendor,
-    parse_clean_os,
-    map_node_status_string,
     DEFAULT_SUMMARY_PATH,
     DEFAULT_CSV_PATH,
 )
 from src.sync.solarwinds_client import (
     ALLOWED_METHODS,
-    SolarWindsClient,
     SolarWindsSecurityError,
     validate_swql_read_only,
-    classify_node_health,
 )
 
 

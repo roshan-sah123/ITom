@@ -24,8 +24,6 @@ import os
 import uuid
 from typing import Any, Dict, List, Optional
 
-from app.models.ci import CIRelationship, ConfigurationItem
-from app.models.history import CIStatusHistory
 from app.repositories.ci_repository import CIRepository
 from app.repositories.summary_repository import EmptyDatasetError, SummaryRepository
 from app.schemas.serializers import orm_list_to_dicts, orm_to_dict

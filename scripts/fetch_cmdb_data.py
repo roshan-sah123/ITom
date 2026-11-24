@@ -17,7 +17,6 @@ if PROJECT_ROOT not in sys.path:
 from src.sync.cmdb_generator import (
     DEFAULT_SUMMARY_PATH,
     DEFAULT_CSV_PATH,
-    CMDBDataExtractor,
     generate_cmdb_artifacts,
 )
 

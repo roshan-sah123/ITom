@@ -70,10 +70,10 @@ class Settings(BaseSettings):
     SOLARWINDS_USERNAME: Optional[str] = None
     SOLARWINDS_PASSWORD: Optional[str] = None
 
-    # Splunk Asset Inventory Configuration
-    SPLUNK_ASSETS_ENABLED: bool = True
-    SPLUNK_ASSETS_SERVERS_FILE: str = "C:\\Users\\Roshan.Sah\\Documents\\03Backup_13-11-2026ITOMsDataSheet.xlsx"
-    SPLUNK_ASSETS_NETWORK_FILE: str = "C:\\Users\\Roshan.Sah\\Documents\\Encora Sites Combined Inventory List.xlsx"
+    # Workbook-backed SPLUNK asset source; opt-in and excluded from ALL syncs unless enabled.
+    SPLUNK_ASSETS_ENABLED: bool = False
+    SPLUNK_ASSETS_SERVERS_FILE: Optional[str] = None
+    SPLUNK_ASSETS_NETWORK_FILE: Optional[str] = None
 
     # Sync Engine & Schedulers
     SYNC_INTERVAL_SECONDS: int = 600

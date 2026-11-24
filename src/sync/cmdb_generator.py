@@ -16,9 +16,6 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from src.sync.solarwinds_client import (
     SolarWindsClient,
-    SolarWindsApiError,
-    SolarWindsAuthError,
-    SolarWindsSecurityError,
     classify_node_health,
     normalize_solarwinds_vendor,
 )

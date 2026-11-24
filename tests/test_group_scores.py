@@ -2,9 +2,7 @@
 from datetime import datetime, timezone
 
 import pytest
-from sqlalchemy import select
 
-from app.models.ci import ConfigurationItem
 from app.models.location import Location
 from app.services.telemetry_sources import normalize_solarwinds_node
 from tests.factories import make_ci, make_run

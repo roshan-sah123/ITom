@@ -131,13 +131,7 @@ function WorkspacePage({
   locations,
   loading,
   sourceGroups,
-  locationScores,
-  geographicScores,
-  geographicScoresAvailable,
-  geographicScoresLoading,
   locationMatchesLoading,
-  locationScoresAvailable,
-  locationScoresLoading,
   snapshot,
   onClearSearch,
 }: {
@@ -154,13 +148,7 @@ function WorkspacePage({
   locations: Array<{ id: string; name: string; endpoints: number }>;
   loading: boolean;
   sourceGroups: ReturnType<typeof buildPortalModel>["locations"];
-  locationScores: ReturnType<typeof buildPortalModel>["locationScores"];
-  geographicScores: ReturnType<typeof buildPortalModel>["geographicScores"];
-  geographicScoresAvailable: boolean;
-  geographicScoresLoading: boolean;
   locationMatchesLoading: boolean;
-  locationScoresAvailable: boolean;
-  locationScoresLoading: boolean;
   snapshot: Snapshot;
   onClearSearch: () => void;
 }) {
@@ -503,8 +491,6 @@ function App() {
   };
   const {
     locations,
-    locationScores,
-    geographicScores,
     kpis,
     workspaceConfigs,
     freshness,
@@ -847,12 +833,6 @@ function App() {
             lastRefresh={workspaceLastRefresh}
             onRefresh={refreshSnapshot}
             sourceGroups={locations}
-            locationScores={locationScores}
-            geographicScores={geographicScores}
-            geographicScoresAvailable={!!snapshot.geographicScores}
-            geographicScoresLoading={sourceLoading("geographicScores")}
-            locationScoresAvailable={!!snapshot.locations}
-            locationScoresLoading={sourceLoading("locations")}
             locationMatchesLoading={sourceLoading("locationMatches")}
             onClearSearch={() => setGlobalQuery("")}
           />

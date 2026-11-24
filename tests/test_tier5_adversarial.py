@@ -13,14 +13,11 @@ Usage:
     python -m unittest tests/test_tier5_adversarial.py
 """
 
-import json
 import os
 import random
 import sys
-import time
 import unittest
 from unittest.mock import MagicMock, patch
-from typing import Any, Dict, List
 
 # Workspace setup
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -33,7 +30,6 @@ from src.sync.payload_generator import (
     generate_breakdowns,
     format_sample_devices,
     normalize_manufacturer,
-    create_dashboard_summary,
 )
 from src.sync.graph_client import GraphClient, GraphAuthError, GraphApiError
 

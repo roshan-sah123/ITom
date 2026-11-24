@@ -1,15 +1,14 @@
 """Telemetry synchronization management, audit history, and trigger endpoints."""
 
-import asyncio
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 from typing import Literal
 from app.core.config import settings
 from app.core.database import AsyncSessionLocal
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, Query, status
 from fastapi.responses import JSONResponse
 
-from app.api.deps import get_sync_repository, get_sync_service
+from app.api.deps import get_sync_repository
 from app.repositories.sync_repository import SyncRepository
 from app.schemas.sync import SyncRunRead
 from app.services.sync_service import SyncService
@@ -48,7 +47,7 @@ async def get_sync_status(
     """Retrieve the current telemetry sync status, freshness, and last execution details."""
     latest_sw = await sync_repo.get_latest_sync_run(source_system="SOLARWINDS")
     latest_intune = await sync_repo.get_latest_sync_run(source_system="INTUNE")
-    latest_splunk = await sync_repo.get_latest_sync_run(source_system="SPLUNK")
+    latest_splunk = await sync_repo.get_latest_sync_run(source_system="SPLUNK") if settings.SPLUNK_ASSETS_ENABLED else None
     now = datetime.now(timezone.utc)
 
     completed_runs = [r for r in (latest_sw, latest_intune, latest_splunk) if r and r.completed_at]

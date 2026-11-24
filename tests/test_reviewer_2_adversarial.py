@@ -12,7 +12,6 @@ Covers:
 8. Zero-build asset synchronicity for all root-level assets against src/frontend/.
 """
 
-import json
 import os
 import sys
 import tempfile

@@ -1,6 +1,5 @@
 """CMDB REST API endpoints for Configuration Items, filtering, and topology relationships."""
 
-import uuid
 from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import JSONResponse

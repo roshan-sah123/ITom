@@ -15,8 +15,6 @@ Run:
     python -m pytest tests/test_step1_summaries.py -v
 """
 
-import uuid
-from datetime import datetime, timezone
 
 import pytest
 import pytest_asyncio
@@ -25,7 +23,6 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from app.models import history as _history_models  # noqa: F401  (registers tables)
 from app.models import sync as _sync_models  # noqa: F401  (registers tables)
 from app.models.base import Base
-from app.models.ci import ConfigurationItem
 from tests.factories import make_ci as _ci
 from app.repositories.ci_repository import CIRepository
 from app.repositories.summary_repository import EmptyDatasetError, SummaryRepository

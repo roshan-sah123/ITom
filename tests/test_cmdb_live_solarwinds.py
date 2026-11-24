@@ -1,4 +1,3 @@
-import json
 import os
 import sys
 import unittest
@@ -12,15 +11,11 @@ from src.sync.solarwinds_client import (
     SolarWindsClient,
     SolarWindsSecurityError,
     validate_swql_read_only,
-    classify_node_health,
-    normalize_solarwinds_vendor,
 )
 from src.sync.cmdb_generator import (
+    DEFAULT_RAW_NODES_PATH,
     CMDBService,
     classify_device_role,
-    classify_hardware_vendor,
-    parse_clean_os,
-    map_node_status_string,
 )
 
 
@@ -96,6 +91,10 @@ class TestCIClassification(unittest.TestCase):
         self.assertEqual(classify_device_role("VMware Inc.", "VMware ESX ", "ESXi Host"), "Server")
 
 
+@unittest.skipUnless(
+    os.path.exists(DEFAULT_RAW_NODES_PATH),
+    "Legacy CMDB export needs a SolarWinds node snapshot (data/solarwinds_nodes.json).",
+)
 class TestCMDBServiceMathematicalInvariants(unittest.TestCase):
     def setUp(self):
         self.service = CMDBService()

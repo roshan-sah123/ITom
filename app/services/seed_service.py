@@ -6,14 +6,17 @@ import os
 import time
 import uuid
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
-from sqlalchemy import delete, insert, select
+from sqlalchemy import delete, insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.ci import CIRelationship, ConfigurationItem
 from app.models.history import CIStatusHistory
 from app.models.sync import SyncRun
+
+logger = logging.getLogger(__name__)
+
 
 def _find_project_root() -> str:
     cur = os.path.abspath(__file__)

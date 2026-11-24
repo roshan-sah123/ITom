@@ -20,7 +20,6 @@ from src.sync.source_transport import proxy_request_options, proxy_diagnostics
 
 from app.core.security import (
     ALLOWED_METHODS,
-    FORBIDDEN_SWQL_KEYWORDS,
     SolarWindsSecurityError,
     validate_swql_read_only,
 )

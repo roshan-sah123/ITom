@@ -352,7 +352,7 @@ class TestIntuneDataIntegrity(unittest.TestCase):
         discrepancies = reconcile_summary_payload(self.summary_path, self.metrics)
         self.assertEqual(
             len(discrepancies), 0,
-            f"Summary reconciliation detected discrepancies:\n" + "\n".join(discrepancies)
+            "Summary reconciliation detected discrepancies:\n" + "\n".join(discrepancies)
         )
 
 

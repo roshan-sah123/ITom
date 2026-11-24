@@ -3,7 +3,9 @@ import type { ProxyOptions } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 
-const moduleApiProxy = process.env.ITOM_MODULE_API_PROXY || "http://127.0.0.1:8080";
+// The dev server targets the staging portal; override with ITOM_API_PROXY.
+const apiProxy = process.env.ITOM_API_PROXY || "http://127.0.0.1:8081";
+const moduleApiProxy = process.env.ITOM_MODULE_API_PROXY || apiProxy;
 const moduleProxy: ProxyOptions = {
   target: moduleApiProxy,
   changeOrigin: true,
@@ -27,8 +29,8 @@ export default defineConfig({
       "/api/v1/vendors": moduleProxy,
       "/api/v1/assets": moduleProxy,
       "/api/v1/knowledge": moduleProxy,
-      "/api": "http://127.0.0.1:8080",
-      "/ready": "http://127.0.0.1:8080",
+      "/api": apiProxy,
+      "/ready": apiProxy,
     },
   },
 });

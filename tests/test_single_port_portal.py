@@ -3,7 +3,6 @@
 from fastapi.testclient import TestClient
 import re
 
-from app.main import app
 from app.core import database
 from app.core.config import settings
 

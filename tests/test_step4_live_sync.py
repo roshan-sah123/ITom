@@ -17,7 +17,6 @@ Run:
     python -m pytest tests/test_step4_live_sync.py -v
 """
 
-import uuid
 from typing import Any, Dict, List
 
 import pytest
@@ -31,7 +30,6 @@ from app.models.history import CIStatusHistory
 from app.models.sync import SyncRun
 from app.services.sync_service import SyncService
 from app.services.telemetry_sources import (
-    ORION_STATUS_MAP,
     SourceUnavailableError,
     normalize_intune_device,
     normalize_solarwinds_node,

@@ -72,24 +72,6 @@ export type CI = {
   operating_system?: string;
   location?: string;
   canonical_location?: string;
-  company_name?: string;
-  owner?: string;
-  owner_email?: string;
-  project?: string;
-  project_id?: string;
-  cost_center?: string;
-  cost_center_name?: string;
-  country?: string;
-  region?: string;
-  site?: string;
-  firmware_version?: string;
-  eol_date?: string;
-  amc_status?: string;
-  amc_provider?: string;
-  amc_start_date?: string;
-  amc_end_date?: string;
-  device_type?: string;
-  login_status?: string;
   last_sync_time?: string;
   attributes?: Record<string, unknown>;
 };
@@ -131,15 +113,7 @@ export function inventoryCells(item: CI, endpoint: string): string[] {
     text(item.vendor),
     text(item.model),
     text(item.canonical_location ?? item.location),
-    text(item.company_name),
-    text(item.owner),
-    text(item.project),
-    text(item.cost_center),
     text(item.health_tier),
     text(item.serial_number),
-    text(item.country),
-    text(item.firmware_version),
-    text(item.amc_status),
-    text(item.eol_date),
   ];
 }

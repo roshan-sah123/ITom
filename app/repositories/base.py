@@ -1,8 +1,8 @@
 """Generic asynchronous CRUD repository pattern using SQLAlchemy 2.0 AsyncSession."""
 
 import uuid
-from typing import Any, Dict, Generic, List, Optional, Type, TypeVar
-from sqlalchemy import delete, func, select, update
+from typing import Generic, List, Optional, Type, TypeVar
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.base import Base

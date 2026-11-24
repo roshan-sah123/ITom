@@ -2,10 +2,9 @@
 
 import logging
 import uuid
-from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
-from sqlalchemy import and_, case, desc, false, func, not_, or_, select
+from sqlalchemy import and_, desc, false, func, not_, or_, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 

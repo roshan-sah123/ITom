@@ -10,7 +10,7 @@ Files sourced:
 
 import os
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 from datetime import datetime, timezone
 
 logger = logging.getLogger("itom.splunk_loader")
@@ -299,20 +299,14 @@ def load_network_devices_from_encora_sheet(filepath: str) -> List[Dict[str, Any]
 
 
 def load_all_splunk_assets() -> List[Dict[str, Any]]:
-    """Load all asset data from configured Excel files.
-    
-    Returns a list of normalized asset dictionaries ready for the sync pipeline.
-    """
+    """Load asset records from the workbooks configured in SPLUNK_ASSETS_*_FILE."""
+    from app.core.config import settings
+
     assets = []
-    
-    # Load from backup sheet (servers, network, telecom)
-    # Use the absolute paths provided by the user
-    backup_path = r"C:\Users\Roshan.Sah\Documents\03Backup_13-11-2026ITOMsDataSheet.xlsx"
-    assets.extend(load_servers_from_backup_sheet(backup_path))
-    
-    # Load from Encora sheet (network devices)
-    encora_path = r"C:\Users\Roshan.Sah\Documents\Encora Sites Combined Inventory List.xlsx"
-    assets.extend(load_network_devices_from_encora_sheet(encora_path))
-    
+    if settings.SPLUNK_ASSETS_SERVERS_FILE:
+        assets.extend(load_servers_from_backup_sheet(settings.SPLUNK_ASSETS_SERVERS_FILE))
+    if settings.SPLUNK_ASSETS_NETWORK_FILE:
+        assets.extend(load_network_devices_from_encora_sheet(settings.SPLUNK_ASSETS_NETWORK_FILE))
+
     logger.info(f"Total assets loaded from Splunk sources: {len(assets)}")
     return assets

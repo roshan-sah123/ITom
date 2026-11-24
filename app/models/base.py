@@ -2,7 +2,6 @@
 
 import uuid
 from datetime import datetime, timezone
-from typing import Any, Dict
 
 from sqlalchemy import DateTime, JSON, Uuid, func
 from sqlalchemy.dialects.postgresql import JSONB, UUID as PG_UUID

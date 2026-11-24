@@ -46,7 +46,7 @@ import os
 import sqlite3
 import sys
 import unittest
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")

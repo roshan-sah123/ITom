@@ -31,7 +31,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from app.core.database import create_engine_for_url, get_db, get_module_db
 from app.models.base import Base
-from app.models import ci, history, sync  # register all persistence tables
+from app.models import ci, history, sync  # noqa: F401 - register all persistence tables
 
 ROOT = Path(__file__).resolve().parents[1]
 
