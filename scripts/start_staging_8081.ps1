@@ -1,8 +1,10 @@
 # Run this checkout as a staging portal on port 8081 beside the live 8080 service.
-# Staging never runs the sync scheduler, reads the live PostgreSQL module data,
-# and uses a private copy of the asset workbooks so test imports do not touch live files.
+# Staging never runs the sync scheduler, uses its own PostgreSQL database (a copy of
+# live itom_db), and a private copy of the asset workbooks, so nothing done on
+# staging changes what live users see.
 param(
     [int]$Port = 8081,
+    [string]$Database = "itom_staging",
     [string]$LiveEnv = "C:\ProgramData\ITOM\app\.env",
     [string]$LiveAssetDir = "C:\ProgramData\ITOM\asset_inventory",
     [switch]$RefreshAssets
@@ -21,9 +23,15 @@ if ($listener) {
     Start-Sleep -Seconds 2
 }
 
-$moduleUrl = (Select-String -Path $LiveEnv -Pattern '^DATABASE_URL_2=' | Select-Object -First 1).Line
-if (-not $moduleUrl) { throw "DATABASE_URL_2 not found in $LiveEnv." }
-$env:DATABASE_URL_2 = ($moduleUrl -replace '^DATABASE_URL_2=', '').Trim().Trim("'").Trim('"')
+if ($Database -eq "itom_db") { throw "itom_db is the live database. Staging must use its own database." }
+
+$liveUrl = (Select-String -Path $LiveEnv -Pattern '^DATABASE_URL=' | Select-Object -First 1).Line
+if (-not $liveUrl) { throw "DATABASE_URL not found in $LiveEnv." }
+$liveUrl = ($liveUrl -replace '^DATABASE_URL=', '').Trim().Trim("'").Trim('"')
+if ($liveUrl -notmatch '^postgres') { throw "Live DATABASE_URL is not PostgreSQL; cannot derive the staging database." }
+$stagingUrl = $liveUrl -replace '/[^/?]+(\?.*)?$', "/$Database`$1"
+$env:DATABASE_URL = $stagingUrl
+$env:DATABASE_URL_2 = $stagingUrl
 
 $stagingAssets = Join-Path $root "data\asset_inventory_staging"
 if ($RefreshAssets -or -not (Test-Path $stagingAssets)) {
@@ -47,7 +55,7 @@ for ($i = 0; $i -lt 30; $i++) {
     try {
         $ready = Invoke-WebRequest "http://127.0.0.1:$Port/ready" -UseBasicParsing -TimeoutSec 5
         if ($ready.StatusCode -eq 200) {
-            Write-Host "Staging portal ready at http://localhost:$Port/ (scheduler disabled)."
+            Write-Host "Staging portal ready at http://localhost:$Port/ (database $Database, scheduler disabled)."
             exit 0
         }
     } catch { }
