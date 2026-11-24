@@ -10,6 +10,8 @@
   },
   "dependencies": {
     "pdfjs-dist": "6.5.438",
+    "@azure/msal-browser": "^5.29.1",
+    "@azure/msal-react": "^5.8.2",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
