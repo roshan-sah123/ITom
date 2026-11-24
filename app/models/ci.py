@@ -46,6 +46,36 @@ class ConfigurationItem(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     location_rule_id: Mapped[Optional[str]] = mapped_column(ForeignKey('location_mapping_rules.id'), nullable=True)
     location_resolution: Mapped[str] = mapped_column(String(32), nullable=False, default='unassigned', server_default='unassigned')
     location_revision: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    
+    # Organizational enrichment fields
+    company_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    cost_center: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    cost_center_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    approver_name: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    owner: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    owner_email: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    reporting_manager: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    reporting_manager_email: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    project: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    project_id: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    
+    # Hardware and asset enrichment fields
+    country: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    region: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    site: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    firmware_version: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    eol_date: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    
+    # AMC and warranty fields
+    amc_status: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
+    amc_provider: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    amc_start_date: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    amc_end_date: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    
+    # Device details
+    device_type: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    login_status: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
+    
     last_sync_time: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,

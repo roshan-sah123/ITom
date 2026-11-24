@@ -422,15 +422,66 @@ class FixtureSource:
         return [item for item in normalised if item is not None]
 
 
+class SplunkSource:
+    """Live Splunk asset inventory via Excel files.
+    
+    This adapter reads asset data from configured Excel files and provides it
+    in a normalized format. It follows the same pattern as SolarWinds and Intune,
+    but with data sourced from Splunk asset management exports.
+    """
+
+    name = "SPLUNK"
+
+    def __init__(self) -> None:
+        self.snapshot_complete = False
+
+    def fetch(self) -> List[Dict[str, Any]]:
+        try:
+            from src.sync.splunk_assets_loader import load_all_splunk_assets
+        except ImportError as exc:
+            raise SourceUnavailableError(
+                f"Splunk assets loader import failed: {exc}"
+            ) from exc
+
+        try:
+            raw_assets = load_all_splunk_assets()
+            if not raw_assets:
+                raise SourceUnavailableError("No Splunk assets loaded from configured files")
+
+            # The raw_assets are already normalized by the loader, so we need to validate them
+            # Check for duplicates and missing external_id
+            seen_ids = set()
+            items = []
+            for asset in raw_assets:
+                ext_id = asset.get("external_id")
+                if not ext_id:
+                    raise SourceUnavailableError("Asset lacks external_id")
+                if ext_id in seen_ids:
+                    raise SourceUnavailableError(f"Duplicate external_id: {ext_id}")
+                seen_ids.add(ext_id)
+                items.append(asset)
+
+            self.snapshot_complete = True
+            logger.info(
+                "Splunk source produced %d asset records.",
+                len(items),
+            )
+            return items
+        except Exception as exc:
+            raise SourceUnavailableError(
+                f"Splunk asset extraction failed: {exc}"
+            ) from exc
+
+
 def build_sources(source_system: str = "ALL", offline: bool = False) -> List[TelemetrySource]:
     """Construct the source adapters for a requested sync scope.
 
     Args:
-        source_system: ``INTUNE``, ``SOLARWINDS`` or ``ALL``.
+        source_system: ``INTUNE``, ``SOLARWINDS``, ``SPLUNK``, or ``ALL``.
         offline: When True, use local fixtures instead of live APIs.
     """
     scope = (source_system or "ALL").upper()
-    wanted = ["INTUNE", "SOLARWINDS"] if scope == "ALL" else [scope]
+    wanted = ["INTUNE", "SOLARWINDS", "SPLUNK"] if scope == "ALL" else [scope]
 
     sources: List[TelemetrySource] = []
     for name in wanted:
@@ -440,6 +491,8 @@ def build_sources(source_system: str = "ALL", offline: bool = False) -> List[Tel
             sources.append(IntuneSource())
         elif name == "SOLARWINDS":
             sources.append(SolarWindsSource())
+        elif name == "SPLUNK":
+            sources.append(SplunkSource())
         else:
             raise ValueError(f"Unknown source system: {name}")
     return sources

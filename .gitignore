@@ -35,6 +35,7 @@ build/
 
 # Generated telemetry and local databases
 data/asset_inventory/
+data/asset_inventory_staging/
 data/*.json
 !data/.gitkeep
 data/*.db

@@ -48,9 +48,10 @@ async def get_sync_status(
     """Retrieve the current telemetry sync status, freshness, and last execution details."""
     latest_sw = await sync_repo.get_latest_sync_run(source_system="SOLARWINDS")
     latest_intune = await sync_repo.get_latest_sync_run(source_system="INTUNE")
+    latest_splunk = await sync_repo.get_latest_sync_run(source_system="SPLUNK")
     now = datetime.now(timezone.utc)
 
-    completed_runs = [r for r in (latest_sw, latest_intune) if r and r.completed_at]
+    completed_runs = [r for r in (latest_sw, latest_intune, latest_splunk) if r and r.completed_at]
     last_run = max(completed_runs, key=lambda r: r.completed_at.replace(tzinfo=timezone.utc)) if completed_runs else None
     last_sync_time = last_run.completed_at if last_run and last_run.completed_at else None
 
@@ -63,7 +64,7 @@ async def get_sync_status(
         if last_sync_time.tzinfo is None:
             last_sync_time = last_sync_time.replace(tzinfo=timezone.utc)
         age_seconds = max(0, int((now - last_sync_time).total_seconds()))
-        _tracked = {"SOLARWINDS": latest_sw, "INTUNE": latest_intune}
+        _tracked = {"SOLARWINDS": latest_sw, "INTUNE": latest_intune, "SPLUNK": latest_splunk}
         _seen = {n: r for n, r in _tracked.items() if r is not None}
         failed_sources = sorted(n for n, r in _seen.items() if r.status == "FAILED")
         healthy_sources = sorted(n for n, r in _seen.items() if r.status == "SUCCESS")
@@ -74,10 +75,10 @@ async def get_sync_status(
         elif failed_sources:
             sync_state = "DEGRADED"
             state_reason = f"Partial failure - {', '.join(failed_sources)} failed."
-        elif len(healthy_sources) != 2:
+        elif len(healthy_sources) < len(_seen):
             sync_state = "DEGRADED"
-            state_reason = "Both source successes have not been confirmed."
-        elif any((now - r.completed_at.replace(tzinfo=timezone.utc)).total_seconds() > max(900, settings.SYNC_INTERVAL_SECONDS * 2.5) for r in completed_runs):
+            state_reason = "Not all configured sources have succeeded."
+        elif any((now - r.completed_at.replace(tzinfo=timezone.utc)).total_seconds() > max(900, settings.SYNC_INTERVAL_SECONDS * 2.5) for r in completed_runs if r.completed_at):
             sync_state = "DEGRADED"
             state_reason = f"Sources succeeded, but data is {age_seconds}s old."
         else:
@@ -103,6 +104,12 @@ async def get_sync_status(
             "last_completed": _utc_iso(latest_intune.completed_at if latest_intune else None),
             "duration_ms": latest_intune.duration_ms if latest_intune else None,
             "records_processed": latest_intune.records_processed if latest_intune else 0,
+        },
+        "splunk": {
+            "status": latest_splunk.status if latest_splunk else "UNKNOWN",
+            "last_completed": _utc_iso(latest_splunk.completed_at if latest_splunk else None),
+            "duration_ms": latest_splunk.duration_ms if latest_splunk else None,
+            "records_processed": latest_splunk.records_processed if latest_splunk else 0,
         },
         "timestamp": now.isoformat(),
     }
@@ -165,7 +172,7 @@ async def get_sync_run_by_id(
 @router.post("/trigger", status_code=status.HTTP_202_ACCEPTED)
 async def trigger_manual_sync(
     background_tasks: BackgroundTasks,
-    source_system: Literal["ALL", "SOLARWINDS", "INTUNE"] = Query("ALL"),
+    source_system: Literal["ALL", "SOLARWINDS", "INTUNE", "SPLUNK"] = Query("ALL"),
 ) -> Dict[str, Any]:
     """Manually trigger an asynchronous telemetry ingestion cycle."""
     background_tasks.add_task(run_manual_sync, source_system)
