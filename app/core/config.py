@@ -1,6 +1,7 @@
 """Configuration management using Pydantic Settings and environment variables."""
 
 import os
+import re
 from pathlib import Path
 from urllib.parse import urlsplit
 from typing import Any, List, Optional, Union
@@ -74,6 +75,15 @@ class Settings(BaseSettings):
     SPLUNK_ASSETS_ENABLED: bool = False
     SPLUNK_ASSETS_SERVERS_FILE: Optional[str] = None
     SPLUNK_ASSETS_NETWORK_FILE: Optional[str] = None
+
+    # Microsoft Entra ID single sign-on for the portal and API (off by default).
+    AUTH_ENABLED: bool = False
+    ENTRA_TENANT_ID: Optional[str] = None
+    ENTRA_CLIENT_ID: Optional[str] = None
+    # Registered SPA redirect URI, e.g. https://itom.coforge.com/oauth2callback. When set,
+    # visitors on any other address are sent to this origin before sign-in starts.
+    ENTRA_REDIRECT_URI: Optional[str] = None
+    AUTH_SESSION_HOURS: int = Field(8, ge=1, le=24)
 
     # Sync Engine & Schedulers
     SYNC_INTERVAL_SECONDS: int = 600
@@ -269,6 +279,18 @@ class Settings(BaseSettings):
                 raise ValueError("The shared access key must differ from the module administration key.")
         elif self.MODULE_NETWORK_ACCESS:
             raise ValueError("MODULE_NETWORK_ACCESS requires an explicit HTTPS MODULE_SHARED_ORIGIN.")
+        if self.AUTH_ENABLED:
+            guid = re.compile(r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
+            if not guid.match(self.ENTRA_TENANT_ID or "") or not guid.match(self.ENTRA_CLIENT_ID or ""):
+                raise ValueError("AUTH_ENABLED requires ENTRA_TENANT_ID and ENTRA_CLIENT_ID from the Entra app registration.")
+            if len((self.SECRET_KEY or "").strip()) < 32:
+                raise ValueError("AUTH_ENABLED requires a SECRET_KEY of at least 32 characters to sign sessions.")
+            if self.ENTRA_REDIRECT_URI:
+                redirect = urlsplit(self.ENTRA_REDIRECT_URI)
+                local = redirect.scheme == "http" and redirect.hostname in {"localhost", "127.0.0.1"}
+                if ((redirect.scheme != "https" and not local) or not redirect.hostname or redirect.path != "/oauth2callback"
+                        or redirect.query or redirect.fragment or redirect.username or redirect.password):
+                    raise ValueError("ENTRA_REDIRECT_URI must be an HTTPS (or localhost) URL ending in /oauth2callback.")
         secondary = self.module_database_url
         secondary_path = make_url(secondary).database
         if self.async_database_url.startswith("sqlite"):

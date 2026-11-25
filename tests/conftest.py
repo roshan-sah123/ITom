@@ -15,6 +15,7 @@ for key, value in {
     "SOURCE_PROXY_INHERIT": "true", "SOURCE_HTTP_PROXY": "", "SOURCE_HTTPS_PROXY": "",
     "SOURCE_NO_PROXY": "", "SOLARWINDS_VERIFY_SSL": "true",
     "SECRET_KEY": "", "CORS_ALLOW_CREDENTIALS": "true",
+    "AUTH_ENABLED": "false", "ENTRA_TENANT_ID": "", "ENTRA_CLIENT_ID": "",
     "CORS_ORIGINS": "http://localhost:8080,http://127.0.0.1:8080",
     "BACKEND_CORS_ORIGINS": '["http://localhost:8080","http://127.0.0.1:8080"]',
 }.items():

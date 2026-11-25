@@ -1320,3 +1320,21 @@ button:disabled { opacity: .55; cursor: wait; }
 .location-scores-panel td { color: #34445e; line-height: 1.45; }
 .location-scores-panel td:first-child { min-width: 150px; }
 .location-scores-panel td:last-child { min-width: 190px; }
+
+/* Microsoft Entra ID sign-in screen */
+.sso-page { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 32px 20px; background: #f3f6fb; color: #172033; }
+.sso-card { width: 100%; max-width: 460px; padding: 36px; border: 1px solid #e3e9f2; border-radius: 12px; background: #fff; box-shadow: 0 8px 24px rgba(24, 51, 93, .055); }
+.sso-card__brand { display: flex; align-items: center; gap: 16px; margin-bottom: 36px; }
+.sso-card__brand img { display: block; width: 132px; height: auto; }
+.sso-card__brand span { padding-left: 16px; border-left: 1px solid #e3e9f2; font-size: 12px; font-weight: 750; letter-spacing: .08em; }
+.sso-card__eyebrow { margin: 0 0 8px; color: #1957d2; font-size: 10px; font-weight: 750; letter-spacing: .09em; }
+.sso-card h1 { margin: 0 0 12px; font-size: 28px; letter-spacing: -.6px; }
+.sso-card__intro { margin: 0 0 26px; color: #667085; font-size: 14px; line-height: 1.6; }
+.sso-card__primary { width: 100%; min-height: 44px; padding: 12px 16px; border: 1px solid #1957d2; border-radius: 7px; color: #fff; background: #1957d2; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
+.sso-card__primary:hover { background: #123f9e; }
+.sso-card__primary:focus-visible { outline: 3px solid #1957d2; outline-offset: 3px; }
+.sso-card__primary:disabled { opacity: .65; cursor: wait; }
+.sso-card__error { margin: 0 0 16px; padding: 12px; border: 1px solid #ebc6c6; border-radius: 7px; background: #fff0f1; color: #a52434; font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; }
+.sso-card__status { margin: 14px 0 0; color: #667085; font-size: 12px; line-height: 1.6; }
+.sso-card__privacy { margin: 26px 0 0; padding-top: 18px; border-top: 1px solid #e3e9f2; color: #667085; font-size: 12px; line-height: 1.6; }
+@media (max-width: 480px) { .sso-card { padding: 26px 22px; } }

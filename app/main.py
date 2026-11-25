@@ -10,13 +10,14 @@ from typing import AsyncGenerator
 
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.api.v1.endpoints import health
 from app.api.v1.router import api_router
 from app.core.config import settings
 from app.core.database import create_db_and_tables, engine, module_engine
+from app.core.entra_auth import CALLBACK_PATH, EntraAuthMiddleware
 from app.core.middleware import FreshnessHeadersMiddleware
 from app.core.security import SolarWindsSecurityError
 from app.repositories.ci_repository import InventoryUnavailableError
@@ -90,6 +91,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Microsoft Entra ID session guard for /api/* (inactive unless AUTH_ENABLED).
+app.add_middleware(EntraAuthMiddleware)
+
 # Authoritative Freshness & Read-Only Guard Middleware
 app.add_middleware(FreshnessHeadersMiddleware)
 
@@ -149,10 +153,24 @@ app.include_router(health.router)
 app.include_router(api_router, prefix=settings.API_V1_STR)
 
 
+def _portal_shell() -> HTMLResponse:
+    """Portal HTML; marks disabled SSO so the browser renders without an extra sign-in check."""
+    html = (FRONTEND_DIR / "index.html").read_text(encoding="utf-8")
+    if not settings.AUTH_ENABLED:
+        html = html.replace("<head>", '<head>\n    <meta name="itom-auth" content="off" />', 1)
+    return HTMLResponse(html, headers={"Cache-Control": "no-cache"})
+
+
 @app.get("/", tags=["Root"])
-async def root() -> FileResponse:
+async def root() -> HTMLResponse:
     """Serve the portal shell on the same origin as its API."""
-    return FileResponse(FRONTEND_DIR / "index.html")
+    return _portal_shell()
+
+
+@app.get(CALLBACK_PATH, include_in_schema=False)
+async def sign_in_callback() -> HTMLResponse:
+    """Microsoft returns here after sign-in; the portal shell completes it."""
+    return _portal_shell()
 
 
 # API routes are registered above the static catch-all so `/api/v1/*` and

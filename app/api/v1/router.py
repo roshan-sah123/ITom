@@ -3,12 +3,13 @@
 from fastapi import APIRouter
 
 from app.api.v1.endpoints import analytics, assets, cmdb, health, intune, solarwinds, sync, system, locations, location_reviews
-from app.api.v1.endpoints import vendors, knowledge, module_access
+from app.api.v1.endpoints import vendors, knowledge, module_access, auth
 
 api_router = APIRouter()
 
 # Register domain routers
 api_router.include_router(health.router)
+api_router.include_router(auth.router)
 api_router.include_router(cmdb.router)
 api_router.include_router(assets.router)
 api_router.include_router(vendors.router)

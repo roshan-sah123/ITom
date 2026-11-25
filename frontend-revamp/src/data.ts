@@ -10,7 +10,8 @@ export type IconName =
   | "alert"
   | "check"
   | "clock"
-  | "external";
+  | "external"
+  | "logout";
 type Counts = Record<string, number>;
 type Metric = {
   value?: number | null;

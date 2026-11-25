@@ -12,6 +12,7 @@ import {
   donutSlice,
 } from "./data";
 import type { IconName, WorkspaceConfig, Drilldown, Snapshot } from "./data";
+import type { PortalUser } from "./auth";
 import { usePortalSnapshot } from "./api";
 import { InventoryPanel, SyncHistory } from "./Inventory";
 import { LocationScores } from "./LocationScores";
@@ -80,7 +81,19 @@ const iconPaths: Record<IconName, React.ReactNode> = {
       <path d="M19 13v6a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h6" />
     </>
   ),
+  logout: (
+    <>
+      <path d="M15 4h4a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-4" />
+      <path d="M10 16l-4-4 4-4m-4 4h11" />
+    </>
+  ),
 };
+
+function initials(name?: string): string {
+  const parts = (name ?? "").trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return "OP";
+  return (parts[0][0] + (parts.length > 1 ? parts[parts.length - 1][0] : "")).toUpperCase();
+}
 
 function Icon({ name, size = 18 }: { name: IconName; size?: number }) {
   return (
@@ -463,7 +476,7 @@ function LocationMatches({ report, loading }: { report?: Snapshot["locationMatch
   );
 }
 
-function App() {
+function App({ user = null, onSignOut }: { user?: PortalUser | null; onSignOut?: () => void } = {}) {
   const [activeNav, setActiveNav] = useState("Home Page");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [revision, setRevision] = useState(0);
@@ -646,20 +659,32 @@ function App() {
             </span>
           </div>
           <div className="sidebar-user">
-            <span className="sidebar-user__avatar">OP</span>
+            <span className="sidebar-user__avatar">{initials(user?.name)}</span>
             <span className="sidebar-user__copy">
-              <strong>ITOM Operator</strong>
-              <small>Operations</small>
+              <strong title={user?.username || undefined}>{user?.name || "ITOM Operator"}</strong>
+              <small>{user?.username || "Operations"}</small>
             </span>
-            <button
-              aria-label="Open Knowledge Center"
-              className="sidebar-logout"
-              title="Knowledge Center"
-              onClick={() => navigate("Knowledge Center")}
-              type="button"
-            >
-              <Icon name="external" size={15} />
-            </button>
+            {onSignOut ? (
+              <button
+                aria-label="Sign out"
+                className="sidebar-logout"
+                title="Sign out"
+                onClick={onSignOut}
+                type="button"
+              >
+                <Icon name="logout" size={15} />
+              </button>
+            ) : (
+              <button
+                aria-label="Open Knowledge Center"
+                className="sidebar-logout"
+                title="Knowledge Center"
+                onClick={() => navigate("Knowledge Center")}
+                type="button"
+              >
+                <Icon name="external" size={15} />
+              </button>
+            )}
           </div>
         </div>
         <button

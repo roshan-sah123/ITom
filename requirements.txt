@@ -25,6 +25,10 @@ httpx==0.28.1
 urllib3==2.7.0
 python-dotenv==1.2.2
 
+# Microsoft Entra ID sign-in token validation
+PyJWT[crypto]==2.15.1
+cryptography==50.0.2
+
 # Testing & Verification
 pytest==9.1.1
 pytest-asyncio==1.4.0

@@ -495,6 +495,17 @@ For ten-minute ingestion, set `SCHEDULER_ENABLED=true` and `SYNC_INTERVAL_SECOND
 
 For login startup, use `scripts/register_local_itom_task.ps1`; its `-Status` and `-Remove` switches inspect or remove that task.
 
+### Microsoft Entra ID single sign-on
+
+SSO is off unless `AUTH_ENABLED=true`. When on, the portal shows a Microsoft sign-in screen, the backend validates the Entra ID token (signature, tenant, audience, expiry) and issues an 8-hour HttpOnly `itom_session` cookie, and every `/api/*`, `/docs` and `/openapi.json` request without a valid session returns 401. `/ready` and `/health` stay open for monitoring.
+
+1. Install dependencies in the runtime virtual environment: `pip install -r requirements.txt` (adds PyJWT).
+2. Set in the runtime `.env`: `AUTH_ENABLED=true`, `ENTRA_TENANT_ID`, `ENTRA_CLIENT_ID`, and `ENTRA_REDIRECT_URI` (for production `https://itom.coforge.com/oauth2callback`). `SECRET_KEY` must be at least 32 characters.
+3. `ENTRA_REDIRECT_URI` must be registered as a **Single-page application** redirect URI on the Entra app. Visitors who open the portal on another address (HTTP or the server IP) are sent to that HTTPS origin before sign-in. Staging uses `http://localhost:8081/oauth2callback`, which must also be registered to test there.
+4. Restart the service and sign in at the registered address. To roll back, set `AUTH_ENABLED=false` and restart.
+
+Scripts or reports that call the API directly will receive 401 while SSO is on.
+
 ### Local asset inventory workbooks
 
 Place the three read-only source workbooks at `data/asset_inventory/server.xlsx`,

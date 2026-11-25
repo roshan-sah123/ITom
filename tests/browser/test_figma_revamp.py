@@ -185,6 +185,7 @@ def test_snapshot_refreshes_only_once_every_ten_minutes(revamp_portal_url, brows
     page.on('request', lambda request: requests.append(request.url)
             if request.url.endswith('/api/v1/solarwinds/summary') else None)
     page.goto(revamp_portal_url)
+    expect(page.locator('.freshness').first).to_be_visible()
     expect(page.locator('.freshness').first).not_to_contain_text('Loading snapshot')
     assert len(requests) == 1
 
@@ -218,7 +219,9 @@ def test_selected_card_refreshes_current_rows_without_losing_filter(drilldown_ur
     page.clock.install()
     page.goto(drilldown_url)
     page.get_by_role('button', name='Operations Analytics', exact=True).click()
-    page.get_by_role('button', name='View Servers', exact=True).press('Enter')
+    servers = page.get_by_role('button', name='View Servers', exact=True)
+    expect(servers).to_be_enabled()
+    servers.press('Enter')
     expect(page.locator('.inventory-panel .table-footer')).to_contain_text('of 14 records')
 
     def updated_inventory(route):
