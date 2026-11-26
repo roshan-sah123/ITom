@@ -1,0 +1,1 @@
+Follow the repository-root `AGENTS.md` and the task-relevant skills under `.agents/skills/`. Keep production, experimental databases, and source credentials isolated.

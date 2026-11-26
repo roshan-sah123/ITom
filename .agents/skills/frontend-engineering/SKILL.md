@@ -1,6 +1,6 @@
 ---
 name: frontend-engineering
-description: Use when designing or changing the Coforge ITOM Portal frontend. Follow the running product’s evidence-first operations UI, existing HTML/CSS/JavaScript architecture, and live data states.
+description: Use when designing or changing the Coforge ITOM Portal React frontend, preserving the approved operations UI and live data states.
 ---
 
 # Coforge ITOM Frontend Engineering
@@ -15,14 +15,13 @@ Do not copy the older dark Obsidian mockups or stale screenshots over the runnin
 
 ## Find the active implementation first
 
-This project is a lightweight HTML/CSS/JavaScript application, not a React or Tailwind component app. Before changing a screen:
+The current UI is the React/TypeScript application in `frontend-revamp/`. Before changing a screen:
 
-- Inspect `frontend/index.html` for the current structure and view identifiers.
-- Inspect `frontend/css/style.css` for the active cascade, tokens, responsive rules, and component patterns. Later overrides may supersede earlier styles.
-- Inspect `frontend/js/app.js`, `frontend/js/components/`, and shared utilities for routing, data loading, and interaction patterns. Follow the actual script paths loaded by the page; do not assume a path from an old README.
+- Inspect `frontend-revamp/src/App.tsx`, `src/Inventory.tsx`, `src/data.ts`, `src/api.ts`, and `src/index.css` as needed.
+- Build with `npm --prefix frontend-revamp run build`; generated assets live in `frontend/`.
 - Use the running portal at `http://localhost:8080/` when available to confirm the screen you are editing.
 
-Prefer the existing design tokens and shared helpers. Search for an existing component or behavior before adding another one. Keep changes within the requested screen and follow its established markup and JavaScript module boundaries.
+Prefer existing components, design tokens, and shared helpers. The ignored `not-in-use/legacy-frontend/` is not the active UI.
 
 ## Visual and interaction guidance
 

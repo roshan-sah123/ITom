@@ -111,12 +111,14 @@ def validated_snapshot(raw, normalizer):
         if not isinstance(row, dict):
             raise SourceUnavailableError("Malformed source row")
         item = normalizer(row)
-        if not item or not item.get("external_id"):
+        identity = item.get("external_id") if isinstance(item, dict) else None
+        if not isinstance(identity, str) or not identity.strip():
             raise SourceUnavailableError("Source record lacks a valid identifier")
-        if item["external_id"] in seen:
+        identity = identity.strip()
+        if identity in seen:
             raise SourceUnavailableError("Duplicate source identifier")
-        seen.add(item["external_id"])
-        items.append(item)
+        seen.add(identity)
+        items.append({**item, "external_id": identity})
     return items
 
 
@@ -241,8 +243,9 @@ def normalize_intune_device(dev: Dict[str, Any]) -> Optional[Dict[str, Any]]:
 def normalize_solarwinds_node(node: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     """Map an Orion.Nodes row into a CI dictionary, preserving every status."""
     node_id = node.get("NodeID")
-    if node_id is None:
+    if isinstance(node_id, bool) or not isinstance(node_id, (int, str)) or not str(node_id).strip():
         return None
+    node_id = str(node_id).strip()
 
     raw_status = node.get("Status")
     status_code = raw_status if isinstance(raw_status, int) and not isinstance(raw_status, bool) else 0

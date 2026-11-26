@@ -34,6 +34,7 @@ build/
 *.tmp
 
 # Generated telemetry and local databases
+data/experimental/
 data/asset_inventory/
 data/asset_inventory_staging/
 data/*.json
