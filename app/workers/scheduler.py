@@ -1,6 +1,7 @@
 """APScheduler asynchronous periodic background worker for ITOM telemetry ingestion."""
 
 import logging
+from datetime import datetime, timezone
 from typing import Optional
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
@@ -39,6 +40,7 @@ def create_scheduler() -> AsyncIOScheduler:
         trigger=IntervalTrigger(seconds=settings.SYNC_INTERVAL_SECONDS, timezone="UTC"),
         id=JOB_ID,
         name=JOB_NAME,
+        next_run_time=datetime.now(timezone.utc),
         max_instances=1,
         replace_existing=True,
         coalesce=True,
