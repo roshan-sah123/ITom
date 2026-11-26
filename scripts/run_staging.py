@@ -28,7 +28,7 @@ def main() -> int:
     production = dotenv_values(production_path)
     experimental = dotenv_values(experimental_path)
     try:
-        overrides = build_staging_environment(production, experimental.get("DATABASE_URL") or "", ROOT / "data" / "experimental")
+        overrides = build_staging_environment(production, experimental.get("DATABASE_URL") or "", experimental.get("DATABASE_URL_2") or "", ROOT / "data" / "experimental")
     except ValueError as exc:
         print(f"Experimental configuration rejected: {exc}", file=sys.stderr)
         return 1
