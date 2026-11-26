@@ -234,6 +234,15 @@ async def test_manual_sync_rejects_unknown_scope(api_client, monkeypatch):
     task.assert_not_awaited()
 
 
+async def test_manual_sync_rejected_when_execution_disabled(api_client, monkeypatch):
+    monkeypatch.setattr(sync_routes.settings, "SYNC_EXECUTION_ENABLED", False, raising=False)
+    task = AsyncMock()
+    monkeypatch.setattr(sync_routes, "run_manual_sync", task)
+    response = await api_client.post("/api/v1/sync/trigger", params={"source_system": "INTUNE"})
+    assert response.status_code == 503
+    task.assert_not_awaited()
+
+
 async def test_background_sync_persists_inventory_and_audit_in_owned_session(api_client, monkeypatch):
     from app.services import sync_service
 

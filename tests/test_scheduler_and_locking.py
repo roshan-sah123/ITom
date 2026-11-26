@@ -25,6 +25,15 @@ def test_scheduler_runs_immediately_on_startup():
     assert before <= job.next_run_time <= datetime.now(timezone.utc) + timedelta(seconds=1)
 
 
+async def test_disabled_sync_does_not_acquire_lock_or_fetch(monkeypatch):
+    monkeypatch.setattr(settings, "SYNC_EXECUTION_ENABLED", False, raising=False)
+    service = SyncService(AsyncMock())
+    service._acquire_lock = AsyncMock()
+    result = await service.execute_sync_with_lock(source_system="INTUNE")
+    assert result["status"] == "SKIPPED"
+    service._acquire_lock.assert_not_awaited()
+
+
 async def test_postgres_lock_is_transaction_scoped():
     db = AsyncMock()
     db.bind = SimpleNamespace(dialect=SimpleNamespace(name="postgresql"))
