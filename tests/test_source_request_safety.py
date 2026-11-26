@@ -4,6 +4,7 @@ import pytest
 import requests
 
 from src.sync.solarwinds_client import SolarWindsClient, SolarWindsApiError, SolarWindsSecurityError
+from app.services.telemetry_sources import SourceUnavailableError, validated_snapshot, normalize_solarwinds_node
 
 
 def test_query_parameter_cannot_override_validated_select():
@@ -33,3 +34,15 @@ def test_malformed_swis_response_fails(payload):
     client._session.get.return_value.json.return_value = payload
     with pytest.raises(SolarWindsApiError):
         client.query("SELECT NodeID FROM Orion.Nodes")
+
+
+@pytest.mark.parametrize("identities", [[" "], ["device-1", " device-1 "]])
+def test_snapshot_rejects_missing_or_duplicate_canonical_identities(identities):
+    with pytest.raises(SourceUnavailableError):
+        validated_snapshot([{"id": identity} for identity in identities], lambda row: {"external_id": row["id"]})
+
+
+@pytest.mark.parametrize("node_id", ["", "  ", True, [], {}])
+def test_solarwinds_rejects_invalid_node_identity(node_id):
+    with pytest.raises(SourceUnavailableError):
+        validated_snapshot([{"NodeID": node_id}], normalize_solarwinds_node)
