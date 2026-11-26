@@ -2,6 +2,8 @@
 
 The supported runtime is `app.main:app`. It serves `frontend/` and the database-backed API on one listener. The former file-based HTTP daemon and its remote deployment script have been retired.
 
+For the isolated Windows 8081 experiment, independent PostgreSQL databases, and production release gates, see [the platform execution ledger](PLATFORM_EXECUTION_LEDGER.md). Do not use the historical staging procedures below as authorization to copy production data or restart production.
+
 ## UI revamp deployment handoff
 
 ### Server-wide production module storage

@@ -1,6 +1,6 @@
 ---
 name: backend-engineering
-description: Change the ITOM FastAPI backend, repositories, source adapters, and scheduler while preserving source integrity and local deployment boundaries.
+description: Change or review ITOM FastAPI modules, source adapters, security, and deployment while preserving source integrity and isolation.
 ---
 
 # ITOM backend engineering
