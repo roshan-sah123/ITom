@@ -1,4 +1,5 @@
 """Current scheduler settings and production sync-lock code paths."""
+from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock
 
@@ -16,6 +17,21 @@ def test_scheduler_uses_configured_interval_and_no_overlapping_jobs(monkeypatch)
     job = create_scheduler().get_job(JOB_ID)
     assert job.trigger.interval.total_seconds() == 17
     assert job.max_instances == 1 and job.coalesce is True
+
+
+def test_scheduler_runs_immediately_on_startup():
+    before = datetime.now(timezone.utc)
+    job = create_scheduler().get_job(JOB_ID)
+    assert before <= job.next_run_time <= datetime.now(timezone.utc) + timedelta(seconds=1)
+
+
+async def test_disabled_sync_does_not_acquire_lock_or_fetch(monkeypatch):
+    monkeypatch.setattr(settings, "SYNC_EXECUTION_ENABLED", False, raising=False)
+    service = SyncService(AsyncMock())
+    service._acquire_lock = AsyncMock()
+    result = await service.execute_sync_with_lock(source_system="INTUNE")
+    assert result["status"] == "SKIPPED"
+    service._acquire_lock.assert_not_awaited()
 
 
 async def test_postgres_lock_is_transaction_scoped():

@@ -87,6 +87,7 @@ class Settings(BaseSettings):
 
     # Sync Engine & Schedulers
     SYNC_INTERVAL_SECONDS: int = 600
+    SYNC_EXECUTION_ENABLED: bool = True
     # Keep periodic ingestion enabled by default for the deployed VM. Set this
     # false only for local API development or read-only endpoint verification.
     SCHEDULER_ENABLED: bool = True

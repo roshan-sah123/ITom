@@ -1,6 +1,6 @@
 ---
 name: itom-telemetry-sync
-description: Verify and operate ITOM Microsoft Graph and SolarWinds SWIS ingestion into its configured SQLite or PostgreSQL CMDB.
+description: Design, verify, and operate ITOM Microsoft Graph and read-only SolarWinds SWIS connectors and ingestion into the configured CMDB.
 ---
 
 # ITOM Telemetry Sync
@@ -11,6 +11,7 @@ description: Verify and operate ITOM Microsoft Graph and SolarWinds SWIS ingesti
 - `app.services.sync_service.SyncService` normalizes and persists records into the database selected by `DATABASE_URL`.
 - The active portal and versioned APIs read the database-backed repositories and summaries.
 - When `SCHEDULER_ENABLED=True`, the FastAPI process runs APScheduler at `SYNC_INTERVAL_SECONDS` (default 600 seconds). Sync runs only while the app process is running.
+- Set `SYNC_EXECUTION_ENABLED=false` as well as `SCHEDULER_ENABLED=false` for an experimental API; the first blocks manual and service-level sync.
 - SQLite is the local VM default. PostgreSQL is used only when `DATABASE_URL` explicitly configures it.
 - GitHub Actions runs code checks only. Live telemetry sync belongs to the configured ITOM runtime, not an ephemeral GitHub-hosted runner.
 

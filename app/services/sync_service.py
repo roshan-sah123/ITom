@@ -523,6 +523,9 @@ class SyncService:
             ``SUCCESS`` if every source succeeded, ``PARTIAL`` if some did, and
             ``FAILED`` if none did.
         """
+        if not settings.SYNC_EXECUTION_ENABLED:
+            return {"status": "SKIPPED", "reason": "Synchronization is disabled", "sources": []}
+
         acquired = await self._acquire_lock()
         if not acquired:
             logger.info("Sync skipped: ingestion lock %s held by a peer worker.", self.ADVISORY_LOCK_ID)
