@@ -174,6 +174,8 @@ async def trigger_manual_sync(
     source_system: Literal["ALL", "SOLARWINDS", "INTUNE", "SPLUNK"] = Query("ALL"),
 ) -> Dict[str, Any]:
     """Manually trigger an asynchronous telemetry ingestion cycle."""
+    if not settings.SYNC_EXECUTION_ENABLED:
+        return JSONResponse(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, content={"error": "Synchronization is disabled"})
     background_tasks.add_task(run_manual_sync, source_system)
     return {
         "message": f"Telemetry synchronization for {source_system} initiated in background.",
