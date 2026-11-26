@@ -78,6 +78,8 @@ Summary values are computed from the database. An unavailable dataset can return
 
 The normal scheduler fetches live source data directly. `FixtureSource` is an explicit offline/test adapter, not the default ingestion path or an automatic outage fallback.
 
+The connector boundary rejects missing and duplicate canonical identities before a snapshot can authorize retirement. `SYNC_EXECUTION_ENABLED=false` blocks both manual and service-level sync; `SCHEDULER_ENABLED=false` separately disables scheduling. See [the execution ledger](PLATFORM_EXECUTION_LEDGER.md) for the isolated 8081 environment and release gates.
+
 ## Database
 
 CMDB means Configuration Management Database. A configuration item (CI) is a tracked asset such as a laptop, server, or switch.
